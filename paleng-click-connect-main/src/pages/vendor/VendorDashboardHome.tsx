@@ -15,6 +15,7 @@ const VendorDashboardHome = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-dashboard", user?.id],
     enabled: !!user,
+    refetchInterval: 5000,
     queryFn: async () => {
       const { data: vendor } = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
@@ -25,26 +26,20 @@ const VendorDashboardHome = () => {
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
 
-      // Calculate paid amounts per month
       const monthPaidMap: Record<number, number> = {};
-      (payments || []).filter(p => p.status === "completed" && p.period_year === currentYear).forEach(p => {
+      (payments || []).filter((p: any) => p.status === "completed" && p.period_year === currentYear).forEach((p: any) => {
         if (p.period_month) {
           monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
         }
       });
 
-      // Current month payment status
       const paidThisMonth = monthPaidMap[currentMonth] || 0;
       const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
       const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
 
-      // Find next unpaid month
       let nextUnpaidMonth = currentMonth;
       for (let m = 1; m <= 12; m++) {
-        if ((monthPaidMap[m] || 0) < monthlyRate) {
-          nextUnpaidMonth = m;
-          break;
-        }
+        if ((monthPaidMap[m] || 0) < monthlyRate) { nextUnpaidMonth = m; break; }
         if (m === 12) nextUnpaidMonth = 13;
       }
 
@@ -59,10 +54,10 @@ const VendorDashboardHome = () => {
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-  const stall = data?.stall;
-  const vendor = data?.vendor;
-  const profile = data?.profile;
-  const monthlyRate = data?.monthlyRate || 1450;
+  const stall    = data?.stall;
+  const vendor   = data?.vendor;
+  const profile  = data?.profile;
+  const monthlyRate  = data?.monthlyRate || 1450;
   const currentMonth = new Date().getMonth() + 1;
 
   return (
@@ -93,7 +88,7 @@ const VendorDashboardHome = () => {
               <span className="text-sm font-semibold text-accent">{MONTHS[currentMonth - 1]} — Unpaid</span>
               {(data?.paidThisMonth || 0) > 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  Partially paid: ₱{data?.paidThisMonth?.toLocaleString("en-PH", { minimumFractionDigits: 2 })} 
+                  Partially paid: ₱{data?.paidThisMonth?.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                   {" "}• Remaining: ₱{data?.remainingThisMonth?.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                 </p>
               ) : (
@@ -135,7 +130,9 @@ const VendorDashboardHome = () => {
 
         <motion.div whileHover={{ y: -2 }} className="rounded-2xl border bg-card p-6 shadow-civic flex flex-col items-center justify-center text-center">
           <div className="mb-4">
-            {vendor?.qr_code ? <QRCodeSVG value={vendor.qr_code} size={128} /> : <QrCode className="h-16 w-16 text-muted-foreground/50" />}
+            {vendor?.qr_code
+              ? <QRCodeSVG value={vendor.qr_code} size={128} />
+              : <QrCode className="h-16 w-16 text-muted-foreground/50" />}
           </div>
           <h3 className="font-semibold text-foreground">Your Stall QR Code</h3>
           <p className="mt-1 text-xs font-mono text-muted-foreground">{vendor?.qr_code}</p>
@@ -146,24 +143,41 @@ const VendorDashboardHome = () => {
       <div className="rounded-2xl border bg-card shadow-civic">
         <div className="flex items-center justify-between border-b p-4">
           <h3 className="font-semibold text-foreground">Recent Payments</h3>
-          <Link to="/vendor/history"><Button variant="ghost" size="sm" className="text-primary">View All</Button></Link>
+          <Link to="/vendor/history">
+            <Button variant="ghost" size="sm" className="text-primary">View All</Button>
+          </Link>
         </div>
         <div className="divide-y">
           {(data?.payments || []).map((p: any) => (
             <div key={p.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3">
-                {p.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-success" /> : <AlertCircle className="h-5 w-5 text-accent" />}
+                {p.status === "completed"
+                  ? <CheckCircle2 className="h-5 w-5 text-success" />
+                  : p.status === "pending"
+                  ? <Clock className="h-5 w-5 text-primary" />
+                  : <AlertCircle className="h-5 w-5 text-accent" />}
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : new Date(p.created_at).toLocaleDateString()}
+                    {p.period_month && p.period_year
+                      ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
+                      : new Date(p.created_at).toLocaleDateString()}
                   </p>
-                  <p className="text-xs text-muted-foreground capitalize">{p.payment_method} • {p.payment_type === "staggered" ? "Partial" : "Full"}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {p.payment_method} • {p.payment_type === "staggered" ? "Partial" : "Full"} • <span className={
+                      p.status === "completed" ? "text-success" :
+                      p.status === "pending"   ? "text-primary"  : "text-accent"
+                    }>{p.status}</span>
+                  </p>
                 </div>
               </div>
-              <p className="font-mono text-sm font-semibold text-foreground">₱{Number(p.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</p>
+              <p className="font-mono text-sm font-semibold text-foreground">
+                ₱{Number(p.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              </p>
             </div>
           ))}
-          {(data?.payments || []).length === 0 && <p className="px-4 py-8 text-center text-muted-foreground">No payments yet</p>}
+          {(data?.payments || []).length === 0 && (
+            <p className="px-4 py-8 text-center text-muted-foreground">No payments yet</p>
+          )}
         </div>
       </div>
     </div>

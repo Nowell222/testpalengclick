@@ -1,8 +1,9 @@
-import { CheckCircle2, AlertCircle, FileText, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const VendorHistory = () => {
   const { user } = useAuth();
@@ -10,6 +11,7 @@ const VendorHistory = () => {
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ["vendor-history", user?.id],
     enabled: !!user,
+    refetchInterval: 5000,
     queryFn: async () => {
       const { data: vendor } = await supabase.from("vendors").select("id").eq("user_id", user!.id).single();
       if (!vendor) return [];
@@ -31,8 +33,10 @@ const VendorHistory = () => {
           <thead>
             <tr className="border-b bg-secondary/50">
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Period</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Amount</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Method</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Reference</th>
             </tr>
@@ -40,19 +44,44 @@ const VendorHistory = () => {
           <tbody className="divide-y">
             {payments.map((p: any) => (
               <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
-                <td className="px-4 py-3 font-medium text-foreground">{new Date(p.created_at).toLocaleDateString()}</td>
-                <td className="px-4 py-3 font-mono font-semibold text-foreground">₱{Number(p.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  {new Date(p.created_at).toLocaleDateString("en-PH")}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {p.period_month && p.period_year
+                    ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
+                    : "—"}
+                </td>
+                <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                  ₱{Number(p.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                </td>
                 <td className="px-4 py-3 text-muted-foreground capitalize">{p.payment_method}</td>
+                <td className="px-4 py-3 text-muted-foreground capitalize">
+                  {p.payment_type === "staggered" ? "Partial" : "Full"}
+                </td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 text-xs font-semibold capitalize ${p.status === "completed" ? "text-success" : "text-accent"}`}>
-                    {p.status === "completed" ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold capitalize ${
+                    p.status === "completed" ? "text-success" :
+                    p.status === "pending"   ? "text-primary"  : "text-accent"
+                  }`}>
+                    {p.status === "completed"
+                      ? <CheckCircle2 className="h-3 w-3" />
+                      : <AlertCircle className="h-3 w-3" />}
                     {p.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.reference_number}</td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {p.reference_number || "—"}
+                </td>
               </tr>
             ))}
-            {payments.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No payments yet</td></tr>}
+            {payments.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  No payments yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
