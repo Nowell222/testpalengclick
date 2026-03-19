@@ -56,8 +56,8 @@ serve(async (req) => {
             type,
             description: description || "Paleng-Click stall fee",
             redirect: {
-              success: redirect?.success || "https://palengclick.vercel.app/vendor/pay?status=success",
-              failed:  redirect?.failed  || "https://palengclick.vercel.app/vendor/pay?status=failed",
+              success: "https://testpalengclick.vercel.app/vendor/pay?status=success",
+              failed:  "https://testpalengclick.vercel.app/vendor/pay?status=failed",
             },
             metadata: {
               payment_db_id,
