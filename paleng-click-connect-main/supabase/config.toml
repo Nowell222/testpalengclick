@@ -1,0 +1,13 @@
+project_id = "pkeijxgwxbtxoxnxbqnj"
+
+[functions.seed-admin]
+verify_jwt = false
+
+[functions.create-user]
+verify_jwt = false
+
+[functions.create-paymongo-source]
+verify_jwt = true
+
+[functions.paymongo-webhook]
+verify_jwt = false
