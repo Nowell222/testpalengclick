@@ -182,6 +182,42 @@ const VendorPayOnline = () => {
 
   const pollPaymentStatus = (paymentDbId: string) => {
     setPollingActive(true);
+
+    // Use Supabase realtime channel instead of interval polling
+    const channel = supabase
+      .channel(`payment-${paymentDbId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "payments",
+          filter: `id=eq.${paymentDbId}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          if (updated.status === "completed") {
+            channel.unsubscribe();
+            setPollingActive(false);
+            setShowQR(false);
+            setRefNumber(updated.reference_number || "");
+            setConfirmed(true);
+            queryClient.invalidateQueries({ queryKey: ["vendor-pay-info"] });
+            queryClient.invalidateQueries({ queryKey: ["vendor-dashboard"] });
+            queryClient.invalidateQueries({ queryKey: ["vendor-history"] });
+            queryClient.invalidateQueries({ queryKey: ["vendor-statement"] });
+            toast.success("Payment confirmed!");
+          } else if (updated.status === "failed") {
+            channel.unsubscribe();
+            setPollingActive(false);
+            setShowQR(false);
+            toast.error("Payment failed. Please try again.");
+          }
+        }
+      )
+      .subscribe();
+
+    // Fallback interval poll every 4 seconds in case realtime misses it
     const interval = setInterval(async () => {
       const { data: payment } = await supabase
         .from("payments")
@@ -191,6 +227,7 @@ const VendorPayOnline = () => {
 
       if (payment?.status === "completed") {
         clearInterval(interval);
+        channel.unsubscribe();
         setPollingActive(false);
         setShowQR(false);
         setRefNumber(payment.reference_number || "");
@@ -202,15 +239,17 @@ const VendorPayOnline = () => {
         toast.success("Payment confirmed!");
       } else if (payment?.status === "failed") {
         clearInterval(interval);
+        channel.unsubscribe();
         setPollingActive(false);
         setShowQR(false);
         toast.error("Payment failed. Please try again.");
       }
-    }, 3000); // poll every 3 seconds
+    }, 4000);
 
-    // Stop polling after 10 minutes
+    // Stop after 10 minutes
     setTimeout(() => {
       clearInterval(interval);
+      channel.unsubscribe();
       setPollingActive(false);
     }, 10 * 60 * 1000);
   };
