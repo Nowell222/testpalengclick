@@ -181,7 +181,6 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
         processed_by:   user?.id,
         period_month:   periodMonth,
         period_year:    periodYear,
-        notes:          note || null,
       } as any).select("reference_number, receipt_number").single();
       if (error) throw error;
 
