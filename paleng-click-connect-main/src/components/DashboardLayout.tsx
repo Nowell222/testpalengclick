@@ -62,12 +62,12 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   const displayName = profile ? `${profile.first_name} ${profile.last_name}` : roleLabels[role];
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r bg-card transition-transform duration-200 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r bg-card transition-transform duration-200 lg:sticky lg:top-0 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex h-14 items-center justify-between border-b px-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -111,7 +111,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur-sm px-4">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-muted-foreground hover:text-foreground">
             <Menu className="h-5 w-5" />
@@ -119,7 +119,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           <div className="flex-1" />
           <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground capitalize">{role}</span>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 h-full">
           <Outlet />
         </main>
       </div>
@@ -128,4 +128,3 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
 };
 
 export default DashboardLayout;
-
