@@ -470,7 +470,7 @@ const CashierSOA = () => {
                             <td className="px-4 py-2.5 text-center">
                               {r.isAdvance ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                                  ★ Advance
+                                  Advance
                                 </span>
                               ) : r.isFully ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">

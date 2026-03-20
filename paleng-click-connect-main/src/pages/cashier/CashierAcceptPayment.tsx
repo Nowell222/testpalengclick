@@ -594,11 +594,35 @@ Your payment is now complete. Thank you!`,
   });
 
   const rejectPayment = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payments").update({ status: "failed" }).eq("id", id);
+    mutationFn: async (p: any) => {
+      const { error } = await supabase.from("payments").update({ status: "failed" }).eq("id", p.id);
       if (error) throw error;
+      // Resolve vendor user_id for notification
+      const { data: vendorRow } = await supabase.from("vendors").select("user_id").eq("id", p.vendor_id).single();
+      const recipientUserId = vendorRow?.user_id;
+      const cn = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
+      if (recipientUserId) {
+        await supabase.from("notifications").insert({
+          user_id: recipientUserId,
+          title:   "❌ Payment Rejected",
+          message: `Your ${METHOD_CONFIG[p.payment_method]?.label || p.payment_method} payment has been rejected by the cashier.
+
+Payment Details:
+• Vendor: ${p.vendor_name}
+• Stall: ${p.stall} — ${p.section}
+• Amount: ${fmt(Number(p.amount))}
+• Billing Period: ${p.period_month ? MONTHS_FULL[p.period_month-1] : "—"} ${p.period_year || ""}
+• Payment Method: ${METHOD_CONFIG[p.payment_method]?.label || p.payment_method}
+• Reference No.: ${p.reference_number || "—"}
+• Rejected by: ${cn}
+• Date & Time: ${new Date().toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+
+Please contact the cashier or try paying again through another method.`,
+          type: "overdue" as any,
+        });
+      }
     },
-    onSuccess: () => { toast.success("Payment rejected"); refetchPending(); },
+    onSuccess: () => { toast.success("Payment rejected — vendor notified."); refetchPending(); queryClient.invalidateQueries({ queryKey: ["cashier-dashboard"] }); },
     onError:   () => toast.error("Failed to reject"),
   });
 
@@ -769,7 +793,7 @@ Please keep your receipt as proof of payment. Thank you!`,
                               <Button size="sm" variant="outline"
                                 className="h-7 text-xs text-accent border-accent/30 hover:bg-accent/10 rounded-lg gap-1"
                                 disabled={rejectPayment.isPending}
-                                onClick={() => rejectPayment.mutate(p.id)}>
+                                onClick={() => rejectPayment.mutate(p)}>
                                 <X className="h-3 w-3"/>Reject
                               </Button>
                             </div>

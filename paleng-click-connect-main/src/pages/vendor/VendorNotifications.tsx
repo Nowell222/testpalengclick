@@ -77,14 +77,11 @@ ${rows}
 
 // ─── Receipt Modal ─────────────────────────────────────────────────────────────
 const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: () => void }) => {
-  const details = parseReceiptFromMessage(notification.message);
+  const details    = parseReceiptFromMessage(notification.message);
   if (!details) return null;
 
-  const amount = details["Amount Paid"] || details["Amount"] || "—";
-
-  // Separate header fields from detail rows
-  const headerFields = ["Vendor", "Stall"];
-  const detailFields = Object.entries(details).filter(([k]) => !headerFields.includes(k) && k !== "Amount Paid" && k !== "Amount");
+  const isRejection = notification.title?.includes("Rejected") || notification.title?.includes("❌");
+  const amount      = details["Amount Paid"] || details["Amount"] || "—";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -93,14 +90,22 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
       <div className="bg-card rounded-2xl border shadow-xl w-full max-w-sm overflow-hidden"
         onClick={e => e.stopPropagation()}>
 
-        {/* Receipt document */}
-        <div className="bg-foreground text-background text-center px-5 py-4 space-y-0.5">
-          <p className="text-[9px] tracking-[3px] uppercase opacity-50">Republic of the Philippines</p>
-          <p className="text-xs font-bold">Municipality of San Juan, Batangas</p>
-          <p className="text-[9px] opacity-40">Office of the Municipal Treasurer</p>
-          <p className="text-lg font-bold tracking-widest mt-1">OFFICIAL RECEIPT</p>
-          <p className="text-[9px] opacity-40">Public Market Stall Rental</p>
-        </div>
+        {/* Header — red for rejection, dark for receipt */}
+        {isRejection ? (
+          <div className="bg-accent text-white text-center px-5 py-4 space-y-0.5">
+            <p className="text-[9px] tracking-[3px] uppercase opacity-70">Municipality of San Juan, Batangas</p>
+            <p className="text-lg font-bold tracking-widest mt-1">❌ PAYMENT REJECTED</p>
+            <p className="text-[9px] opacity-70">Public Market Stall Rental</p>
+          </div>
+        ) : (
+          <div className="bg-foreground text-background text-center px-5 py-4 space-y-0.5">
+            <p className="text-[9px] tracking-[3px] uppercase opacity-50">Republic of the Philippines</p>
+            <p className="text-xs font-bold">Municipality of San Juan, Batangas</p>
+            <p className="text-[9px] opacity-40">Office of the Municipal Treasurer</p>
+            <p className="text-lg font-bold tracking-widest mt-1">OFFICIAL RECEIPT</p>
+            <p className="text-[9px] opacity-40">Public Market Stall Rental</p>
+          </div>
+        )}
 
         {/* Details */}
         <div className="divide-y">
@@ -111,16 +116,30 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
                 <span className="text-xs text-muted-foreground shrink-0">{key}</span>
                 <span className={`text-xs font-semibold text-foreground text-right ml-3 ${
                   key.includes("No.") || key.includes("Ref") ? "font-mono" : ""
-                }`}>{value}</span>
+                }`}>{value as string}</span>
               </div>
             ))}
         </div>
 
-        {/* Amount */}
-        <div className="mx-4 my-3 rounded-xl border-2 border-success/30 bg-success/5 py-4 text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Amount Paid</p>
-          <p className="font-mono text-3xl font-bold text-success">{amount}</p>
-        </div>
+        {/* Amount box */}
+        {isRejection ? (
+          <div className="mx-4 my-3 rounded-xl border-2 border-accent/30 bg-accent/5 py-4 text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Rejected Amount</p>
+            <p className="font-mono text-3xl font-bold text-accent">{amount}</p>
+            <p className="text-xs text-accent/70 mt-1">This payment was not processed</p>
+          </div>
+        ) : (
+          <div className="mx-4 my-3 rounded-xl border-2 border-success/30 bg-success/5 py-4 text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Amount Paid</p>
+            <p className="font-mono text-3xl font-bold text-success">{amount}</p>
+          </div>
+        )}
+
+        {isRejection && (
+          <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Please contact the cashier or try paying again through another method.
+          </div>
+        )}
 
         <p className="text-center text-[9px] text-muted-foreground/50 border-t px-4 py-2">
           PALENG-CLICK · {new Date(notification.created_at).toLocaleString("en-PH")}
@@ -128,12 +147,14 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
 
         {/* Actions */}
         <div className="flex gap-3 p-4 border-t">
-          <Button variant="hero" className="flex-1 gap-2 rounded-xl"
-            onClick={() => printReceipt(notification.title, details, amount)}>
-            <Printer className="h-4 w-4" /> Print Receipt
-          </Button>
-          <Button variant="outline" size="icon" className="rounded-xl shrink-0" onClick={onClose}>
-            <X className="h-4 w-4" />
+          {!isRejection && (
+            <Button variant="hero" className="flex-1 gap-2 rounded-xl"
+              onClick={() => printReceipt(notification.title, details, amount)}>
+              <Printer className="h-4 w-4" /> Print Receipt
+            </Button>
+          )}
+          <Button variant="outline" className={`gap-2 rounded-xl ${isRejection ? "flex-1" : ""}`} onClick={onClose}>
+            <X className="h-4 w-4" /> Close
           </Button>
         </div>
       </div>
@@ -167,8 +188,9 @@ const VendorNotifications = () => {
 
   const handleClick = (n: any) => {
     if (!n.read_status) markRead.mutate(n.id);
-    // Only open receipt modal for confirmation type with parseable details
-    if (n.type === "confirmation" && parseReceiptFromMessage(n.message)) {
+    // Open detail modal for confirmation OR rejection notifications that have parseable details
+    const isRejection = n.title?.includes("Rejected") || n.title?.includes("❌");
+    if ((n.type === "confirmation" || isRejection) && parseReceiptFromMessage(n.message)) {
       setSelected(n);
     }
   };
@@ -197,11 +219,14 @@ const VendorNotifications = () => {
         )}
       </div>
 
-      {/* Hint for confirmation notifications */}
-      {notifications.some((n: any) => n.type === "confirmation" && parseReceiptFromMessage(n.message)) && (
+      {/* Hint for tappable notifications */}
+      {notifications.some((n: any) => {
+        const isRej = n.title?.includes("Rejected") || n.title?.includes("❌");
+        return (n.type === "confirmation" || isRej) && parseReceiptFromMessage(n.message);
+      }) && (
         <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          Tap any payment confirmation to view and print the receipt.
+          Tap any payment notification to view details.
         </div>
       )}
 
@@ -209,7 +234,8 @@ const VendorNotifications = () => {
         {notifications.map((n: any) => {
           const Icon        = TYPE_ICON[n.type]  || Bell;
           const styleClass  = TYPE_STYLE[n.type] || TYPE_STYLE.info;
-          const hasReceipt  = n.type === "confirmation" && !!parseReceiptFromMessage(n.message);
+          const isRejection = n.title?.includes("Rejected") || n.title?.includes("❌");
+          const hasReceipt  = (n.type === "confirmation" || isRejection) && !!parseReceiptFromMessage(n.message);
 
           return (
             <div key={n.id}
@@ -234,9 +260,9 @@ const VendorNotifications = () => {
                     {n.message?.split("\n")[0]}
                   </p>
                   {hasReceipt && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-primary font-medium">
+                    <div className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${isRejection ? "text-accent" : "text-primary"}`}>
                       <CreditCard className="h-3 w-3" />
-                      Tap to view receipt
+                      {isRejection ? "Tap to view rejection details" : "Tap to view receipt"}
                     </div>
                   )}
                   {!n.read_status && (
