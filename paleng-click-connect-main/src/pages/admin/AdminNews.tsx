@@ -269,18 +269,28 @@ const AdminNews = () => {
         .eq("status", "completed")
         .eq("period_year", yr);
 
-      const pm: Record<number,number> = {};
+      // ── Raw paid map ───────────────────────────────────────────────────────
+      const rawPm: Record<number,number> = {};
       (pmts||[]).forEach((p:any) => {
-        if(p.period_month) pm[p.period_month] = (pm[p.period_month]||0) + Number(p.amount);
+        if(p.period_month) rawPm[p.period_month] = (rawPm[p.period_month]||0) + Number(p.amount);
       });
 
-      const totalPaid = Object.values(pm).reduce((s,v)=>s+v, 0);
+      // ── Cascade excess payments forward (same logic as VendorStatement) ──
+      const effMap: Record<number,number> = {};
+      let carry = 0;
+      for (let m = 1; m <= 12; m++) {
+        const credited = (rawPm[m] || 0) + carry;
+        effMap[m] = credited;
+        carry = Math.max(0, credited - rate);
+      }
+
+      const totalPaid = Object.values(rawPm).reduce((s,v)=>s+v, 0);
       const totalOut  = MF.reduce((sum,_,i)=>{
         const m=i+1; if(m>cm) return sum;
-        return sum + Math.max(0, rate-(pm[m]||0));
+        return sum + Math.max(0, rate - (effMap[m]||0));
       }, 0);
 
-      // Store as JSON so the chat renderer can display it as a card
+      // ── Build rows with correct display values ──────────────────────────
       const soaData = {
         __soa: true,
         year: yr,
@@ -290,8 +300,23 @@ const AdminNews = () => {
         vendorName: activeThread.vendor_name,
         rate,
         rows: MF.map((month,i)=>{
-          const m=i+1, paid=pm[m]||0, bal=Math.max(0,rate-paid);
-          return { month, label: month, paid, balance: bal, isFully: paid>=rate, isPartial: paid>0&&paid<rate, isFuture: m>cm&&paid===0 };
+          const m         = i+1;
+          const credited  = effMap[m] || 0;
+          const displayPaid = Math.min(credited, rate);  // cap at rate for display
+          const balance   = Math.max(0, rate - credited);
+          const isAdvance = m > cm && credited >= rate;  // advance = future month covered
+          const isFully   = credited >= rate && !isAdvance;
+          const isPartial = credited > 0 && credited < rate && m <= cm;
+          const isFuture  = m > cm && credited < rate;
+          return {
+            month, label: month,
+            paid:      displayPaid,
+            balance,
+            isFully,
+            isPartial,
+            isAdvance,
+            isFuture,
+          };
         }),
         totalPaid,
         totalOut,
@@ -317,11 +342,11 @@ const AdminNews = () => {
       const currentMonthName = ["January","February","March","April","May","June","July","August","September","October","November","December"][new Date().getMonth()];
       const overdueMonths = MF.slice(0, cm).filter((_,i) => {
         const m = i + 1;
-        return (pm[m] || 0) < rate;
+        return (effMap[m] || 0) < rate;
       });
       const partialMonths = MF.slice(0, cm).filter((_,i) => {
         const m = i + 1;
-        const paid = pm[m] || 0;
+        const paid = effMap[m] || 0;
         return paid > 0 && paid < rate;
       });
 
@@ -723,12 +748,13 @@ Thank you for your cooperation.`;
                                             : <span className="text-muted-foreground">—</span>}
                                         </td>
                                         <td className="py-1 text-right font-mono font-semibold">
-                                          {r.isFully
+                                          {(r.isFully||r.isAdvance)
                                             ? <span className="text-muted-foreground">—</span>
                                             : <span className={r.isFuture?"text-muted-foreground":"text-accent"}>₱{r.balance.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>}
                                         </td>
                                         <td className="py-1 text-center">
-                                          {r.isFully   ? <span className="text-success font-semibold">✓ Paid</span>
+                                          {r.isAdvance  ? <span className="text-blue-600 font-semibold">★ Advance</span>
+                                          :r.isFully    ? <span className="text-success font-semibold">✓ Paid</span>
                                           :r.isPartial  ? <span className="text-primary font-semibold">Partial</span>
                                           :r.isFuture   ? <span className="text-muted-foreground">—</span>
                                           :<span className="text-accent font-semibold">Unpaid</span>}
