@@ -85,7 +85,7 @@ const doPrint = (d: any) => {
 
 // ─── Receipt Card component (shared across all tabs) ──────────────────────────
 const ReceiptCard = ({ data, onNew }: { data: any; onNew: () => void }) => (
-  <div className="space-y-5">
+  <div className="max-w-sm mx-auto space-y-4">
     {/* Success header */}
     <div className="flex flex-col items-center text-center py-4 gap-2">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
