@@ -17,6 +17,7 @@ import AdminQRCodes from "./pages/admin/AdminQRCodes";
 import AdminSMS from "./pages/admin/AdminSMS";
 import AdminNews from "./pages/admin/AdminNews";
 import AdminReports from "./pages/admin/AdminReports";
+import AdminFeeSchedules from "./pages/admin/AdminFeeSchedules";
 
 import VendorDashboardHome from "./pages/vendor/VendorDashboardHome";
 import VendorPayOnline from "./pages/vendor/VendorPayOnline";
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="sms" element={<AdminSMS />} />
               <Route path="news" element={<AdminNews />} />
               <Route path="reports" element={<AdminReports />} />
+              <Route path="fee-schedules" element={<AdminFeeSchedules />} />
             </Route>
 
             {/* Vendor routes */}

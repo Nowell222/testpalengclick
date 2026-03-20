@@ -99,10 +99,14 @@ const VendorStatement = () => {
     enabled: !!user,
     refetchInterval: 5000,
     queryFn: async () => {
-      const { data: vendor }  = await supabase.from("vendors").select("id, stalls(stall_number, section, monthly_rate, location)").eq("user_id", user!.id).single();
+      const { data: vendor }  = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, location)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
-      const { data: payments } = await supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true });
-      return { vendor, profile, payments: payments || [], stall: vendor?.stalls as any };
+      const currentYear = new Date().getFullYear();
+      const [paymentsRes, schedulesRes] = await Promise.all([
+        supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true }),
+        vendor?.stall_id ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall_id).eq("year", currentYear) : Promise.resolve({ data: [] }),
+      ]);
+      return { vendor, profile, payments: paymentsRes.data || [], stall: vendor?.stalls as any, schedules: schedulesRes.data || [] };
     },
   });
 
@@ -115,7 +119,14 @@ const VendorStatement = () => {
   const stall       = data?.stall;
   const profile     = data?.profile;
   const payments    = data?.payments || [];
-  const monthlyRate = stall?.monthly_rate || 1450;
+  const schedules   = data?.schedules || [];
+  const defaultRate = stall?.monthly_rate || 1450;
+  // Get fee for a specific month (uses schedule if set, otherwise default)
+  const getMonthFee = (month: number) => {
+    const s = schedules.find((s: any) => s.month === month);
+    return s ? Number(s.amount) : defaultRate;
+  };
+  const monthlyRate = defaultRate; // kept for compatibility
   const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -128,27 +139,28 @@ const VendorStatement = () => {
   const totalOutstanding = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, monthlyRate - (monthPaidMap[m] || 0));
+    return sum + Math.max(0, getMonthFee(m) - (monthPaidMap[m] || 0));
   }, 0);
   const monthsPaid = Object.entries(monthPaidMap).filter(([, v]) => v >= monthlyRate).length;
 
   const rows = MONTHS.map((month, i) => {
-    const m       = i + 1;
-    const paid    = monthPaidMap[m] || 0;
-    const balance = Math.max(0, monthlyRate - paid);
+    const m    = i + 1;
+    const due  = getMonthFee(m);
+    const paid = monthPaidMap[m] || 0;
+    const balance = Math.max(0, due - paid);
     return {
       month,
       monthNum:  m,
-      due:       monthlyRate,
+      due,
       paid,
       balance,
-      isFully:   paid >= monthlyRate,
-      isPartial: paid > 0 && paid < monthlyRate,
+      isFully:   paid >= due,
+      isPartial: paid > 0 && paid < due,
       isFuture:  m > currentMonth && paid === 0,
     };
   });
 
-  const printData = { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate };
+  const printData = { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate: defaultRate };
 
   const doPrint = () => {
     const frame = printRef.current;

@@ -34,7 +34,7 @@ const emptyForm = {
   email: "", password: "", role: "vendor" as "vendor" | "cashier",
   first_name: "", middle_name: "", last_name: "",
   address: "", contact_number: "",
-  stall_number: "", section: "General", location: "",
+  stall_number: "", section: "General", location: "", monthly_rate: "1450",
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -145,6 +145,7 @@ const AdminUserManagement = () => {
           stall_number:   form.stall_number.trim(),
           section:        form.section,
           location:       form.location.trim(),
+          monthly_rate:   Number(form.monthly_rate) || 1450,
         },
       });
       if (res.error)       throw new Error(res.error.message);
@@ -385,6 +386,18 @@ const AdminUserManagement = () => {
                       <Label>Location / Remarks</Label>
                       <Input placeholder="e.g. Near entrance" className="h-11 rounded-xl"
                         value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                    </div>
+
+                    {/* Monthly Rate */}
+                    <div className="space-y-1.5">
+                      <Label>Monthly Fee (₱) <span className="text-accent">*</span></Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                        <Input type="number" placeholder="1450" className="h-11 rounded-xl pl-7 font-mono"
+                          value={form.monthly_rate}
+                          onChange={e => setForm(f => ({ ...f, monthly_rate: e.target.value }))} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Default monthly stall fee. Can be customized per-month in Fee Schedules.</p>
                     </div>
                   </div>
 
