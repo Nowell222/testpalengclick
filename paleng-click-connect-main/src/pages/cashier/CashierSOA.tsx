@@ -14,41 +14,65 @@ const MONTHS = [
   "July","August","September","October","November","December",
 ];
 
-// ─── Helper: build SOA data for one vendor ────────────────────────────────────
+// ─── Helper: build SOA data for one vendor (with cascade overpayment) ─────────
 const buildSOA = (vendor: any, profile: any, payments: any[]) => {
-  const stall       = vendor.stalls as any;
-  const monthlyRate = stall?.monthly_rate || 1450;
-  const currentYear = new Date().getFullYear();
+  const stall        = vendor.stalls as any;
+  const monthlyRate  = stall?.monthly_rate || 1450;
+  const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  const monthPaidMap: Record<number, number> = {};
+  // ── STEP 1: Raw paid map from DB ─────────────────────────────────────────
+  const rawPaidMap: Record<number, number> = {};
   (payments || [])
     .filter((p: any) => p.status === "completed" && p.period_year === currentYear)
     .forEach((p: any) => {
       if (p.period_month)
-        monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+        rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
     });
 
-  const totalPaid = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
+  // ── STEP 2: Cascade excess payments forward month by month ───────────────
+  // Overpayment in one month rolls forward to cover the next month.
+  // e.g. fee ₱550/mo, vendor pays ₱1,500 in Jan:
+  //   Jan → ₱550 paid (full), ₱950 carry
+  //   Feb → ₱550 paid (full), ₱400 carry
+  //   Mar → ₱400 paid (partial, ₱150 balance)
+  const effMap: Record<number, number> = {};
+  let carry = 0;
+  for (let m = 1; m <= 12; m++) {
+    const credited = (rawPaidMap[m] || 0) + carry;
+    effMap[m]      = credited;
+    carry          = Math.max(0, credited - monthlyRate);
+  }
+
+  // ── STEP 3: Summary totals ───────────────────────────────────────────────
+  const totalPaid = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
+
   const totalOutstanding = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, monthlyRate - (monthPaidMap[m] || 0));
+    return sum + Math.max(0, monthlyRate - (effMap[m] || 0));
   }, 0);
 
+  // ── STEP 4: Build rows with correct display values ───────────────────────
   const rows = MONTHS.map((name, i) => {
-    const m       = i + 1;
-    const paid    = monthPaidMap[m] || 0;
-    const balance = Math.max(0, monthlyRate - paid);
+    const m           = i + 1;
+    const credited    = effMap[m] || 0;
+    const displayPaid = Math.min(credited, monthlyRate); // cap at rate for display
+    const balance     = Math.max(0, monthlyRate - credited);
+    const isAdvance   = m > currentMonth && credited >= monthlyRate; // future month covered
+    const isFully     = credited >= monthlyRate && !isAdvance;       // past/current fully paid
+    const isPartial   = credited > 0 && credited < monthlyRate && m <= currentMonth;
+    const isFuture    = m > currentMonth && credited < monthlyRate;
     return {
       month:    name,
       monthNum: m,
       due:      monthlyRate,
-      paid,
+      paid:     displayPaid,
       balance,
-      isFully:  paid >= monthlyRate,
-      isPartial: paid > 0 && paid < monthlyRate,
-      isFuture: m > currentMonth && paid === 0,
+      isFully,
+      isPartial,
+      isAdvance,
+      isFuture,
     };
   });
 
@@ -73,11 +97,11 @@ const getPrintHTML = (soa: any) => {
       <td>${r.month} ${soa.currentYear}</td>
       <td class="num">₱${r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
       <td class="num">${r.paid > 0 ? `₱${r.paid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—"}</td>
-      <td class="num ${r.balance > 0 && !r.isFuture ? "bal" : ""}">
-        ${r.isFully ? "—" : `₱${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
+      <td class="num ${r.balance > 0 && !r.isFuture && !r.isAdvance ? "bal" : ""}">
+        ${(r.isFully || r.isAdvance) ? "—" : `₱${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
       </td>
-      <td class="status ${r.isFully ? "paid" : r.isPartial ? "partial" : r.isFuture ? "future-s" : "unpaid"}">
-        ${r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+      <td class="status ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "partial" : r.isFuture ? "future-s" : "unpaid"}">
+        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -110,6 +134,7 @@ const getPrintHTML = (soa: any) => {
     td.paid { color: #27ae60; }
     td.partial { color: #2980b9; }
     td.unpaid { color: #c0392b; }
+    td.advance { color: #1a56db; }
     td.future-s { color: #888; }
     .totals { border-top: 2px solid #1a1a1a; padding-top: 12px; margin-top: 4px; }
     .totals-row { display: flex; justify-content: space-between; padding: 4px 10px; font-size: 12px; }
@@ -261,7 +286,7 @@ const CashierSOA = () => {
   const handlePrint = () => {
     if (!selected) return;
     setPrinting(true);
-    const html = getPrintHTML(selected);
+    const html  = getPrintHTML(selected);
     const frame = printFrameRef.current;
     if (!frame) return;
     frame.srcdoc = html;
@@ -278,7 +303,7 @@ const CashierSOA = () => {
     if (!selected) return;
     setPrinting(true);
     toast.info("In the print dialog, choose 'Save as PDF' as the destination.");
-    const html = getPrintHTML(selected);
+    const html  = getPrintHTML(selected);
     const frame = printFrameRef.current;
     if (!frame) return;
     frame.srcdoc = html;
@@ -366,28 +391,15 @@ const CashierSOA = () => {
                   <p className="text-sm text-muted-foreground">Stall {selected.stall?.stall_number} · {selected.stall?.section}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="gap-2 rounded-xl"
-                    onClick={handlePrint}
-                    disabled={printing}
-                  >
+                  <Button variant="outline" className="gap-2 rounded-xl" onClick={handlePrint} disabled={printing}>
                     {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                     Print
                   </Button>
-                  <Button
-                    variant="hero"
-                    className="gap-2 rounded-xl"
-                    onClick={handleSavePDF}
-                    disabled={printing}
-                  >
+                  <Button variant="hero" className="gap-2 rounded-xl" onClick={handleSavePDF} disabled={printing}>
                     <Download className="h-4 w-4" />
                     Save as PDF
                   </Button>
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="rounded-xl p-2 hover:bg-secondary transition-colors"
-                  >
+                  <button onClick={() => setSelected(null)} className="rounded-xl p-2 hover:bg-secondary transition-colors">
                     <X className="h-4 w-4 text-muted-foreground" />
                   </button>
                 </div>
@@ -408,12 +420,12 @@ const CashierSOA = () => {
                   {/* Vendor info grid */}
                   <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm rounded-xl bg-secondary/40 p-4 sm:grid-cols-3">
                     {[
-                      { label: "Vendor Name",   value: `${selected.profile?.first_name} ${selected.profile?.last_name}` },
-                      { label: "Stall Number",  value: selected.stall?.stall_number || "—" },
-                      { label: "Section",       value: selected.stall?.section || "General" },
-                      { label: "Location",      value: selected.stall?.location || "—" },
-                      { label: "Monthly Rate",  value: `₱${Number(selected.monthlyRate).toLocaleString("en-PH", { minimumFractionDigits: 2 })}` },
-                      { label: "Date Printed",  value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },
+                      { label: "Vendor Name",  value: `${selected.profile?.first_name} ${selected.profile?.last_name}` },
+                      { label: "Stall Number", value: selected.stall?.stall_number || "—" },
+                      { label: "Section",      value: selected.stall?.section || "General" },
+                      { label: "Location",     value: selected.stall?.location || "—" },
+                      { label: "Monthly Rate", value: `₱${Number(selected.monthlyRate).toLocaleString("en-PH", { minimumFractionDigits: 2 })}` },
+                      { label: "Date Printed", value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
@@ -449,14 +461,18 @@ const CashierSOA = () => {
                                 : <span className="text-muted-foreground">—</span>}
                             </td>
                             <td className="px-4 py-2.5 text-right font-mono font-semibold">
-                              {r.isFully
+                              {(r.isFully || r.isAdvance)
                                 ? <span className="text-muted-foreground">—</span>
                                 : <span className={r.isFuture ? "text-muted-foreground" : "text-accent"}>
                                     ₱{r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                                   </span>}
                             </td>
                             <td className="px-4 py-2.5 text-center">
-                              {r.isFully ? (
+                              {r.isAdvance ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                  ★ Advance
+                                </span>
+                              ) : r.isFully ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
                                   <CheckCircle2 className="h-3 w-3" /> Paid
                                 </span>
@@ -498,7 +514,7 @@ const CashierSOA = () => {
                   <div className="grid grid-cols-3 gap-6 pt-4">
                     {[
                       { name: `${selected.profile?.first_name} ${selected.profile?.last_name}`, role: "Vendor / Lessee" },
-                      { name: "Cashier",            role: "Prepared by" },
+                      { name: "Cashier",             role: "Prepared by" },
                       { name: "Municipal Treasurer", role: "Noted by" },
                     ].map(s => (
                       <div key={s.role} className="text-center">
