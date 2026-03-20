@@ -313,9 +313,85 @@ const AdminNews = () => {
         message: `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
         type: "overdue" as any,
       });
+      // ── Auto follow-up message based on payment status ──────────────────
+      const currentMonthName = ["January","February","March","April","May","June","July","August","September","October","November","December"][new Date().getMonth()];
+      const overdueMonths = MF.slice(0, cm).filter((_,i) => {
+        const m = i + 1;
+        return (pm[m] || 0) < rate;
+      });
+      const partialMonths = MF.slice(0, cm).filter((_,i) => {
+        const m = i + 1;
+        const paid = pm[m] || 0;
+        return paid > 0 && paid < rate;
+      });
+
+      let autoMsg = "";
+      let autoType: "message" | "penalty" | "reminder" = "message";
+
+      if (totalOut === 0) {
+        // All paid
+        autoMsg = `✅ Good news! Your Statement of Account for ${soa.year} shows that all stall fees are fully settled. Thank you for your prompt payments, ${activeThread.vendor_name}! Your cooperation is greatly appreciated by the Municipal Treasurer's Office.`;
+        autoType = "message";
+      } else if (overdueMonths.length >= 3) {
+        // 3 or more months unpaid — penalty warning
+        const monthList = overdueMonths.slice(0, 5).join(", ");
+        autoMsg = `⚠️ PENALTY NOTICE
+
+Dear ${activeThread.vendor_name},
+
+Our records show that your stall fee payments for the following month(s) are OVERDUE:
+📌 ${monthList}
+
+Total Outstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}
+
+As per market regulations, delayed payments are subject to penalty charges. You are hereby required to settle your outstanding balance immediately to avoid further penalties and possible stall suspension.
+
+Please visit the Municipal Treasurer's Office or pay online through the PALENG-CLICK system.
+
+Thank you.`;
+        autoType = "penalty";
+      } else if (partialMonths.length > 0 || overdueMonths.length > 0) {
+        // Has some unpaid or partial
+        const dueList = overdueMonths.slice(0, 3).join(", ");
+        autoMsg = `🔔 PAYMENT REMINDER
+
+Dear ${activeThread.vendor_name},
+
+This is a friendly reminder that your stall fee for ${dueList || currentMonthName} has not been fully settled yet.
+
+Outstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}
+
+Please settle your balance at your earliest convenience either by visiting the cashier or paying online through the PALENG-CLICK app.
+
+Thank you for your cooperation.`;
+        autoType = "reminder";
+      }
+
+      if (autoMsg) {
+        // Small delay so SOA card appears first
+        await new Promise(r => setTimeout(r, 800));
+        await (supabase.from("messages") as any).insert({
+          thread_id: activeThread.id,
+          sender_id: user!.id,
+          recipient_id: activeThread.vendor_id,
+          body: autoMsg,
+          type: autoType,
+        });
+        await (supabase.from("message_threads") as any)
+          .update({ last_message: autoMsg.slice(0, 60) + "...", last_at: new Date().toISOString() })
+          .eq("id", activeThread.id);
+        // Update notification to include the auto message summary
+        await supabase.from("notifications").insert({
+          user_id: activeThread.vendor_id,
+          title: autoType === "penalty" ? "⚠️ Penalty Notice — Action Required" : autoType === "reminder" ? "🔔 Payment Reminder" : "✅ Payments Up to Date",
+          message: autoMsg.replace(/\n/g, " ").slice(0, 200),
+          type: autoType === "penalty" ? "overdue" as any : autoType === "reminder" ? "reminder" as any : "info" as any,
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ["admin-messages", activeThread.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-threads"] });
-      toast.success("SOA sent to vendor!");
+      toast.success("SOA and follow-up message sent to vendor!");
     } catch(e:any) {
       toast.error(e.message||"Failed to send SOA");
     } finally {
