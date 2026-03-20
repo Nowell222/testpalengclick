@@ -5,7 +5,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { add } from "date-fns";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -22,8 +21,8 @@ const getPrintHTML = (data: any) => {
       <td class="r">${fmt(r.due)}</td>
       <td class="r">${r.paid > 0 ? fmt(r.paid) : "—"}</td>
       <td class="r ${r.balance > 0 && !r.isFuture ? "bal" : ""}">${r.isFully ? "—" : fmt(r.balance)}</td>
-      <td class="c ${r.isFully ? "paid" : r.isPartial ? "part" : r.isFuture ? "upcoming" : "unpaid"}">
-        ${r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+      <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : r.isFuture ? "upcoming" : "unpaid"}">
+        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -186,22 +185,32 @@ const VendorStatement = () => {
   }).length;
 
   const rows = MONTHS.map((month, i) => {
-    const m          = i + 1;
-    const due        = getMonthFee(m);
-    const credited   = displayPaidMap[m] || 0;
-    const paid       = Math.min(credited, due); // capped for display
-    const balance    = Math.max(0, due - credited);
-    const isAdvance  = credited > due; // overpaid = advance
+    const m        = i + 1;
+    const due      = getMonthFee(m);
+    const credited = displayPaidMap[m] || 0;
+
+    // For display: show only up to the due amount as "paid" for that month.
+    // e.g. due=₱550, vendor paid ₱1,500 total → show ₱550 paid, not ₱1,500
+    const displayPaid = Math.min(credited, due);
+    const balance     = Math.max(0, due - credited);
+
+    // Advance = future month that is already covered by carry-over from previous overpayment
+    // Only mark as advance if the month is AFTER the current month
+    const isAdvance  = m > currentMonth && credited >= due;
+    const isFuture   = m > currentMonth && credited < due;
+    const isFully    = credited >= due && !isAdvance; // past/current month fully paid
+    const isPartial  = credited > 0 && credited < due && !isFuture;
+
     return {
       month,
-      monthNum:   m,
+      monthNum: m,
       due,
-      paid:       credited, // show full credited amount including carry-over
+      paid:     displayPaid,   // capped at due — shows actual amount applied
       balance,
-      isFully:    credited >= due,
-      isPartial:  credited > 0 && credited < due,
+      isFully,
+      isPartial,
       isAdvance,
-      isFuture:   m > currentMonth && credited === 0,
+      isFuture,
     };
   });
 
@@ -306,7 +315,7 @@ const VendorStatement = () => {
                         ? (
                           <span className="text-success font-semibold">
                             {fmt(r.paid)}
-                            {r.isAdvance && <span className="ml-1 text-[10px] text-primary">(+advance)</span>}
+
                           </span>
                         )
                         : <span className="text-muted-foreground">—</span>}
@@ -319,7 +328,7 @@ const VendorStatement = () => {
                     <td className="px-4 py-2.5 text-center">
                       {r.isAdvance ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          Advance
+                          ✦ Advance
                         </span>
                       ) : r.isFully ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
