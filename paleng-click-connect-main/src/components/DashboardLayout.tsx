@@ -67,7 +67,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r bg-card transition-transform duration-200 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex h-14 items-center justify-between border-b px-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -85,7 +85,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           <p className="text-xs text-foreground font-medium truncate">{displayName}</p>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 pb-4">
+        <nav className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
           {navItems.map((item) => (
             <Link
               key={item.path}
