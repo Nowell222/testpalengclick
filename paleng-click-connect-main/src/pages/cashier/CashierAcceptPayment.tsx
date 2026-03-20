@@ -271,10 +271,25 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
         period_year:    periodYear,
       }).select("reference_number, receipt_number").single();
       if (error) throw error;
+      const cn1 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
       await supabase.from("notifications").insert({
         user_id: vendor.user_id,
-        title:   "✅ Payment Received at Cashier",
-        message: `Your cash payment of ${fmt(payAmount)} for ${MONTHS_FULL[periodMonth-1]} ${periodYear} has been received and recorded by the cashier.`,
+        title:   "✅ Cash Payment Received",
+        message: `Your stall fee payment has been received and recorded by the cashier.
+
+Payment Details:
+• Vendor: ${vendor.profile?.first_name} ${vendor.profile?.last_name}
+• Stall: ${vendor.stall?.stall_number} — ${vendor.stall?.section}
+• Amount Paid: ${fmt(payAmount)}
+• Billing Period: ${MONTHS_FULL[periodMonth-1]} ${periodYear}
+• Payment Type: ${payType === "full" ? "Full Payment" : "Partial Payment"}
+• Payment Method: Cash at Cashier
+• Receipt No.: ${data.receipt_number || "—"}
+• Reference No.: ${data.reference_number || "—"}
+• Processed by: ${cn1}
+• Date & Time: ${new Date().toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+
+Please keep your receipt as proof of payment. Thank you!`,
         type:    "confirmation",
       });
       return data;
@@ -486,6 +501,8 @@ const CashierAcceptPayment = () => {
   const { data: cashierProfile } = useQuery({
     queryKey: ["cashier-profile", user?.id],
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: true,
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
       return data;
@@ -523,12 +540,35 @@ const CashierAcceptPayment = () => {
     mutationFn: async (p: any) => {
       const { error } = await supabase.from("payments").update({ status: "completed", processed_by: user?.id }).eq("id", p.id);
       if (error) throw error;
-      await supabase.from("notifications").insert({
-        user_id: p.vendor_id,
-        title:   "✅ Online Payment Confirmed",
-        message: `Your ${p.payment_method?.toUpperCase()} payment of ${fmt(Number(p.amount))} for ${p.period_month?MONTHS_FULL[p.period_month-1]:""} ${p.period_year||""} has been confirmed by the cashier.`,
-        type:    "confirmation",
-      });
+      // Resolve actual auth user_id from vendor record
+      const { data: vendorRow } = await supabase.from("vendors").select("user_id").eq("id", p.vendor_id).single();
+      const recipientUserId = vendorRow?.user_id;
+      const cn2 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
+      if (recipientUserId) {
+        // Get stall info for the notification
+        const { data: vendorInfo } = await supabase.from("vendors").select("stalls(stall_number, section)").eq("user_id", recipientUserId).single();
+        const stallInfo = vendorInfo?.stalls as any;
+        await supabase.from("notifications").insert({
+          user_id: recipientUserId,
+          title:   "✅ Online Payment Confirmed",
+          message: `Your online payment has been confirmed and processed by the cashier.
+
+Payment Details:
+• Vendor: ${p.vendor_name}
+• Stall: ${p.stall} — ${p.section}
+• Amount Paid: ${fmt(Number(p.amount))}
+• Billing Period: ${p.period_month ? MONTHS_FULL[p.period_month-1] : "—"} ${p.period_year || ""}
+• Payment Method: ${METHOD_CONFIG[p.payment_method]?.label || p.payment_method}
+• Payment Type: ${p.payment_type === "staggered" ? "Partial Payment" : "Full Payment"}
+• Reference No.: ${p.reference_number || "—"}
+• Receipt No.: ${p.receipt_number || "—"}
+• Confirmed by: ${cn2}
+• Date & Time: ${new Date().toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+
+Your payment is now complete. Thank you!`,
+          type:    "confirmation",
+        });
+      }
       return p;
     },
     onSuccess: (p: any) => {
@@ -595,10 +635,26 @@ const CashierAcceptPayment = () => {
         period_month: new Date().getMonth()+1, period_year: new Date().getFullYear(),
       }).select("reference_number, receipt_number").single();
       if (error) throw error;
+      const cn3 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
+      const now3 = new Date();
       await supabase.from("notifications").insert({
         user_id: manualVendor.user_id,
-        title:   "✅ Payment Recorded",
-        message: `Your payment of ${fmt(Number(manualAmount))} has been recorded by the cashier.`,
+        title:   "✅ Payment Recorded by Cashier",
+        message: `Your stall fee payment has been recorded by the cashier.
+
+Payment Details:
+• Vendor: ${manualVendor.profile?.first_name} ${manualVendor.profile?.last_name}
+• Stall: ${(manualVendor.stall as any)?.stall_number} — ${(manualVendor.stall as any)?.section}
+• Amount Paid: ${fmt(Number(manualAmount))}
+• Billing Period: ${MONTHS_FULL[now3.getMonth()]} ${now3.getFullYear()}
+• Payment Method: ${METHOD_CONFIG[manualMethod]?.label || manualMethod}
+• Payment Type: Full Payment
+• Receipt No.: ${data.receipt_number || "—"}
+• Reference No.: ${data.reference_number || "—"}
+• Processed by: ${cn3}
+• Date & Time: ${now3.toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+
+Please keep your receipt as proof of payment. Thank you!`,
         type:    "confirmation",
       });
       return data;

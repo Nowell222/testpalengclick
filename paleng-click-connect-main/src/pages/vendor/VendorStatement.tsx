@@ -328,7 +328,7 @@ const VendorStatement = () => {
                     <td className="px-4 py-2.5 text-center">
                       {r.isAdvance ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          ✦ Advance
+                          Advance
                         </span>
                       ) : r.isFully ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
@@ -369,7 +369,7 @@ const VendorStatement = () => {
           {totalOutstanding === 0 && (
             <div className="flex items-center gap-3 rounded-xl bg-success/5 border border-success/20 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-              <p className="text-sm font-medium text-success">All stall fees for {currentYear} are fully settled. 🎉</p>
+              <p className="text-sm font-medium text-success">All stall fees for {currentYear} are fully settled. </p>
             </div>
           )}
 
