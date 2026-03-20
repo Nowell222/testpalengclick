@@ -254,20 +254,29 @@ const AdminNews = () => {
 
       const { data: vendor } = await supabase
         .from("vendors")
-        .select("id, stalls(stall_number, section, monthly_rate, location)")
+        .select("id, stall_id, stalls(id, stall_number, section, monthly_rate, location)")
         .eq("user_id", activeThread.vendor_id)
         .single();
 
       if (!vendor) throw new Error("Vendor not found");
-      const st   = vendor.stalls as any;
-      const rate = st?.monthly_rate || 1450;
+      const st          = vendor.stalls as any;
+      const defaultRate = st?.monthly_rate || 1450;
 
-      const { data: pmts } = await supabase
-        .from("payments")
-        .select("period_month, amount")
-        .eq("vendor_id", vendor.id)
-        .eq("status", "completed")
-        .eq("period_year", yr);
+      const [pmtsRes, schedulesRes] = await Promise.all([
+        supabase.from("payments").select("period_month, amount").eq("vendor_id", vendor.id).eq("status", "completed").eq("period_year", yr),
+        st?.id
+          ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", st.id).eq("year", yr)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const pmts      = pmtsRes.data     || [];
+      const schedules = schedulesRes.data || [];
+
+      const getRate = (m: number): number => {
+        const s = schedules.find((s: any) => s.month === m);
+        return s ? Number(s.amount) : defaultRate;
+      };
+      const rate = defaultRate; // kept for SOA card display (stall default)
 
       // ── Raw paid map ───────────────────────────────────────────────────────
       const rawPm: Record<number,number> = {};
@@ -279,16 +288,17 @@ const AdminNews = () => {
       const effMap: Record<number,number> = {};
       let carry = 0;
       for (let m = 1; m <= 12; m++) {
+        const due_m    = getRate(m);
         const credited = (rawPm[m] || 0) + carry;
         effMap[m] = credited;
         // Carry stops at partial month — must be fully paid before excess moves forward
-        carry = credited >= rate ? (credited - rate) : 0;
+        carry = credited >= due_m ? (credited - due_m) : 0;
       }
 
       const totalPaid = Object.values(rawPm).reduce((s,v)=>s+v, 0);
       const totalOut  = MF.reduce((sum,_,i)=>{
         const m=i+1; if(m>cm) return sum;
-        return sum + Math.max(0, rate - (effMap[m]||0));
+        return sum + Math.max(0, getRate(m) - (effMap[m]||0));
       }, 0);
 
       // ── Build rows with correct display values ──────────────────────────
@@ -302,15 +312,17 @@ const AdminNews = () => {
         rate,
         rows: MF.map((month,i)=>{
           const m         = i+1;
+          const due_m     = getRate(m);
           const credited  = effMap[m] || 0;
-          const displayPaid = Math.min(credited, rate);  // cap at rate for display
-          const balance   = Math.max(0, rate - credited);
-          const isAdvance = m > cm && credited >= rate;  // advance = future month covered
-          const isFully   = credited >= rate && !isAdvance;
-          const isPartial = credited > 0 && credited < rate && m <= cm;
-          const isFuture  = m > cm && credited < rate;
+          const displayPaid = Math.min(credited, due_m);  // cap at per-month rate for display
+          const balance   = Math.max(0, due_m - credited);
+          const isAdvance = m > cm && credited >= due_m;  // advance = future month covered
+          const isFully   = credited >= due_m && !isAdvance;
+          const isPartial = credited > 0 && credited < due_m && m <= cm;
+          const isFuture  = m > cm && credited < due_m;
           return {
             month, label: month,
+            due:       due_m,
             paid:      displayPaid,
             balance,
             isFully,
@@ -343,12 +355,12 @@ const AdminNews = () => {
       const currentMonthName = ["January","February","March","April","May","June","July","August","September","October","November","December"][new Date().getMonth()];
       const overdueMonths = MF.slice(0, cm).filter((_,i) => {
         const m = i + 1;
-        return (effMap[m] || 0) < rate;
+        return (effMap[m] || 0) < getRate(m);
       });
       const partialMonths = MF.slice(0, cm).filter((_,i) => {
         const m = i + 1;
         const paid = effMap[m] || 0;
-        return paid > 0 && paid < rate;
+        return paid > 0 && paid < getRate(m);
       });
 
       let autoMsg = "";

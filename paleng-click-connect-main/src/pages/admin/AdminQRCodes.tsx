@@ -45,7 +45,17 @@ const fetchVendorByQR = async (qrValue: string) => {
 
   const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const monthlyRate  = stall?.monthly_rate || 1450;
+  const defaultRate  = stall?.monthly_rate || 1450;
+
+  // ── Fetch per-month fee schedules ────────────────────────────────────────
+  const { data: schedules } = stall?.id
+    ? await (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", stall.id).eq("year", currentYear)
+    : { data: [] };
+
+  const getMonthFee = (m: number): number => {
+    const s = (schedules || []).find((s: any) => s.month === m);
+    return s ? Number(s.amount) : defaultRate;
+  };
 
   // ── Raw paid map ─────────────────────────────────────────────────────────
   const rawPaidMap: Record<number, number> = {};
@@ -53,37 +63,38 @@ const fetchVendorByQR = async (qrValue: string) => {
     if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
-  // ── Cascade excess payments forward (matches VendorStatement logic) ──────
+  // ── Cascade using per-month fees — carry stops at partial month ──────────
   const effMap: Record<number, number> = {};
   let carry = 0;
   for (let m = 1; m <= 12; m++) {
+    const due_m    = getMonthFee(m);
     const credited = (rawPaidMap[m] || 0) + carry;
     effMap[m] = credited;
-    // Carry stops at a partial month — must be fully paid before excess moves forward
-    carry = credited >= monthlyRate ? (credited - monthlyRate) : 0;
+    carry = credited >= due_m ? (credited - due_m) : 0;
   }
 
-  // monthPaidMap for display — capped at rate per month
+  // monthPaidMap for display — capped at per-month rate
   const monthPaidMap: Record<number, number> = {};
   for (let m = 1; m <= 12; m++) {
-    monthPaidMap[m] = Math.min(effMap[m], monthlyRate);
+    monthPaidMap[m] = Math.min(effMap[m], getMonthFee(m));
   }
 
+  const monthlyRate        = getMonthFee(currentMonth);
   const paidThisMonth      = effMap[currentMonth] || 0;
   const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
   const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
   const totalPaidYear      = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
-  const monthsPaid         = Array.from({length: 12}, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= monthlyRate).length;
+  const monthsPaid         = Array.from({length: 12}, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
   const totalOutstanding   = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, monthlyRate - (effMap[m] || 0));
+    return sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0));
   }, 0);
 
   return {
     vendor, profile, stall,
     payments: payments.slice(0, 8),
-    monthlyRate, monthPaidMap, effMap, paidThisMonth,
+    monthlyRate, monthPaidMap, effMap, getMonthFee, paidThisMonth,
     isCurrentMonthPaid, remainingThisMonth,
     totalPaidYear, monthsPaid, totalOutstanding,
     currentMonth, currentYear,
@@ -341,7 +352,7 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
           {MONTHS.map((m, i) => {
             const monthNum  = i + 1;
             const credited  = (data.effMap || data.monthPaidMap)[monthNum] || 0;
-            const rate      = data.monthlyRate;
+            const rate      = data.getMonthFee ? data.getMonthFee(monthNum) : data.monthlyRate;
             const isAdvance = monthNum > data.currentMonth && credited >= rate;
             const isFully   = credited >= rate && !isAdvance;
             const isPartial = credited > 0 && credited < rate && monthNum <= data.currentMonth;

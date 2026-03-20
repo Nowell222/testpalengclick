@@ -82,9 +82,29 @@ const VendorPayOnline = () => {
     queryKey: ["vendor-pay-info", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate)").eq("user_id", user!.id).single();
+      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(id, stall_number, section, monthly_rate)").eq("user_id", user!.id).single();
       if (!vendor) return null;
-      const { data: payments } = await supabase.from("payments").select("period_month, period_year, amount, status").eq("vendor_id", vendor.id).eq("status", "completed").eq("period_year", new Date().getFullYear());
+
+      const stall       = vendor.stalls as any;
+      const defaultRate = stall?.monthly_rate || 1450;
+      const currentYear = new Date().getFullYear();
+
+      const [paymentsRes, schedulesRes] = await Promise.all([
+        supabase.from("payments").select("period_month, period_year, amount, status")
+          .eq("vendor_id", vendor.id).eq("status", "completed").eq("period_year", currentYear),
+        stall?.id
+          ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", stall.id).eq("year", currentYear)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      const payments  = paymentsRes.data  || [];
+      const schedules = schedulesRes.data || [];
+
+      // Per-month fee: reads from fee schedule if set, else stall default
+      const getMonthFee = (m: number): number => {
+        const s = schedules.find((s: any) => s.month === m);
+        return s ? Number(s.amount) : defaultRate;
+      };
 
       // ── STEP 1: Build raw paid map from DB ──────────────────────────────
       const rawPaidMap: Record<number, number> = {};
@@ -94,42 +114,30 @@ const VendorPayOnline = () => {
         }
       });
 
-      const stall       = vendor.stalls as any;
-      const monthlyRate = stall?.monthly_rate || 1450;
-
-      // ── STEP 2: Cascade excess payments forward month by month ──────────
-      // If a vendor pays more than the fee for a month, the excess rolls
-      // forward to the next month automatically.
-      // Example: fee = ₱1,200/mo, vendor pays ₱3,000 in January:
-      //   Jan: ₱3,000 applied → fully paid, ₱1,800 excess carries to Feb
-      //   Feb: ₱1,800 carry  → fully paid, ₱600 excess carries to Mar
-      //   Mar: ₱600 carry    → partial (₱600 of ₱1,200 covered)
+      // ── STEP 2: Cascade using per-month fees — carry stops at partial ───
       const effectiveMap: Record<number, number> = {};
       let carry = 0;
       for (let m = 1; m <= 12; m++) {
-        const credited    = (rawPaidMap[m] || 0) + carry;
-        effectiveMap[m]   = credited;
-        // Carry stops at a partial month — must be fully paid before excess moves forward
-        carry             = credited >= monthlyRate ? (credited - monthlyRate) : 0;
+        const due_m    = getMonthFee(m);
+        const credited = (rawPaidMap[m] || 0) + carry;
+        effectiveMap[m] = credited;
+        carry           = credited >= due_m ? (credited - due_m) : 0;
       }
 
-      // ── STEP 3: Build monthPaidMap (capped at rate for each month) ──────
+      // ── STEP 3: Build monthPaidMap (capped at per-month rate) ───────────
       const monthPaidMap: Record<number, number> = {};
       for (let m = 1; m <= 12; m++) {
-        monthPaidMap[m] = Math.min(effectiveMap[m], monthlyRate);
+        monthPaidMap[m] = Math.min(effectiveMap[m], getMonthFee(m));
       }
 
       // ── STEP 4: Find first month not yet fully covered ──────────────────
       let nextUnpaidMonth = 1;
       for (let m = 1; m <= 12; m++) {
-        if (effectiveMap[m] < monthlyRate) {
-          nextUnpaidMonth = m;
-          break;
-        }
-        if (m === 12) nextUnpaidMonth = 13; // all paid
+        if (effectiveMap[m] < getMonthFee(m)) { nextUnpaidMonth = m; break; }
+        if (m === 12) nextUnpaidMonth = 13;
       }
 
-      // Remaining balance for the next unpaid month
+      const monthlyRate      = getMonthFee(nextUnpaidMonth);
       const paidForNextMonth = effectiveMap[nextUnpaidMonth] || 0;
       const remainingBalance = Math.max(0, monthlyRate - paidForNextMonth);
 

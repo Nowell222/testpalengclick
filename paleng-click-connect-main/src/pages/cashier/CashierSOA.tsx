@@ -14,12 +14,18 @@ const MONTHS = [
   "July","August","September","October","November","December",
 ];
 
-// ─── Helper: build SOA data for one vendor (with cascade overpayment) ─────────
-const buildSOA = (vendor: any, profile: any, payments: any[]) => {
+// ─── Helper: build SOA data for one vendor (with cascade + per-month fee schedules) ──
+const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] = []) => {
   const stall        = vendor.stalls as any;
-  const monthlyRate  = stall?.monthly_rate || 1450;
+  const defaultRate  = stall?.monthly_rate || 1450;
   const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
+
+  // Per-month fee: reads from fee schedules if set, else falls back to stall default rate
+  const getMonthFee = (m: number): number => {
+    const s = schedules.find((s: any) => s.month === m && s.year === currentYear);
+    return s ? Number(s.amount) : defaultRate;
+  };
 
   // ── STEP 1: Raw paid map from DB ─────────────────────────────────────────
   const rawPaidMap: Record<number, number> = {};
@@ -30,18 +36,14 @@ const buildSOA = (vendor: any, profile: any, payments: any[]) => {
         rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
     });
 
-  // ── STEP 2: Cascade excess payments forward month by month ───────────────
-  // Overpayment in one month rolls forward to cover the next month.
-  // e.g. fee ₱550/mo, vendor pays ₱1,500 in Jan:
-  //   Jan → ₱550 paid (full), ₱950 carry
-  //   Feb → ₱550 paid (full), ₱400 carry
-  //   Mar → ₱400 paid (partial, ₱150 balance)
+  // ── STEP 2: Cascade using per-month fee — carry stops at partial month ───
   const effMap: Record<number, number> = {};
   let carry = 0;
   for (let m = 1; m <= 12; m++) {
+    const due      = getMonthFee(m);
     const credited = (rawPaidMap[m] || 0) + carry;
     effMap[m]      = credited;
-    carry          = Math.max(0, credited - monthlyRate);
+    carry          = credited >= due ? (credited - due) : 0;
   }
 
   // ── STEP 3: Summary totals ───────────────────────────────────────────────
@@ -50,23 +52,24 @@ const buildSOA = (vendor: any, profile: any, payments: any[]) => {
   const totalOutstanding = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, monthlyRate - (effMap[m] || 0));
+    return sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0));
   }, 0);
 
   // ── STEP 4: Build rows with correct display values ───────────────────────
   const rows = MONTHS.map((name, i) => {
     const m           = i + 1;
+    const due         = getMonthFee(m);
     const credited    = effMap[m] || 0;
-    const displayPaid = Math.min(credited, monthlyRate); // cap at rate for display
-    const balance     = Math.max(0, monthlyRate - credited);
-    const isAdvance   = m > currentMonth && credited >= monthlyRate; // future month covered
-    const isFully     = credited >= monthlyRate && !isAdvance;       // past/current fully paid
-    const isPartial   = credited > 0 && credited < monthlyRate && m <= currentMonth;
-    const isFuture    = m > currentMonth && credited < monthlyRate;
+    const displayPaid = Math.min(credited, due);
+    const balance     = Math.max(0, due - credited);
+    const isAdvance   = m > currentMonth && credited >= due;
+    const isFully     = credited >= due && !isAdvance;
+    const isPartial   = credited > 0 && credited < due && m <= currentMonth;
+    const isFuture    = m > currentMonth && credited < due;
     return {
       month:    name,
       monthNum: m,
-      due:      monthlyRate,
+      due,
       paid:     displayPaid,
       balance,
       isFully,
@@ -80,7 +83,7 @@ const buildSOA = (vendor: any, profile: any, payments: any[]) => {
     vendorId:   vendor.id,
     profile,
     stall,
-    monthlyRate,
+    monthlyRate: defaultRate,
     currentYear,
     currentMonth,
     rows,
@@ -271,14 +274,16 @@ const CashierSOA = () => {
     );
   }, [allVendors, search]);
 
-  // Load SOA for selected vendor
+  // Load SOA for selected vendor (including per-month fee schedules)
   const loadSOA = async (vendor: any) => {
-    const { data: payments } = await supabase
-      .from("payments")
-      .select("*")
-      .eq("vendor_id", vendor.id)
-      .order("created_at", { ascending: true });
-    const soa = buildSOA(vendor, vendor.profile, payments || []);
+    const currentYear = new Date().getFullYear();
+    const [paymentsRes, schedulesRes] = await Promise.all([
+      supabase.from("payments").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: true }),
+      vendor.stall?.id
+        ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall.id).eq("year", currentYear)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const soa = buildSOA(vendor, vendor.profile, paymentsRes.data || [], schedulesRes.data || []);
     setSelected(soa);
   };
 
@@ -470,7 +475,7 @@ const CashierSOA = () => {
                             <td className="px-4 py-2.5 text-center">
                               {r.isAdvance ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                                  Advance
+                                  ★ Advance
                                 </span>
                               ) : r.isFully ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">

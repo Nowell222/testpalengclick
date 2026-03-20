@@ -34,7 +34,7 @@ const emptyForm = {
   email: "", password: "", role: "vendor" as "vendor" | "cashier",
   first_name: "", middle_name: "", last_name: "",
   address: "", contact_number: "",
-  stall_number: "", section: "General", location: "", monthly_rate: "1450",
+  stall_number: "", section: "General", location: "", monthly_rate: "",
 };
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -131,6 +131,7 @@ const AdminUserManagement = () => {
       if (!form.first_name.trim())             throw new Error("First name is required");
       if (!form.last_name.trim())              throw new Error("Last name is required");
       if (form.role === "vendor" && !form.stall_number.trim()) throw new Error("Stall number is required for vendors");
+      if (form.role === "vendor" && (!form.monthly_rate || Number(form.monthly_rate) <= 0)) throw new Error("Monthly fee is required for vendors — please enter the stall rental rate");
 
       const res = await supabase.functions.invoke("create-user", {
         body: {
@@ -145,7 +146,7 @@ const AdminUserManagement = () => {
           stall_number:   form.stall_number.trim(),
           section:        form.section,
           location:       form.location.trim(),
-          monthly_rate:   Number(form.monthly_rate) || 1450,
+          monthly_rate:   Number(form.monthly_rate),
         },
       });
       if (res.error)       throw new Error(res.error.message);
@@ -393,11 +394,11 @@ const AdminUserManagement = () => {
                       <Label>Monthly Fee (₱) <span className="text-accent">*</span></Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                        <Input type="number" placeholder="1450" className="h-11 rounded-xl pl-7 font-mono"
+                        <Input type="number" placeholder="e.g. 1200" className={`h-11 rounded-xl pl-7 font-mono ${form.role === "vendor" && !form.monthly_rate ? "border-accent" : ""}`}
                           value={form.monthly_rate}
                           onChange={e => setForm(f => ({ ...f, monthly_rate: e.target.value }))} />
                       </div>
-                      <p className="text-xs text-muted-foreground">Default monthly stall fee. Can be customized per-month in Fee Schedules.</p>
+                      <p className="text-xs text-muted-foreground">Required. This is the base monthly stall rental fee. You can set per-month rates in Fee Schedules after creating the account.</p>
                     </div>
                   </div>
 
