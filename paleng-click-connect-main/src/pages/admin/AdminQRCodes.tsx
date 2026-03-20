@@ -47,26 +47,42 @@ const fetchVendorByQR = async (qrValue: string) => {
   const currentMonth = new Date().getMonth() + 1;
   const monthlyRate  = stall?.monthly_rate || 1450;
 
-  const monthPaidMap: Record<number, number> = {};
+  // ── Raw paid map ─────────────────────────────────────────────────────────
+  const rawPaidMap: Record<number, number> = {};
   payments.filter(p => p.status === "completed" && p.period_year === currentYear).forEach(p => {
-    if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+    if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
-  const paidThisMonth      = monthPaidMap[currentMonth] || 0;
+  // ── Cascade excess payments forward (matches VendorStatement logic) ──────
+  const effMap: Record<number, number> = {};
+  let carry = 0;
+  for (let m = 1; m <= 12; m++) {
+    const credited = (rawPaidMap[m] || 0) + carry;
+    effMap[m] = credited;
+    carry = Math.max(0, credited - monthlyRate);
+  }
+
+  // monthPaidMap for display — capped at rate per month
+  const monthPaidMap: Record<number, number> = {};
+  for (let m = 1; m <= 12; m++) {
+    monthPaidMap[m] = Math.min(effMap[m], monthlyRate);
+  }
+
+  const paidThisMonth      = effMap[currentMonth] || 0;
   const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
   const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
-  const totalPaidYear      = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
-  const monthsPaid         = Object.entries(monthPaidMap).filter(([, v]) => v >= monthlyRate).length;
+  const totalPaidYear      = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
+  const monthsPaid         = Array.from({length: 12}, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= monthlyRate).length;
   const totalOutstanding   = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, monthlyRate - (monthPaidMap[m] || 0));
+    return sum + Math.max(0, monthlyRate - (effMap[m] || 0));
   }, 0);
 
   return {
     vendor, profile, stall,
     payments: payments.slice(0, 8),
-    monthlyRate, monthPaidMap, paidThisMonth,
+    monthlyRate, monthPaidMap, effMap, paidThisMonth,
     isCurrentMonthPaid, remainingThisMonth,
     totalPaidYear, monthsPaid, totalOutstanding,
     currentMonth, currentYear,
@@ -322,24 +338,27 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
         </div>
         <div className="grid grid-cols-3 gap-px bg-border sm:grid-cols-4 lg:grid-cols-6">
           {MONTHS.map((m, i) => {
-            const monthNum = i + 1;
-            const paid     = data.monthPaidMap[monthNum] || 0;
-            const isFully  = paid >= data.monthlyRate;
-            const isPartial= paid > 0 && paid < data.monthlyRate;
-            const isFuture = monthNum > data.currentMonth && paid === 0;
+            const monthNum  = i + 1;
+            const credited  = (data.effMap || data.monthPaidMap)[monthNum] || 0;
+            const rate      = data.monthlyRate;
+            const isAdvance = monthNum > data.currentMonth && credited >= rate;
+            const isFully   = credited >= rate && !isAdvance;
+            const isPartial = credited > 0 && credited < rate && monthNum <= data.currentMonth;
+            const isFuture  = monthNum > data.currentMonth && credited < rate;
             return (
               <div key={m} className={`bg-card p-3 text-center ${isFuture ? "opacity-40" : ""}`}>
                 <p className="text-xs font-medium text-muted-foreground">{m.slice(0, 3)}</p>
                 <div className="mt-1.5 flex justify-center">
-                  {isFully  ? <CheckCircle2 className="h-4 w-4 text-success" /> :
+                  {isAdvance ? <CheckCircle2 className="h-4 w-4 text-blue-500" /> :
+                   isFully   ? <CheckCircle2 className="h-4 w-4 text-success" /> :
                    isPartial ? <Clock className="h-4 w-4 text-primary" /> :
                    isFuture  ? <div className="h-4 w-4 rounded-full border-2 border-muted" /> :
                                <AlertCircle className="h-4 w-4 text-accent" />}
                 </div>
                 <p className={`text-[10px] font-medium mt-1 ${
-                  isFully ? "text-success" : isPartial ? "text-primary" : isFuture ? "text-muted-foreground" : "text-accent"
+                  isAdvance ? "text-blue-500" : isFully ? "text-success" : isPartial ? "text-primary" : isFuture ? "text-muted-foreground" : "text-accent"
                 }`}>
-                  {isFully ? "Paid" : isPartial ? "Partial" : isFuture ? "—" : "Unpaid"}
+                  {isAdvance ? "Advance" : isFully ? "Paid" : isPartial ? "Partial" : isFuture ? "—" : "Unpaid"}
                 </p>
               </div>
             );
