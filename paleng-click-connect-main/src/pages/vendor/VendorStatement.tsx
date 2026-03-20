@@ -130,33 +130,77 @@ const VendorStatement = () => {
   const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  const monthPaidMap: Record<number, number> = {};
+  // ── Raw paid amounts per month from DB ────────────────────────────────────
+  const rawPaidMap: Record<number, number> = {};
   payments.filter((p: any) => p.period_year === currentYear).forEach((p: any) => {
-    if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+    if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
-  const totalPaid = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
+  // ── Cascade excess payments forward to next months ─────────────────────────
+  // If a vendor overpaid a month, the excess rolls over to the next month,
+  // and so on until the excess is exhausted.
+  const effectivePaidMap: Record<number, number> = {};
+  let carryOver = 0;
+
+  for (let m = 1; m <= 12; m++) {
+    const due        = getMonthFee(m);
+    const rawPaid    = (rawPaidMap[m] || 0) + carryOver;
+    const applied    = Math.min(rawPaid, due); // cap at due — fully paid
+    const excess     = Math.max(0, rawPaid - due);
+
+    // If the month hasn't arrived yet and there is nothing paid, stop carry
+    if (m > currentMonth && rawPaid === 0) {
+      effectivePaidMap[m] = 0;
+      carryOver = 0;
+      continue;
+    }
+
+    effectivePaidMap[m] = rawPaid >= due ? due : rawPaid; // allow partial to show actual paid
+    carryOver = excess;
+  }
+
+  // For display: show actual amount credited to each month (may exceed due for advance)
+  const displayPaidMap: Record<number, number> = {};
+  carryOver = 0;
+  for (let m = 1; m <= 12; m++) {
+    const due     = getMonthFee(m);
+    const rawPaid = (rawPaidMap[m] || 0) + carryOver;
+    displayPaidMap[m] = rawPaid;
+    carryOver = Math.max(0, rawPaid - due);
+  }
+
+  const totalPaid = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
+
   const totalOutstanding = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, getMonthFee(m) - (monthPaidMap[m] || 0));
+    const due  = getMonthFee(m);
+    const paid = displayPaidMap[m] || 0;
+    return sum + Math.max(0, due - paid);
   }, 0);
-  const monthsPaid = Object.entries(monthPaidMap).filter(([, v]) => v >= monthlyRate).length;
+
+  const monthsPaid = MONTHS.filter((_, i) => {
+    const m = i + 1;
+    return (displayPaidMap[m] || 0) >= getMonthFee(m);
+  }).length;
 
   const rows = MONTHS.map((month, i) => {
-    const m    = i + 1;
-    const due  = getMonthFee(m);
-    const paid = monthPaidMap[m] || 0;
-    const balance = Math.max(0, due - paid);
+    const m          = i + 1;
+    const due        = getMonthFee(m);
+    const credited   = displayPaidMap[m] || 0;
+    const paid       = Math.min(credited, due); // capped for display
+    const balance    = Math.max(0, due - credited);
+    const isAdvance  = credited > due; // overpaid = advance
     return {
       month,
-      monthNum:  m,
+      monthNum:   m,
       due,
-      paid,
+      paid:       credited, // show full credited amount including carry-over
       balance,
-      isFully:   paid >= due,
-      isPartial: paid > 0 && paid < due,
-      isFuture:  m > currentMonth && paid === 0,
+      isFully:    credited >= due,
+      isPartial:  credited > 0 && credited < due,
+      isAdvance,
+      isFuture:   m > currentMonth && credited === 0,
     };
   });
 
@@ -258,7 +302,12 @@ const VendorStatement = () => {
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
                     <td className="px-4 py-2.5 text-right font-mono">
                       {r.paid > 0
-                        ? <span className="text-success font-semibold">{fmt(r.paid)}</span>
+                        ? (
+                          <span className="text-success font-semibold">
+                            {fmt(r.paid)}
+                            {r.isAdvance && <span className="ml-1 text-[10px] text-primary">(+advance)</span>}
+                          </span>
+                        )
                         : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono font-semibold">
@@ -267,7 +316,11 @@ const VendorStatement = () => {
                         : <span className={r.isFuture ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      {r.isFully ? (
+                      {r.isAdvance ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                          ✦ Advance
+                        </span>
+                      ) : r.isFully ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
                           <CheckCircle2 className="h-3 w-3" /> Paid
                         </span>

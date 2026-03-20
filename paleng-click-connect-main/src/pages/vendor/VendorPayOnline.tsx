@@ -85,20 +85,63 @@ const VendorPayOnline = () => {
       const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate)").eq("user_id", user!.id).single();
       if (!vendor) return null;
       const { data: payments } = await supabase.from("payments").select("period_month, period_year, amount, status").eq("vendor_id", vendor.id).eq("status", "completed").eq("period_year", new Date().getFullYear());
-      const monthPaidMap: Record<number, number> = {};
+
+      // ── STEP 1: Build raw paid map from DB ──────────────────────────────
+      const rawPaidMap: Record<number, number> = {};
       (payments || []).forEach(p => {
-        if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+        if (p.period_month) {
+          rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
+        }
       });
+
       const stall       = vendor.stalls as any;
       const monthlyRate = stall?.monthly_rate || 1450;
+
+      // ── STEP 2: Cascade excess payments forward month by month ──────────
+      // If a vendor pays more than the fee for a month, the excess rolls
+      // forward to the next month automatically.
+      // Example: fee = ₱1,200/mo, vendor pays ₱3,000 in January:
+      //   Jan: ₱3,000 applied → fully paid, ₱1,800 excess carries to Feb
+      //   Feb: ₱1,800 carry  → fully paid, ₱600 excess carries to Mar
+      //   Mar: ₱600 carry    → partial (₱600 of ₱1,200 covered)
+      const effectiveMap: Record<number, number> = {};
+      let carry = 0;
+      for (let m = 1; m <= 12; m++) {
+        const credited    = (rawPaidMap[m] || 0) + carry;
+        effectiveMap[m]   = credited;
+        carry             = Math.max(0, credited - monthlyRate);
+      }
+
+      // ── STEP 3: Build monthPaidMap (capped at rate for each month) ──────
+      const monthPaidMap: Record<number, number> = {};
+      for (let m = 1; m <= 12; m++) {
+        monthPaidMap[m] = Math.min(effectiveMap[m], monthlyRate);
+      }
+
+      // ── STEP 4: Find first month not yet fully covered ──────────────────
       let nextUnpaidMonth = 1;
       for (let m = 1; m <= 12; m++) {
-        if ((monthPaidMap[m] || 0) < monthlyRate) { nextUnpaidMonth = m; break; }
-        if (m === 12) nextUnpaidMonth = 13;
+        if (effectiveMap[m] < monthlyRate) {
+          nextUnpaidMonth = m;
+          break;
+        }
+        if (m === 12) nextUnpaidMonth = 13; // all paid
       }
-      const paidForNextMonth = monthPaidMap[nextUnpaidMonth] || 0;
-      const remainingBalance = monthlyRate - paidForNextMonth;
-      return { vendor, stall, monthlyRate, monthPaidMap, nextUnpaidMonth, paidForNextMonth, remainingBalance, allPaid: nextUnpaidMonth > 12 };
+
+      // Remaining balance for the next unpaid month
+      const paidForNextMonth = effectiveMap[nextUnpaidMonth] || 0;
+      const remainingBalance = Math.max(0, monthlyRate - paidForNextMonth);
+
+      return {
+        vendor,
+        stall,
+        monthlyRate,
+        monthPaidMap,
+        nextUnpaidMonth,
+        paidForNextMonth,
+        remainingBalance,
+        allPaid: nextUnpaidMonth > 12,
+      };
     },
   });
 
@@ -226,7 +269,7 @@ const VendorPayOnline = () => {
     else initiateOnlinePayment.mutate();
   };
 
-  const isPending = initiateOnlinePayment.isPending || makeCashPayment.isPending;
+  const isPending  = initiateOnlinePayment.isPending || makeCashPayment.isPending;
   const canProceed = payType === "full" || (!!staggeredAmount && Number(staggeredAmount) > 0);
 
   // ── Loading ───────────────────────────────────────────────────────────────

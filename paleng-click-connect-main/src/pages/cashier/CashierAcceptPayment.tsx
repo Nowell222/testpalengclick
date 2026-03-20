@@ -200,9 +200,9 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
     const schedules = schedulesRes.data || [];
     const defRate   = stall?.monthly_rate || 1450;
 
-    const paidMap: Record<number,number> = {};
+    const rawPaidMap: Record<number,number> = {};
     payments.forEach((p: any) => {
-      if (p.period_month) paidMap[p.period_month] = (paidMap[p.period_month]||0) + Number(p.amount);
+      if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month]||0) + Number(p.amount);
     });
 
     const getMonthFee = (m: number) => {
@@ -210,9 +210,19 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
       return s ? Number(s.amount) : defRate;
     };
 
+    // Cascade excess payments forward
+    const paidMap: Record<number,number> = {};
+    let carry = 0;
+    for (let m = 1; m <= 12; m++) {
+      const credited = (rawPaidMap[m] || 0) + carry;
+      paidMap[m] = credited;
+      carry = Math.max(0, credited - getMonthFee(m));
+    }
+
     let nextUnpaid = currentMonth;
     for (let m = 1; m <= currentMonth; m++) {
       if ((paidMap[m]||0) < getMonthFee(m)) { nextUnpaid = m; break; }
+      if (m === currentMonth) nextUnpaid = currentMonth + 1;
     }
 
     setVendor({ ...v, stall, profile, paidMap, getMonthFee, nextUnpaid });
