@@ -59,7 +59,8 @@ const fetchVendorByQR = async (qrValue: string) => {
   for (let m = 1; m <= 12; m++) {
     const credited = (rawPaidMap[m] || 0) + carry;
     effMap[m] = credited;
-    carry = Math.max(0, credited - monthlyRate);
+    // Carry stops at a partial month — must be fully paid before excess moves forward
+    carry = credited >= monthlyRate ? (credited - monthlyRate) : 0;
   }
 
   // monthPaidMap for display — capped at rate per month

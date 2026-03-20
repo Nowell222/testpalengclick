@@ -22,7 +22,7 @@ const getPrintHTML = (data: any) => {
       <td class="r">${r.paid > 0 ? fmt(r.paid) : "—"}</td>
       <td class="r ${r.balance > 0 && !r.isFuture ? "bal" : ""}">${r.isFully ? "—" : fmt(r.balance)}</td>
       <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : r.isFuture ? "upcoming" : "unpaid"}">
-        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -136,37 +136,28 @@ const VendorStatement = () => {
     if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
-  // ── Cascade excess payments forward to next months ─────────────────────────
-  // If a vendor overpaid a month, the excess rolls over to the next month,
-  // and so on until the excess is exhausted.
-  const effectivePaidMap: Record<number, number> = {};
+  // ── Single cascade loop: distribute all payments forward using per-month fees ─
+  // Rules:
+  //  1. Each month's credited amount = rawPaid[m] + carry from previous month
+  //  2. Excess above the month's fee carries forward to the next month
+  //  3. A month with no raw payment but carry from overpayment is marked Advance
+  //  4. A partially-paid month does NOT carry anything forward — carry stops there
+  //     i.e. Sept must be FULLY paid before any excess moves to October
+  const displayPaidMap: Record<number, number> = {};
   let carryOver = 0;
 
   for (let m = 1; m <= 12; m++) {
-    const due        = getMonthFee(m);
-    const rawPaid    = (rawPaidMap[m] || 0) + carryOver;
-    const applied    = Math.min(rawPaid, due); // cap at due — fully paid
-    const excess     = Math.max(0, rawPaid - due);
+    const due      = getMonthFee(m);
+    const credited = (rawPaidMap[m] || 0) + carryOver;
+    displayPaidMap[m] = credited;
 
-    // If the month hasn't arrived yet and there is nothing paid, stop carry
-    if (m > currentMonth && rawPaid === 0) {
-      effectivePaidMap[m] = 0;
+    if (credited >= due) {
+      // Fully paid or overpaid — carry the excess to next month
+      carryOver = credited - due;
+    } else {
+      // Partially paid or unpaid — carry stops here, next month starts fresh
       carryOver = 0;
-      continue;
     }
-
-    effectivePaidMap[m] = rawPaid >= due ? due : rawPaid; // allow partial to show actual paid
-    carryOver = excess;
-  }
-
-  // For display: show actual amount credited to each month (may exceed due for advance)
-  const displayPaidMap: Record<number, number> = {};
-  carryOver = 0;
-  for (let m = 1; m <= 12; m++) {
-    const due     = getMonthFee(m);
-    const rawPaid = (rawPaidMap[m] || 0) + carryOver;
-    displayPaidMap[m] = rawPaid;
-    carryOver = Math.max(0, rawPaid - due);
   }
 
   const totalPaid = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
@@ -321,14 +312,14 @@ const VendorStatement = () => {
                         : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono font-semibold">
-                      {r.isFully
+                      {(r.isFully || r.isAdvance)
                         ? <span className="text-muted-foreground">—</span>
                         : <span className={r.isFuture ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       {r.isAdvance ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          Advance
+                          ✦ Advance
                         </span>
                       ) : r.isFully ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
@@ -369,7 +360,7 @@ const VendorStatement = () => {
           {totalOutstanding === 0 && (
             <div className="flex items-center gap-3 rounded-xl bg-success/5 border border-success/20 px-4 py-3">
               <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-              <p className="text-sm font-medium text-success">All stall fees for {currentYear} are fully settled. </p>
+              <p className="text-sm font-medium text-success">All stall fees for {currentYear} are fully settled. 🎉</p>
             </div>
           )}
 

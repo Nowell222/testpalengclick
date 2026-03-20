@@ -109,7 +109,8 @@ const VendorPayOnline = () => {
       for (let m = 1; m <= 12; m++) {
         const credited    = (rawPaidMap[m] || 0) + carry;
         effectiveMap[m]   = credited;
-        carry             = Math.max(0, credited - monthlyRate);
+        // Carry stops at a partial month — must be fully paid before excess moves forward
+        carry             = credited >= monthlyRate ? (credited - monthlyRate) : 0;
       }
 
       // ── STEP 3: Build monthPaidMap (capped at rate for each month) ──────

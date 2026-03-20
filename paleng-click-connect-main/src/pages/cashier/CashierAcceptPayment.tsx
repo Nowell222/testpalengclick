@@ -211,12 +211,14 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
     };
 
     // Cascade excess payments forward
+    // Rule: carry only moves to next month if current month is FULLY paid
     const paidMap: Record<number,number> = {};
     let carry = 0;
     for (let m = 1; m <= 12; m++) {
+      const due_m    = getMonthFee(m);
       const credited = (rawPaidMap[m] || 0) + carry;
-      paidMap[m] = credited;
-      carry = Math.max(0, credited - getMonthFee(m));
+      paidMap[m]     = credited;
+      carry          = credited >= due_m ? (credited - due_m) : 0;
     }
 
     let nextUnpaid = currentMonth;
