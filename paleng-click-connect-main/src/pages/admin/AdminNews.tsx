@@ -330,7 +330,7 @@ const AdminNews = () => {
 
       if (totalOut === 0) {
         // All paid
-        autoMsg = `✅ Good news! Your Statement of Account for ${soa.year} shows that all stall fees are fully settled. Thank you for your prompt payments, ${activeThread.vendor_name}! Your cooperation is greatly appreciated by the Municipal Treasurer's Office.`;
+        autoMsg = `✅ Good news! Your Statement of Account for ${soaData.year} shows that all stall fees are fully settled. Thank you for your prompt payments, ${activeThread.vendor_name}! Your cooperation is greatly appreciated by the Municipal Treasurer's Office.`;
         autoType = "message";
       } else if (overdueMonths.length >= 3) {
         // 3 or more months unpaid — penalty warning
