@@ -22,7 +22,7 @@ const getPrintHTML = (data: any) => {
       <td class="r">${r.paid > 0 ? fmt(r.paid) : "—"}</td>
       <td class="r ${r.balance > 0 && !r.isFuture ? "bal" : ""}">${r.isFully ? "—" : fmt(r.balance)}</td>
       <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : r.isFuture ? "upcoming" : "unpaid"}">
-        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 

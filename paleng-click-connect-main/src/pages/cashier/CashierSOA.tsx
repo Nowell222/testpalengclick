@@ -104,7 +104,7 @@ const getPrintHTML = (soa: any) => {
         ${(r.isFully || r.isAdvance) ? "—" : `₱${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
       </td>
       <td class="status ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "partial" : r.isFuture ? "future-s" : "unpaid"}">
-        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
