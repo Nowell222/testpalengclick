@@ -241,7 +241,7 @@ const AdminNews = () => {
   });
 
 
-  // ── Send SOA as chat message ───────────────────────────────────────────────
+  // ── Send SOA as formatted chat card ─────────────────────────────────────────
   const [sendingSOA, setSendingSOA] = useState(false);
 
   const sendSOA = async () => {
@@ -254,7 +254,7 @@ const AdminNews = () => {
 
       const { data: vendor } = await supabase
         .from("vendors")
-        .select("id, stalls(stall_number, section, monthly_rate)")
+        .select("id, stalls(stall_number, section, monthly_rate, location)")
         .eq("user_id", activeThread.vendor_id)
         .single();
 
@@ -270,43 +270,47 @@ const AdminNews = () => {
         .eq("period_year", yr);
 
       const pm: Record<number,number> = {};
-      (pmts||[]).forEach((p:any) => { if(p.period_month) pm[p.period_month]=(pm[p.period_month]||0)+Number(p.amount); });
-
-      const totalPaid = Object.values(pm).reduce((s,v)=>s+v,0);
-      const totalOut  = MF.reduce((sum,_,i)=>{ const m=i+1; if(m>cm) return sum; return sum+Math.max(0,rate-(pm[m]||0)); },0);
-
-      const rows = MF.slice(0,cm).map((m,i)=>{
-        const month=i+1, paid=pm[month]||0, bal=Math.max(0,rate-paid);
-        const icon = paid>=rate?"✅":paid>0?"⚠️":"❌";
-        const stat = paid>=rate?"Paid":paid>0?`Partial (₱${paid.toLocaleString("en-PH",{minimumFractionDigits:2})} paid)`:"Unpaid";
-        const due  = bal>0&&paid<rate?` — ₱${bal.toLocaleString("en-PH",{minimumFractionDigits:2})} due`:"";
-        return `${icon} ${m}: ${stat}${due}`;
+      (pmts||[]).forEach((p:any) => {
+        if(p.period_month) pm[p.period_month] = (pm[p.period_month]||0) + Number(p.amount);
       });
 
-      const body = [
-        `📋 STATEMENT OF ACCOUNT — ${yr}`,
-        `Stall: ${st?.stall_number||"—"} | ${st?.section||"General"} Section`,
-        `Monthly Rate: ₱${rate.toLocaleString("en-PH",{minimumFractionDigits:2})}`,
-        ``,
-        ...rows,
-        ``,
-        `Total Paid:    ₱${totalPaid.toLocaleString("en-PH",{minimumFractionDigits:2})}`,
-        `Outstanding:   ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}`,
-        ``,
-        totalOut>0?"⚠️ Please settle your outstanding balance at the earliest convenience.":"✅ All stall fees are fully settled. Thank you!",
-      ].join("\n");
+      const totalPaid = Object.values(pm).reduce((s,v)=>s+v, 0);
+      const totalOut  = MF.reduce((sum,_,i)=>{
+        const m=i+1; if(m>cm) return sum;
+        return sum + Math.max(0, rate-(pm[m]||0));
+      }, 0);
+
+      // Store as JSON so the chat renderer can display it as a card
+      const soaData = {
+        __soa: true,
+        year: yr,
+        stall: st?.stall_number||"—",
+        section: st?.section||"General",
+        location: st?.location||"—",
+        vendorName: activeThread.vendor_name,
+        rate,
+        rows: MF.map((month,i)=>{
+          const m=i+1, paid=pm[m]||0, bal=Math.max(0,rate-paid);
+          return { month, label: month, paid, balance: bal, isFully: paid>=rate, isPartial: paid>0&&paid<rate, isFuture: m>cm&&paid===0 };
+        }),
+        totalPaid,
+        totalOut,
+        printedAt: new Date().toISOString(),
+      };
+
+      const body = JSON.stringify(soaData);
 
       await (supabase.from("messages") as any).insert({
         thread_id: activeThread.id, sender_id: user!.id,
         recipient_id: activeThread.vendor_id, body, type: "penalty",
       });
       await (supabase.from("message_threads") as any)
-        .update({ last_message: "📋 SOA sent", last_at: new Date().toISOString() })
+        .update({ last_message: "📋 Statement of Account sent", last_at: new Date().toISOString() })
         .eq("id", activeThread.id);
       await supabase.from("notifications").insert({
         user_id: activeThread.vendor_id,
         title: "📋 Statement of Account",
-        message: `You have an outstanding balance of ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Check your messages.`,
+        message: `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
         type: "overdue" as any,
       });
       queryClient.invalidateQueries({ queryKey: ["admin-messages", activeThread.id] });
@@ -317,6 +321,90 @@ const AdminNews = () => {
     } finally {
       setSendingSOA(false);
     }
+  };
+
+  // ── Parse SOA message body ────────────────────────────────────────────────
+  const parseSOA = (body: string) => {
+    try { const d = JSON.parse(body); return d.__soa ? d : null; } catch { return null; }
+  };
+
+  // ── Print SOA from chat ───────────────────────────────────────────────────
+  const printSOA = (soa: any) => {
+    const MF = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const fmt = (n:number) => `₱${n.toLocaleString("en-PH",{minimumFractionDigits:2})}`;
+    const rows = soa.rows.map((r:any) => `
+      <tr class="${r.isFuture?"future":""}">
+        <td>${r.label} ${soa.year}</td>
+        <td class="r">${fmt(r.rate||soa.rate)}</td>
+        <td class="r">${r.paid>0?fmt(r.paid):"—"}</td>
+        <td class="r ${r.balance>0&&!r.isFuture?"bal":""}">${r.isFully?"—":fmt(r.balance)}</td>
+        <td class="c ${r.isFully?"paid":r.isPartial?"part":r.isFuture?"upcoming":"unpaid"}">${r.isFully?"✓ Paid":r.isPartial?"Partial":r.isFuture?"Upcoming":"Unpaid"}</td>
+      </tr>`).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>SOA</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px}
+  .hdr{text-align:center;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:18px}
+  .rep{font-size:9px;letter-spacing:2px;color:#666;text-transform:uppercase}
+  .lgu{font-size:13px;font-weight:bold;margin:3px 0}
+  .ttl{font-size:18px;font-weight:bold;margin-top:5px}
+  .sub{font-size:10px;color:#666}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;background:#f7f7f7;border:1px solid #ddd;border-radius:4px;padding:12px}
+  .info-item label{font-size:9px;color:#666;text-transform:uppercase}
+  .info-item p{font-weight:bold;font-size:12px;margin-top:2px}
+  table{width:100%;border-collapse:collapse;margin-bottom:14px}
+  thead tr{background:#111;color:#fff}
+  thead th{padding:7px 10px;text-align:left;font-size:11px}
+  thead th.r{text-align:right} thead th.c{text-align:center}
+  tbody tr{border-bottom:1px solid #eee}
+  tbody tr.future{opacity:.4}
+  tbody td{padding:6px 10px}
+  td.r{text-align:right;font-family:monospace}
+  td.c{text-align:center;font-size:11px;font-weight:bold}
+  td.bal{color:#c0392b;font-weight:bold}
+  td.paid{color:#27ae60} td.part{color:#2980b9} td.unpaid{color:#c0392b} td.upcoming{color:#888}
+  .totals{border-top:2px solid #111;padding:10px 0}
+  .t-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+  .t-row.big{font-size:15px;font-weight:bold;border-top:1px solid #ddd;margin-top:4px;padding-top:8px}
+  .sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;margin-top:48px}
+  .sig-line{border-top:1px solid #111;padding-top:6px;text-align:center;font-size:10px;color:#555}
+  .sig-name{font-weight:bold;font-size:11px;color:#111;text-transform:uppercase}
+  .footer{margin-top:24px;text-align:center;font-size:9px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}
+</style></head><body>
+<div class="hdr">
+  <div class="rep">Republic of the Philippines</div>
+  <div class="lgu">Municipality of San Juan, Batangas · Office of the Municipal Treasurer</div>
+  <div class="ttl">STATEMENT OF ACCOUNT</div>
+  <div class="sub">Public Market Stall Rental — Fiscal Year ${soa.year}</div>
+</div>
+<div class="info">
+  <div class="info-item"><label>Vendor Name</label><p>${soa.vendorName}</p></div>
+  <div class="info-item"><label>Stall Number</label><p>${soa.stall}</p></div>
+  <div class="info-item"><label>Section</label><p>${soa.section}</p></div>
+  <div class="info-item"><label>Monthly Rate</label><p>${fmt(soa.rate)}</p></div>
+  <div class="info-item"><label>Location</label><p>${soa.location}</p></div>
+  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH",{year:"numeric",month:"long",day:"numeric"})}</p></div>
+</div>
+<table>
+  <thead><tr><th>Period</th><th class="r">Amount Due</th><th class="r">Paid</th><th class="r">Balance</th><th class="c">Status</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="totals">
+  <div class="t-row"><span style="color:#555">Total Paid (${soa.year})</span><span style="color:#27ae60;font-family:monospace;font-weight:bold">${fmt(soa.totalPaid)}</span></div>
+  <div class="t-row big"><span>TOTAL OUTSTANDING</span><span style="font-family:monospace;color:${soa.totalOut>0?"#c0392b":"#27ae60"}">${fmt(soa.totalOut)}</span></div>
+</div>
+<div class="sigs">
+  <div><div style="height:40px"></div><div class="sig-line"><div class="sig-name">${soa.vendorName}</div>Vendor / Lessee</div></div>
+  <div><div style="height:40px"></div><div class="sig-line"><div class="sig-name">Admin</div>Prepared by</div></div>
+  <div><div style="height:40px"></div><div class="sig-line"><div class="sig-name">Municipal Treasurer</div>Noted by</div></div>
+</div>
+<div class="footer">PALENG-CLICK System · Sent via chat · ${new Date().toLocaleString("en-PH")}</div>
+</body></html>`;
+    const frame = document.createElement("iframe");
+    frame.style.display = "none";
+    document.body.appendChild(frame);
+    frame.srcdoc = html;
+    frame.onload = () => { setTimeout(()=>{ frame.contentWindow?.print(); document.body.removeChild(frame); },300); };
   };
 
   const filteredVendors = allVendors.filter((v: any) =>
@@ -510,28 +598,108 @@ const AdminNews = () => {
                   {messages.map((m: any) => {
                     const isMe = m.sender_id === user?.id;
                     const typeCfg = MSG_TYPE_CONFIG[m.type as keyof typeof MSG_TYPE_CONFIG] || MSG_TYPE_CONFIG.message;
+                    const soa = parseSOA(m.body);
                     return (
                       <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[75%] space-y-1`}>
-                          {!isMe && m.type !== "message" && (
-                            <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${typeCfg.color}`}>
-                              <typeCfg.icon className="h-3 w-3" />
-                              {typeCfg.label}
+                        <div className={`space-y-1 ${soa ? "w-full max-w-[90%]" : "max-w-[75%]"}`}>
+                          {soa ? (
+                            /* ── SOA Card ── */
+                            <div className="rounded-2xl border bg-card shadow-md overflow-hidden">
+                              {/* SOA Header */}
+                              <div className="bg-foreground text-background px-4 py-3 text-center">
+                                <p className="text-[10px] tracking-widest uppercase opacity-60">Republic of the Philippines</p>
+                                <p className="text-xs font-bold">Municipality of San Juan, Batangas</p>
+                                <p className="text-sm font-bold tracking-wide mt-1">STATEMENT OF ACCOUNT</p>
+                                <p className="text-[10px] opacity-50 mt-0.5">Fiscal Year {soa.year}</p>
+                              </div>
+                              {/* Vendor info */}
+                              <div className="grid grid-cols-2 gap-2 px-4 py-3 bg-secondary/40 border-b text-xs">
+                                {[
+                                  {l:"Vendor", v:soa.vendorName},
+                                  {l:"Stall",  v:soa.stall},
+                                  {l:"Section",v:soa.section},
+                                  {l:"Rate",   v:`₱${soa.rate.toLocaleString("en-PH",{minimumFractionDigits:2})}/mo`},
+                                ].map(x=>(
+                                  <div key={x.l}>
+                                    <p className="text-muted-foreground">{x.l}</p>
+                                    <p className="font-semibold text-foreground">{x.v}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Month rows */}
+                              <div className="px-4 py-2">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b">
+                                      <th className="pb-1.5 text-left font-medium text-muted-foreground">Period</th>
+                                      <th className="pb-1.5 text-right font-medium text-muted-foreground">Paid</th>
+                                      <th className="pb-1.5 text-right font-medium text-muted-foreground">Balance</th>
+                                      <th className="pb-1.5 text-center font-medium text-muted-foreground">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y">
+                                    {soa.rows.map((r:any)=>(
+                                      <tr key={r.month} className={r.isFuture?"opacity-40":""}>
+                                        <td className="py-1 font-medium text-foreground">{r.label}</td>
+                                        <td className="py-1 text-right font-mono">
+                                          {r.paid>0
+                                            ? <span className="text-success">₱{r.paid.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>
+                                            : <span className="text-muted-foreground">—</span>}
+                                        </td>
+                                        <td className="py-1 text-right font-mono font-semibold">
+                                          {r.isFully
+                                            ? <span className="text-muted-foreground">—</span>
+                                            : <span className={r.isFuture?"text-muted-foreground":"text-accent"}>₱{r.balance.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>}
+                                        </td>
+                                        <td className="py-1 text-center">
+                                          {r.isFully   ? <span className="text-success font-semibold">✓ Paid</span>
+                                          :r.isPartial  ? <span className="text-primary font-semibold">Partial</span>
+                                          :r.isFuture   ? <span className="text-muted-foreground">—</span>
+                                          :<span className="text-accent font-semibold">Unpaid</span>}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {/* Totals */}
+                              <div className="border-t px-4 py-3 space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Total Paid ({soa.year})</span>
+                                  <span className="font-mono font-bold text-success">₱{soa.totalPaid.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>
+                                </div>
+                                <div className="flex justify-between border-t pt-1">
+                                  <span className="font-semibold text-foreground">TOTAL OUTSTANDING</span>
+                                  <span className={`font-mono font-bold text-base ${soa.totalOut>0?"text-accent":"text-success"}`}>₱{soa.totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>
+                                </div>
+                              </div>
+                              {/* Print button */}
+                              <div className="border-t px-4 py-2.5 flex items-center justify-between bg-secondary/30">
+                                <p className="text-[10px] text-muted-foreground">
+                                  Sent {new Date(m.created_at).toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric"})}
+                                </p>
+                                <button onClick={()=>printSOA(soa)}
+                                  className="flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-medium text-foreground hover:bg-secondary transition-colors">
+                                  <FileText className="h-3 w-3" /> Print / Save PDF
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── Regular message bubble ── */
+                            <div className={`rounded-2xl px-4 py-2.5 text-sm ${
+                              isMe
+                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                : "bg-secondary text-foreground rounded-bl-sm"
+                            }`}>
+                              {!isMe && m.type !== "message" && (
+                                <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold mb-1.5 ${typeCfg.color}`}>
+                                  <typeCfg.icon className="h-3 w-3" />
+                                  {typeCfg.label}
+                                </div>
+                              )}
+                              <p className="leading-relaxed whitespace-pre-wrap">{m.body}</p>
                             </div>
                           )}
-                          <div className={`rounded-2xl px-4 py-2.5 text-sm ${
-                            isMe
-                              ? "bg-primary text-primary-foreground rounded-br-sm"
-                              : "bg-secondary text-foreground rounded-bl-sm"
-                          }`}>
-                            {!isMe && m.type !== "message" && (
-                              <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold mb-1.5 ${typeCfg.color}`}>
-                                <typeCfg.icon className="h-3 w-3" />
-                                {typeCfg.label}
-                              </div>
-                            )}
-                            <p className="leading-relaxed">{m.body}</p>
-                          </div>
                           <p className={`text-[10px] text-muted-foreground ${isMe ? "text-right" : "text-left"}`}>
                             {new Date(m.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                             {isMe && m.read_at && <CheckCheck className="inline h-3 w-3 ml-1 text-primary" />}
