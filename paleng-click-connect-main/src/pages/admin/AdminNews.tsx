@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Plus, Trash2, Loader2, Megaphone, MessageSquare, Send,
   Users, AlertTriangle, Bell, X, Search, ChevronRight,
-  Clock, CheckCheck, Store,
+  Clock, CheckCheck, Store, FileText,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -240,6 +240,85 @@ const AdminNews = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+
+  // ── Send SOA as chat message ───────────────────────────────────────────────
+  const [sendingSOA, setSendingSOA] = useState(false);
+
+  const sendSOA = async () => {
+    if (!activeThread) return;
+    setSendingSOA(true);
+    try {
+      const MF = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const yr = new Date().getFullYear();
+      const cm = new Date().getMonth() + 1;
+
+      const { data: vendor } = await supabase
+        .from("vendors")
+        .select("id, stalls(stall_number, section, monthly_rate)")
+        .eq("user_id", activeThread.vendor_id)
+        .single();
+
+      if (!vendor) throw new Error("Vendor not found");
+      const st   = vendor.stalls as any;
+      const rate = st?.monthly_rate || 1450;
+
+      const { data: pmts } = await supabase
+        .from("payments")
+        .select("period_month, amount")
+        .eq("vendor_id", vendor.id)
+        .eq("status", "completed")
+        .eq("period_year", yr);
+
+      const pm: Record<number,number> = {};
+      (pmts||[]).forEach((p:any) => { if(p.period_month) pm[p.period_month]=(pm[p.period_month]||0)+Number(p.amount); });
+
+      const totalPaid = Object.values(pm).reduce((s,v)=>s+v,0);
+      const totalOut  = MF.reduce((sum,_,i)=>{ const m=i+1; if(m>cm) return sum; return sum+Math.max(0,rate-(pm[m]||0)); },0);
+
+      const rows = MF.slice(0,cm).map((m,i)=>{
+        const month=i+1, paid=pm[month]||0, bal=Math.max(0,rate-paid);
+        const icon = paid>=rate?"✅":paid>0?"⚠️":"❌";
+        const stat = paid>=rate?"Paid":paid>0?`Partial (₱${paid.toLocaleString("en-PH",{minimumFractionDigits:2})} paid)`:"Unpaid";
+        const due  = bal>0&&paid<rate?` — ₱${bal.toLocaleString("en-PH",{minimumFractionDigits:2})} due`:"";
+        return `${icon} ${m}: ${stat}${due}`;
+      });
+
+      const body = [
+        `📋 STATEMENT OF ACCOUNT — ${yr}`,
+        `Stall: ${st?.stall_number||"—"} | ${st?.section||"General"} Section`,
+        `Monthly Rate: ₱${rate.toLocaleString("en-PH",{minimumFractionDigits:2})}`,
+        ``,
+        ...rows,
+        ``,
+        `Total Paid:    ₱${totalPaid.toLocaleString("en-PH",{minimumFractionDigits:2})}`,
+        `Outstanding:   ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}`,
+        ``,
+        totalOut>0?"⚠️ Please settle your outstanding balance at the earliest convenience.":"✅ All stall fees are fully settled. Thank you!",
+      ].join("\n");
+
+      await (supabase.from("messages") as any).insert({
+        thread_id: activeThread.id, sender_id: user!.id,
+        recipient_id: activeThread.vendor_id, body, type: "penalty",
+      });
+      await (supabase.from("message_threads") as any)
+        .update({ last_message: "📋 SOA sent", last_at: new Date().toISOString() })
+        .eq("id", activeThread.id);
+      await supabase.from("notifications").insert({
+        user_id: activeThread.vendor_id,
+        title: "📋 Statement of Account",
+        message: `You have an outstanding balance of ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Check your messages.`,
+        type: "overdue" as any,
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin-messages", activeThread.id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-threads"] });
+      toast.success("SOA sent to vendor!");
+    } catch(e:any) {
+      toast.error(e.message||"Failed to send SOA");
+    } finally {
+      setSendingSOA(false);
+    }
+  };
+
   const filteredVendors = allVendors.filter((v: any) =>
     v.name.toLowerCase().includes(searchVendor.toLowerCase()) ||
     v.stall.toLowerCase().includes(searchVendor.toLowerCase())
@@ -469,6 +548,16 @@ const AdminNews = () => {
 
                 {/* Message type selector + input */}
                 <div className="border-t p-4 space-y-3">
+                  {/* SOA quick-send button */}
+                  <button
+                    onClick={sendSOA}
+                    disabled={sendingSOA}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm font-medium text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+                  >
+                    {sendingSOA
+                      ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" /> Generating SOA...</>
+                      : <><FileText className="h-4 w-4" /> Send Statement of Account (SOA)</>}
+                  </button>
                   <div className="flex gap-1.5 flex-wrap">
                     {(["message","penalty","reminder"] as const).map(t => {
                       const cfg = MSG_TYPE_CONFIG[t];
