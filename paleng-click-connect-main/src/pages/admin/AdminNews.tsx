@@ -316,10 +316,10 @@ const AdminNews = () => {
           const credited  = effMap[m] || 0;
           const displayPaid = Math.min(credited, due_m);  // cap at per-month rate for display
           const balance   = Math.max(0, due_m - credited);
-          const isAdvance = m > cm && credited >= due_m;  // advance = future month covered
+          const isAdvance = m > cm && credited >= due_m;   // future, fully covered
+          const isFuture  = m > cm && credited === 0;       // future, nothing paid at all
           const isFully   = credited >= due_m && !isAdvance;
-          const isPartial = credited > 0 && credited < due_m && m <= cm;
-          const isFuture  = m > cm && credited < due_m;
+          const isPartial = credited > 0 && credited < due_m; // any month, partial payment
           return {
             month, label: month,
             due:       due_m,
@@ -769,7 +769,7 @@ Thank you for your cooperation.`;
                                           {r.isAdvance  ? <span className="text-blue-600 font-semibold">★ Advance</span>
                                           :r.isFully    ? <span className="text-success font-semibold">✓ Paid</span>
                                           :r.isPartial  ? <span className="text-primary font-semibold">Partial</span>
-                                          :(r.isFuture&&!r.isPartial) ? <span className="text-muted-foreground">—</span>
+                                          :(r.isFuture&&!r.isPartial) ? <span className="text-muted-foreground">Upcoming</span>
                                           :<span className="text-accent font-semibold">Unpaid</span>}
                                         </td>
                                       </tr>
