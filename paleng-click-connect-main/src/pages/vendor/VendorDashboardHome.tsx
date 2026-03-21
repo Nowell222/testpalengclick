@@ -30,37 +30,69 @@ const VendorDashboardHome = () => {
       const { data: notifications } = await supabase.from("notifications").select("*").eq("user_id", user!.id).eq("read_status", false).order("created_at", { ascending: false }).limit(3);
 
       const stall       = vendor?.stalls as any;
-      const monthlyRate = stall?.monthly_rate || 1450;
+      const defaultRate = stall?.monthly_rate || 1450;
       const currentYear  = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
 
-      const monthPaidMap: Record<number, number> = {};
-      (payments || []).filter(p => p.status === "completed" && p.period_year === currentYear).forEach(p => {
-        if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
-      });
+      // ── Fetch per-month fee schedules ───────────────────────────────────
+      const { data: schedules } = stall?.id
+        ? await (supabase.from("stall_fee_schedules" as any) as any)
+            .select("*").eq("stall_id", stall.id).eq("year", currentYear)
+        : { data: [] };
 
-      const paidThisMonth      = monthPaidMap[currentMonth] || 0;
-      const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
-      const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
+      // Per-month fee: reads from schedule if set, else stall default
+      const getMonthFee = (m: number): number => {
+        const s = (schedules || []).find((s: any) => s.month === m);
+        return s ? Number(s.amount) : defaultRate;
+      };
 
+      // ── Raw paid map from DB ────────────────────────────────────────────
+      const rawPaidMap: Record<number, number> = {};
+      (payments || [])
+        .filter(p => p.status === "completed" && p.period_year === currentYear)
+        .forEach(p => {
+          if (p.period_month)
+            rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
+        });
+
+      // ── Cascade — carry stops at partial month ──────────────────────────
+      const effMap: Record<number, number> = {};
+      let carry = 0;
+      for (let m = 1; m <= 12; m++) {
+        const due_m    = getMonthFee(m);
+        const credited = (rawPaidMap[m] || 0) + carry;
+        effMap[m]      = credited;
+        carry          = credited >= due_m ? (credited - due_m) : 0;
+      }
+
+      // ── Current month status ────────────────────────────────────────────
+      const currentMonthFee    = getMonthFee(currentMonth);
+      const paidThisMonth      = effMap[currentMonth] || 0;
+      const isCurrentMonthPaid = paidThisMonth >= currentMonthFee;
+      const remainingThisMonth = Math.max(0, currentMonthFee - paidThisMonth);
+      const monthlyRate        = currentMonthFee; // for display
+
+      // ── First unpaid/partial month ──────────────────────────────────────
       let nextUnpaidMonth = currentMonth;
       for (let m = 1; m <= 12; m++) {
-        if ((monthPaidMap[m] || 0) < monthlyRate) { nextUnpaidMonth = m; break; }
+        if ((effMap[m] || 0) < getMonthFee(m)) { nextUnpaidMonth = m; break; }
         if (m === 12) nextUnpaidMonth = 13;
       }
 
-      const totalPaidYear    = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
-      const monthsPaid       = Object.entries(monthPaidMap).filter(([, v]) => v >= monthlyRate).length;
-      const totalOutstanding = MONTHS.reduce((sum, _, i) => {
-        const m = i + 1;
-        if (m > currentMonth) return sum;
-        return sum + Math.max(0, monthlyRate - (monthPaidMap[m] || 0));
-      }, 0);
+      // ── Summary stats ───────────────────────────────────────────────────
+      const totalPaidYear = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
 
+      const monthsPaid = Array.from({ length: currentMonth }, (_, i) => i + 1)
+        .filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
+
+      const totalOutstanding = Array.from({ length: currentMonth }, (_, i) => i + 1)
+        .reduce((sum, m) => sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0)), 0);
+
+      // ── Chart data using cascade + per-month fee ────────────────────────
       const chartData = MONTHS_SHORT.slice(0, currentMonth).map((m, i) => ({
         month: m,
-        paid:  Math.min(monthPaidMap[i + 1] || 0, monthlyRate),
-        due:   monthlyRate,
+        paid:  Math.min(effMap[i + 1] || 0, getMonthFee(i + 1)),
+        due:   getMonthFee(i + 1),
       }));
 
       return {
@@ -128,10 +160,10 @@ const VendorDashboardHome = () => {
               <p className="text-xs text-muted-foreground">Your stall fee for this month is fully settled</p>
             </div>
           </div>
-          {!d.allPaid && (
+          {!d.allPaid && d.nextUnpaidMonth <= 12 && (
             <Link to="/vendor/pay">
               <Button size="sm" variant="outline" className="border-success/30 text-success hover:bg-success/10 shrink-0">
-                Pay {MONTHS[(d.nextUnpaidMonth || currentMonth) - 1]} early
+                Pay {MONTHS[d.nextUnpaidMonth - 1]} early
                 <ArrowRight className="ml-1.5 h-3 w-3" />
               </Button>
             </Link>
@@ -147,7 +179,9 @@ const VendorDashboardHome = () => {
               <AlertCircle className="h-5 w-5 text-accent" />
             </div>
             <div>
-              <p className="font-semibold text-accent">{MONTHS[currentMonth - 1]} {d.currentYear} — Payment Due</p>
+              <p className="font-semibold text-accent">
+                {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} {d.currentYear} — Payment Due
+              </p>
               {d.paidThisMonth > 0 ? (
                 <p className="text-xs text-muted-foreground">
                   {fmt(d.paidThisMonth)} paid · {fmt(d.remainingThisMonth)} remaining
@@ -168,10 +202,10 @@ const VendorDashboardHome = () => {
       {/* ── Stats row ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",            icon: Calendar,     color: "text-foreground",                                      bg: "bg-secondary" },
-          { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, icon: TrendingUp, color: "text-success",                                         bg: "bg-success/10" },
-          { label: "Months Settled", value: `${d.monthsPaid} / ${d.currentMonth}`, sub: "paid in full",  icon: CheckCircle2, color: d.monthsPaid === d.currentMonth ? "text-success" : "text-primary", bg: d.monthsPaid === d.currentMonth ? "bg-success/10" : "bg-primary/10" },
-          { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",           icon: AlertCircle,  color: d.totalOutstanding === 0 ? "text-success" : "text-accent", bg: d.totalOutstanding === 0 ? "bg-success/10" : "bg-accent/10" },
+          { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",                    icon: Calendar,     color: "text-foreground",                                                              bg: "bg-secondary" },
+          { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`,       icon: TrendingUp,   color: "text-success",                                                                 bg: "bg-success/10" },
+          { label: "Months Settled", value: `${d.monthsPaid} / ${d.currentMonth}`, sub: "paid in full",   icon: CheckCircle2, color: d.monthsPaid === d.currentMonth ? "text-success" : "text-primary",              bg: d.monthsPaid === d.currentMonth ? "bg-success/10" : "bg-primary/10" },
+          { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",                  icon: AlertCircle,  color: d.totalOutstanding === 0 ? "text-success" : "text-accent",                      bg: d.totalOutstanding === 0 ? "bg-success/10" : "bg-accent/10" },
         ].map(c => (
           <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
             <div className="flex items-center justify-between mb-2">
@@ -292,8 +326,8 @@ const VendorDashboardHome = () => {
             </p>
             <p className="text-sm text-muted-foreground mt-1.5">
               {d.isCurrentMonthPaid
-                ? `${MONTHS[(d.nextUnpaidMonth || currentMonth + 1) - 1] || "All months paid"} ${d.currentYear}`
-                : `${MONTHS[currentMonth - 1]} ${d.currentYear}`}
+                ? `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth + 1) - 1] || "All months paid"} ${d.currentYear}`
+                : `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} ${d.currentYear}`}
             </p>
             {d.paidThisMonth > 0 && !d.isCurrentMonthPaid && (
               <div className="mt-3 space-y-1">
