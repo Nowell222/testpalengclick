@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import {
   Search, CheckCircle2, CreditCard, Loader2, Banknote,
   User, Printer, AlertCircle, Receipt, Smartphone,
-  Building2, X, RefreshCw, Clock,
+  Building2, X, RefreshCw, Clock, Eye,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -537,6 +537,7 @@ const CashierAcceptPayment = () => {
 
   // Online confirm/reject
   const [onlineReceipt, setOnlineReceipt] = useState<any>(null);
+  const [viewPayment,   setViewPayment]   = useState<any>(null);
 
   const confirmPayment = useMutation({
     mutationFn: async (p: any) => {
@@ -734,6 +735,63 @@ Please keep your receipt as proof of payment. Thank you!`,
       {tab==="online" && (
         onlineReceipt ? (
           <ReceiptCard data={onlineReceipt} onNew={() => setOnlineReceipt(null)} />
+        ) : viewPayment ? (
+          // ── Payment detail preview before confirm/reject ──────────────────
+          <div className="max-w-sm mx-auto space-y-4">
+            <button onClick={() => setViewPayment(null)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-4 w-4" /> Back to list
+            </button>
+            <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+              <div className="bg-foreground text-background text-center px-5 py-4 space-y-0.5">
+                <p className="text-[9px] tracking-[3px] uppercase opacity-50">Republic of the Philippines</p>
+                <p className="text-xs font-bold">Municipality of San Juan, Batangas</p>
+                <p className="text-lg font-bold tracking-widest mt-1">PAYMENT REQUEST</p>
+                <p className="text-[9px] opacity-40">Public Market Stall Rental — Pending Confirmation</p>
+              </div>
+              <div className="divide-y">
+                {[
+                  { label: "Reference No.",  value: viewPayment.reference_number || "—", mono: true },
+                  { label: "Date & Time",    value: new Date(viewPayment.created_at).toLocaleString("en-PH",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}) },
+                  { label: "Vendor",         value: viewPayment.vendor_name },
+                  { label: "Stall",          value: `${viewPayment.stall} — ${viewPayment.section}` },
+                  { label: "Billing Period", value: viewPayment.period_month ? `${MONTHS_FULL[viewPayment.period_month-1]} ${viewPayment.period_year}` : "—" },
+                  { label: "Payment Type",   value: viewPayment.payment_type === "staggered" ? "Partial Payment" : "Full Payment" },
+                  { label: "Method",         value: METHOD_CONFIG[viewPayment.payment_method]?.label || viewPayment.payment_method },
+                  { label: "Status",         value: "Pending Confirmation" },
+                ].map(r => (
+                  <div key={r.label} className="flex items-center justify-between px-5 py-2.5">
+                    <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
+                    <span className={`text-xs font-semibold text-foreground text-right ml-3 ${r.mono ? "font-mono" : ""}`}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mx-4 my-3 rounded-xl border-2 border-primary/30 bg-primary/5 py-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Amount</p>
+                <p className="font-mono text-3xl font-bold text-foreground">{fmt(Number(viewPayment.amount))}</p>
+              </div>
+              {viewPayment.payment_method === "cash" && (
+                <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Vendor will bring this reference number to complete cash payment. Verify before confirming.
+                </div>
+              )}
+              <p className="text-center text-[9px] text-muted-foreground/50 border-t px-4 py-2">
+                PALENG-CLICK · Payment Request Verification
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button className="flex-1 gap-2 rounded-xl bg-success hover:bg-success/90 text-white"
+                disabled={confirmPayment.isPending}
+                onClick={() => { confirmPayment.mutate(viewPayment); setViewPayment(null); }}>
+                <CheckCircle2 className="h-4 w-4" /> Confirm Payment
+              </Button>
+              <Button variant="outline" className="flex-1 gap-2 rounded-xl text-accent border-accent/30 hover:bg-accent/10"
+                disabled={rejectPayment.isPending}
+                onClick={() => { rejectPayment.mutate(viewPayment); setViewPayment(null); }}>
+                <X className="h-4 w-4" /> Reject
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -786,6 +844,11 @@ Please keep your receipt as proof of payment. Thank you!`,
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex gap-1.5">
+                              <Button size="sm" variant="outline"
+                                className="h-7 text-xs rounded-lg gap-1"
+                                onClick={() => setViewPayment(p)}>
+                                <Eye className="h-3 w-3"/>View
+                              </Button>
                               <Button size="sm"
                                 className="h-7 text-xs bg-success hover:bg-success/90 text-white rounded-lg gap-1"
                                 disabled={confirmPayment.isPending}
