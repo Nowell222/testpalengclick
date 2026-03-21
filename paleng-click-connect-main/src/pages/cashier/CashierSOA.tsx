@@ -62,10 +62,10 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
     const credited    = effMap[m] || 0;
     const displayPaid = Math.min(credited, due);
     const balance     = Math.max(0, due - credited);
-    const isAdvance   = m > currentMonth && credited >= due;
-    const isFully     = credited >= due && !isAdvance;
-    const isPartial   = credited > 0 && credited < due && m <= currentMonth;
-    const isFuture    = m > currentMonth && credited < due;
+    const isAdvance   = m > currentMonth && credited >= due;   // future, fully covered
+    const isFuture    = m > currentMonth && credited === 0;    // future, nothing paid
+    const isFully     = credited >= due && !isAdvance;         // past/current fully paid
+    const isPartial   = credited > 0 && credited < due;       // partial — any month
     return {
       month:    name,
       monthNum: m,
@@ -101,10 +101,10 @@ const getPrintHTML = (soa: any) => {
       <td class="num">₱${r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
       <td class="num">${r.paid > 0 ? `₱${r.paid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—"}</td>
       <td class="num ${r.balance > 0 && !r.isFuture && !r.isAdvance ? "bal" : ""}">
-        ${(r.isFully || r.isAdvance) ? "—" : `₱${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
+        ${(r.isFully || r.isAdvance) ? "₱0.00" : `₱${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
       </td>
       <td class="status ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "partial" : r.isFuture ? "future-s" : "unpaid"}">
-        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -467,15 +467,15 @@ const CashierSOA = () => {
                             </td>
                             <td className="px-4 py-2.5 text-right font-mono font-semibold">
                               {(r.isFully || r.isAdvance)
-                                ? <span className="text-muted-foreground">—</span>
-                                : <span className={r.isFuture ? "text-muted-foreground" : "text-accent"}>
+                                ? <span className="text-success font-mono">₱0.00</span>
+                                : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>
                                     ₱{r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                                   </span>}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {r.isAdvance ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                                  Advance
+                                  ★ Advance
                                 </span>
                               ) : r.isFully ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
@@ -485,7 +485,7 @@ const CashierSOA = () => {
                                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                                   Partial
                                 </span>
-                              ) : r.isFuture ? (
+                              ) : r.isFuture && !r.isPartial ? (
                                 <span className="text-xs text-muted-foreground">Upcoming</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent">

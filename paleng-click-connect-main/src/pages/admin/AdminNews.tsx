@@ -762,14 +762,14 @@ Thank you for your cooperation.`;
                                         </td>
                                         <td className="py-1 text-right font-mono font-semibold">
                                           {(r.isFully||r.isAdvance)
-                                            ? <span className="text-muted-foreground">—</span>
-                                            : <span className={r.isFuture?"text-muted-foreground":"text-accent"}>₱{r.balance.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>}
+                                            ? <span className="text-success font-mono">₱0.00</span>
+                                            : <span className={r.isFuture&&!r.isPartial?"text-muted-foreground":"text-accent"}>₱{r.balance.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>}
                                         </td>
                                         <td className="py-1 text-center">
-                                          {r.isAdvance  ? <span className="text-blue-600 font-semibold">Advance</span>
+                                          {r.isAdvance  ? <span className="text-blue-600 font-semibold">★ Advance</span>
                                           :r.isFully    ? <span className="text-success font-semibold">✓ Paid</span>
                                           :r.isPartial  ? <span className="text-primary font-semibold">Partial</span>
-                                          :r.isFuture   ? <span className="text-muted-foreground">—</span>
+                                          :(r.isFuture&&!r.isPartial) ? <span className="text-muted-foreground">—</span>
                                           :<span className="text-accent font-semibold">Unpaid</span>}
                                         </td>
                                       </tr>

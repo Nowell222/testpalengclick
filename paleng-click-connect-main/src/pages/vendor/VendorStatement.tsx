@@ -20,9 +20,9 @@ const getPrintHTML = (data: any) => {
       <td>${r.month} ${currentYear}</td>
       <td class="r">${fmt(r.due)}</td>
       <td class="r">${r.paid > 0 ? fmt(r.paid) : "—"}</td>
-      <td class="r ${r.balance > 0 && !r.isFuture ? "bal" : ""}">${r.isFully ? "—" : fmt(r.balance)}</td>
-      <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : r.isFuture ? "upcoming" : "unpaid"}">
-        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+      <td class="r ${r.balance > 0 && !r.isFuture && !r.isAdvance ? "bal" : ""}">${(r.isFully || r.isAdvance) ? "₱0.00" : fmt(r.balance)}</td>
+      <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : (r.isFuture && !r.isPartial) ? "upcoming" : "unpaid"}">
+        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -187,10 +187,10 @@ const VendorStatement = () => {
 
     // Advance = future month that is already covered by carry-over from previous overpayment
     // Only mark as advance if the month is AFTER the current month
-    const isAdvance  = m > currentMonth && credited >= due;
-    const isFuture   = m > currentMonth && credited < due;
-    const isFully    = credited >= due && !isAdvance; // past/current month fully paid
-    const isPartial  = credited > 0 && credited < due && !isFuture;
+    const isAdvance  = m > currentMonth && credited >= due;   // future, fully covered by carry
+    const isFuture   = m > currentMonth && credited === 0;    // future, nothing paid at all
+    const isFully    = credited >= due && !isAdvance;         // past/current fully paid
+    const isPartial  = credited > 0 && credited < due;       // partial — any month
 
     return {
       month,
@@ -313,13 +313,13 @@ const VendorStatement = () => {
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono font-semibold">
                       {(r.isFully || r.isAdvance)
-                        ? <span className="text-muted-foreground">—</span>
-                        : <span className={r.isFuture ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
+                        ? <span className="text-success font-mono">₱0.00</span>
+                        : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       {r.isAdvance ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          Advance
+                          ✦ Advance
                         </span>
                       ) : r.isFully ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
@@ -329,7 +329,7 @@ const VendorStatement = () => {
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
                           Partial
                         </span>
-                      ) : r.isFuture ? (
+                      ) : r.isFuture && !r.isPartial ? (
                         <span className="text-xs text-muted-foreground">Upcoming</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 border border-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent">
