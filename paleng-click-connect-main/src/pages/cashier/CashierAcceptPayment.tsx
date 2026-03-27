@@ -16,6 +16,34 @@ import { useSearchParams } from "react-router-dom";
 const MONTHS_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
+// ── Notify vendor via Edge Function (email + push + in-app) ──────────────────
+const notifyVendor = async (params: {
+  vendor_user_id: string;
+  vendor_name: string;
+  stall_number: string;
+  section: string;
+  amount: number;
+  period_month: number;
+  period_year: number;
+  payment_method: string;
+  payment_type: string;
+  receipt_number: string;
+  reference_number: string;
+  cashier_name: string;
+}) => {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(params),
+    });
+  } catch (e) {
+    console.error("notifyVendor failed:", e);
+  }
+};
+
 const METHOD_CONFIG: Record<string,{icon:any;color:string;label:string}> = {
   gcash:    { icon: Smartphone, color: "bg-blue-500",  label: "GCash"     },
   paymaya:  { icon: Smartphone, color: "bg-green-600", label: "Maya"      },
@@ -664,25 +692,19 @@ Please contact the cashier or try paying again through another method.`,
       if (error) throw error;
       const cn3 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
       const now3 = new Date();
-      await supabase.from("notifications").insert({
-        user_id: manualVendor.user_id,
-        title:   "✅ Payment Recorded by Cashier",
-        message: `Your stall fee payment has been recorded by the cashier.
-
-Payment Details:
-• Vendor: ${manualVendor.profile?.first_name} ${manualVendor.profile?.last_name}
-• Stall: ${(manualVendor.stall as any)?.stall_number} — ${(manualVendor.stall as any)?.section}
-• Amount Paid: ${fmt(Number(manualAmount))}
-• Billing Period: ${MONTHS_FULL[now3.getMonth()]} ${now3.getFullYear()}
-• Payment Method: ${METHOD_CONFIG[manualMethod]?.label || manualMethod}
-• Payment Type: Full Payment
-• Receipt No.: ${data.receipt_number || "—"}
-• Reference No.: ${data.reference_number || "—"}
-• Processed by: ${cn3}
-• Date & Time: ${now3.toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-
-Please keep your receipt as proof of payment. Thank you!`,
-        type:    "confirmation",
+      await notifyVendor({
+        vendor_user_id:   manualVendor.user_id,
+        vendor_name:      `${manualVendor.profile?.first_name} ${manualVendor.profile?.last_name}`,
+        stall_number:     (manualVendor.stall as any)?.stall_number || "—",
+        section:          (manualVendor.stall as any)?.section || "General",
+        amount:           Number(manualAmount),
+        period_month:     now3.getMonth() + 1,
+        period_year:      now3.getFullYear(),
+        payment_method:   manualMethod,
+        payment_type:     "due",
+        receipt_number:   data.receipt_number || "",
+        reference_number: data.reference_number || "",
+        cashier_name:     cn3,
       });
       return data;
     },
