@@ -302,25 +302,19 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
       }).select("reference_number, receipt_number").single();
       if (error) throw error;
       const cn1 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
-      await supabase.from("notifications").insert({
-        user_id: vendor.user_id,
-        title:   "✅ Cash Payment Received",
-        message: `Your stall fee payment has been received and recorded by the cashier.
-
-Payment Details:
-• Vendor: ${vendor.profile?.first_name} ${vendor.profile?.last_name}
-• Stall: ${vendor.stall?.stall_number} — ${vendor.stall?.section}
-• Amount Paid: ${fmt(payAmount)}
-• Billing Period: ${MONTHS_FULL[periodMonth-1]} ${periodYear}
-• Payment Type: ${payType === "full" ? "Full Payment" : "Partial Payment"}
-• Payment Method: Cash at Cashier
-• Receipt No.: ${data.receipt_number || "—"}
-• Reference No.: ${data.reference_number || "—"}
-• Processed by: ${cn1}
-• Date & Time: ${new Date().toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-
-Please keep your receipt as proof of payment. Thank you!`,
-        type:    "confirmation",
+      await notifyVendor({
+        vendor_user_id:   vendor.user_id,
+        vendor_name:      `${vendor.profile?.first_name} ${vendor.profile?.last_name}`,
+        stall_number:     vendor.stall?.stall_number || "—",
+        section:          vendor.stall?.section || "General",
+        amount:           payAmount,
+        period_month:     periodMonth,
+        period_year:      periodYear,
+        payment_method:   "cash",
+        payment_type:     payType === "full" ? "due" : "staggered",
+        receipt_number:   data.receipt_number || "",
+        reference_number: data.reference_number || "",
+        cashier_name:     cn1,
       });
       return data;
     },
@@ -576,28 +570,19 @@ const CashierAcceptPayment = () => {
       const recipientUserId = vendorRow?.user_id;
       const cn2 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
       if (recipientUserId) {
-        // Get stall info for the notification
-        const { data: vendorInfo } = await supabase.from("vendors").select("stalls(stall_number, section)").eq("user_id", recipientUserId).single();
-        const stallInfo = vendorInfo?.stalls as any;
-        await supabase.from("notifications").insert({
-          user_id: recipientUserId,
-          title:   "✅ Online Payment Confirmed",
-          message: `Your online payment has been confirmed and processed by the cashier.
-
-Payment Details:
-• Vendor: ${p.vendor_name}
-• Stall: ${p.stall} — ${p.section}
-• Amount Paid: ${fmt(Number(p.amount))}
-• Billing Period: ${p.period_month ? MONTHS_FULL[p.period_month-1] : "—"} ${p.period_year || ""}
-• Payment Method: ${METHOD_CONFIG[p.payment_method]?.label || p.payment_method}
-• Payment Type: ${p.payment_type === "staggered" ? "Partial Payment" : "Full Payment"}
-• Reference No.: ${p.reference_number || "—"}
-• Receipt No.: ${p.receipt_number || "—"}
-• Confirmed by: ${cn2}
-• Date & Time: ${new Date().toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-
-Your payment is now complete. Thank you!`,
-          type:    "confirmation",
+        await notifyVendor({
+          vendor_user_id:   recipientUserId,
+          vendor_name:      p.vendor_name,
+          stall_number:     p.stall,
+          section:          p.section || "General",
+          amount:           Number(p.amount),
+          period_month:     p.period_month,
+          period_year:      p.period_year,
+          payment_method:   p.payment_method,
+          payment_type:     p.payment_type,
+          receipt_number:   p.receipt_number || "",
+          reference_number: p.reference_number || "",
+          cashier_name:     cn2,
         });
       }
       return p;
