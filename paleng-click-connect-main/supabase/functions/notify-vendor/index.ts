@@ -200,7 +200,7 @@ Thank you!`,
         try {
           const sd = typeof sub.subscription==='string' ? JSON.parse(sub.subscription) : sub.subscription
           if (!sd?.keys?.p256dh || !sd?.keys?.auth) { console.error('bad sub keys'); continue }
-          const r = await webPushSend({endpoint:sd.endpoint,keys:sd.keys}, pp, VK, VP, 'mailto:nowellandal71@gmail.com')
+          const r = await webPushSend({endpoint:sub.endpoint,keys:sd.keys}, pp, VK, VP, 'mailto:nowellandal71@gmail.com')
           console.log('push result:', r.status, r.body)
           if (r.ok) sent++
           else results.errors.push(`push ${r.status}: ${r.body}`)

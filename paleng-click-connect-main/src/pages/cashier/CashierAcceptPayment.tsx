@@ -34,13 +34,21 @@ const notifyVendor = async (params: {
   try {
     const { data: session } = await supabase.auth.getSession();
     const token = session?.session?.access_token;
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(params),
     });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("notifyVendor failed:", response.status, error);
+    } else {
+      const result = await response.json();
+      console.log("notifyVendor success:", result);
+    }
   } catch (e) {
-    console.error("notifyVendor failed:", e);
+    console.error("notifyVendor fetch error:", e);
   }
 };
 
