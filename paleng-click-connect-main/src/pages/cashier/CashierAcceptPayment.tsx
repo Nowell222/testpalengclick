@@ -32,25 +32,13 @@ const notifyVendor = async (params: {
   cashier_name: string;
 }) => {
   try {
-    // Refresh session first to ensure we have a valid token
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session) {
-      // Try refreshing the session if it's expired
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      if (!refreshData.session) {
-        console.error("notifyVendor: no valid session");
-        return;
-      }
-    }
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    const token = currentSession?.access_token;
-    // Supabase Edge Functions require BOTH Authorization (user JWT) AND apikey (anon key)
+    // verify_jwt = false in config.toml — use anon key as bearer, no user JWT needed
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        "Authorization": `Bearer ${anonKey}`,
         "apikey": anonKey,
       },
       body: JSON.stringify(params),
