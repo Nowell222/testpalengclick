@@ -32,23 +32,35 @@ const notifyVendor = async (params: {
   cashier_name: string;
 }) => {
   try {
-    const { data: session } = await supabase.auth.getSession();
-    const token = session?.session?.access_token;
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
+    // Refresh session first to ensure we have a valid token
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      // Try refreshing the session if it's expired
+      const { data: refreshData } = await supabase.auth.refreshSession();
+      if (!refreshData.session) {
+        console.error("notifyVendor: no valid session");
+        return;
+      }
+    }
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const token = currentSession?.access_token;
+    // Supabase Edge Functions require BOTH Authorization (user JWT) AND apikey (anon key)
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "apikey": anonKey,
+      },
       body: JSON.stringify(params),
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("notifyVendor failed:", response.status, error);
-    } else {
-      const result = await response.json();
-      console.log("notifyVendor success:", result);
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("notifyVendor failed:", res.status, errText);
     }
   } catch (e) {
-    console.error("notifyVendor fetch error:", e);
+    console.error("notifyVendor failed:", e);
   }
 };
 

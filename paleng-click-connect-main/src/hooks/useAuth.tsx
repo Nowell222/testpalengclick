@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 type AppRole = "admin" | "cashier" | "vendor";
 
@@ -33,8 +32,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (profileRes.data) setProfile(profileRes.data);
   };
 
+  const clearAuth = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setRole(null);
+    setProfile(null);
+    setLoading(false);
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
+      // Handle expired/invalid refresh token - sign out cleanly
+      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !sess)) {
+        setUser(null);
+        setSession(null);
+        setRole(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
@@ -46,7 +64,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    supabase.auth.getSession().then(({ data: { session: sess } }) => {
+    // On mount: get existing session, handle stale refresh tokens gracefully
+    supabase.auth.getSession().then(({ data: { session: sess }, error }) => {
+      if (error) {
+        // "Refresh Token Not Found" or similar - clear the stale session
+        console.warn("[Auth] Session error on mount, clearing:", error.message);
+        clearAuth();
+        return;
+      }
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
