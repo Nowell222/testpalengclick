@@ -54,63 +54,126 @@ const buildEmailHTML = (data: {
 </div></body></html>`
 }
 
-// ── Web Push (native Deno crypto) ────────────────────────────────────────────
+// ── Web Push — RFC 8291 aes128gcm encryption ──────────────────────────────────
 function b64uDecode(s: string): Uint8Array {
   const b = s.replace(/-/g,'+').replace(/_/g,'/')
   const p = b.length % 4 === 0 ? '' : '='.repeat(4 - b.length % 4)
   const r = atob(b + p)
   return new Uint8Array([...r].map(c => c.charCodeAt(0)))
 }
-function b64uEncode(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf)
+function b64uEncode(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
   let s = ''
   for (const b of bytes) s += String.fromCharCode(b)
   return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
 }
 
-async function buildVapidAuth(endpoint: string, pubKey: string, privKey: string, subject: string) {
+async function buildVapidJwt(endpoint: string, pubKey: string, privKey: string, subject: string): Promise<string> {
   const url = new URL(endpoint)
   const aud = `${url.protocol}//${url.host}`
   const exp = Math.floor(Date.now()/1000) + 43200
   const hdr = b64uEncode(new TextEncoder().encode(JSON.stringify({typ:'JWT',alg:'ES256'})))
   const pay = b64uEncode(new TextEncoder().encode(JSON.stringify({aud,exp,sub:subject})))
   const unsigned = `${hdr}.${pay}`
-  const ck = await crypto.subtle.importKey('raw', b64uDecode(privKey), {name:'ECDSA',namedCurve:'P-256'}, false, ['sign'])
-  const sig = await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'}, ck, new TextEncoder().encode(unsigned))
+  // VAPID private key must be raw 32-byte EC private key
+  const privKeyBytes = b64uDecode(privKey)
+  const ck = await crypto.subtle.importKey(
+    'raw', privKeyBytes,
+    {name:'ECDSA', namedCurve:'P-256'}, false, ['sign']
+  )
+  const sig = await crypto.subtle.sign(
+    {name:'ECDSA', hash:'SHA-256'}, ck,
+    new TextEncoder().encode(unsigned)
+  )
   return `vapid t=${unsigned}.${b64uEncode(sig)},k=${pubKey}`
 }
 
-async function webPushSend(sub: {endpoint:string;keys:{p256dh:string;auth:string}}, payload: string, pubKey: string, privKey: string, subject: string) {
+// RFC 8291 / RFC 8188 — aes128gcm content encoding
+async function webPushSend(
+  sub: {endpoint:string; keys:{p256dh:string; auth:string}},
+  payload: string,
+  pubKey: string,
+  privKey: string,
+  subject: string
+): Promise<{ok:boolean; status:number; body:string}> {
   const enc = new TextEncoder()
-  const clientPub  = b64uDecode(sub.keys.p256dh)
-  const authSecret = b64uDecode(sub.keys.auth)
-  const serverKP   = await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits'])
+
+  // 1. Generate server ECDH keypair
+  const serverKP = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits'])
   const serverPubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', serverKP.publicKey))
-  const clientKey    = await crypto.subtle.importKey('raw',clientPub,{name:'ECDH',namedCurve:'P-256'},false,[])
-  const shared       = new Uint8Array(await crypto.subtle.deriveBits({name:'ECDH',public:clientKey},serverKP.privateKey,256))
-  const salt         = crypto.getRandomValues(new Uint8Array(16))
-  const ikm          = await crypto.subtle.importKey('raw',shared,{name:'HKDF'},false,['deriveBits'])
-  const authInfo     = enc.encode('Content-Encoding: auth\0')
-  const prk          = new Uint8Array(await crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:authSecret,info:authInfo},ikm,256))
-  const ctx          = new Uint8Array([...enc.encode('P-256\0'),0,65,...clientPub,0,65,...serverPubRaw])
-  const prkKey       = await crypto.subtle.importKey('raw',prk,{name:'HKDF'},false,['deriveBits'])
-  const cekInfo      = new Uint8Array([...enc.encode('Content-Encoding: aesgcm\0'),...ctx])
-  const cekBytes     = new Uint8Array(await crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt,info:cekInfo},prkKey,128))
-  const cek          = await crypto.subtle.importKey('raw',cekBytes,{name:'AES-GCM'},false,['encrypt'])
-  const nonceInfo    = new Uint8Array([...enc.encode('Content-Encoding: nonce\0'),...ctx])
-  const nonce        = new Uint8Array(await crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt,info:nonceInfo},prkKey,96))
-  const padded       = new Uint8Array([0,0,...enc.encode(payload)])
-  const encrypted    = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce},cek,padded))
-  const rs           = new Uint8Array(4); new DataView(rs.buffer).setUint32(0,4096,false)
-  const body         = new Uint8Array([...salt,...rs,serverPubRaw.length,...serverPubRaw,...encrypted])
-  const auth         = await buildVapidAuth(sub.endpoint,pubKey,privKey,subject)
-  const res  = await fetch(sub.endpoint, {
-    method:'POST',
-    headers:{'Authorization':auth,'Content-Type':'application/octet-stream','Content-Encoding':'aesgcm','TTL':'86400'},
+
+  // 2. Import client public key
+  const clientPubRaw = b64uDecode(sub.keys.p256dh)
+  const clientPubKey = await crypto.subtle.importKey(
+    'raw', clientPubRaw, {name:'ECDH', namedCurve:'P-256'}, false, []
+  )
+
+  // 3. ECDH shared secret
+  const sharedSecret = new Uint8Array(
+    await crypto.subtle.deriveBits({name:'ECDH', public:clientPubKey}, serverKP.privateKey, 256)
+  )
+
+  // 4. Random salt (16 bytes)
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+
+  // 5. auth secret
+  const authSecret = b64uDecode(sub.keys.auth)
+
+  // 6. HKDF-SHA-256: PRK = HKDF-Extract(auth_secret, shared_secret) with info = "WebPush: info\0" + clientPub + serverPub
+  const ikm = await crypto.subtle.importKey('raw', sharedSecret, {name:'HKDF'}, false, ['deriveBits'])
+  const prkInfo = new Uint8Array([
+    ...enc.encode('WebPush: info\0'),
+    ...clientPubRaw,
+    ...serverPubRaw,
+  ])
+  const prk = new Uint8Array(await crypto.subtle.deriveBits(
+    {name:'HKDF', hash:'SHA-256', salt:authSecret, info:prkInfo}, ikm, 256
+  ))
+
+  // 7. CEK = HKDF-Expand(PRK, "Content-Encoding: aes128gcm\0", 16 bytes)
+  const prkKey = await crypto.subtle.importKey('raw', prk, {name:'HKDF'}, false, ['deriveBits'])
+  const cekBytes = new Uint8Array(await crypto.subtle.deriveBits(
+    {name:'HKDF', hash:'SHA-256', salt, info:enc.encode('Content-Encoding: aes128gcm\0')}, prkKey, 128
+  ))
+  const cek = await crypto.subtle.importKey('raw', cekBytes, {name:'AES-GCM'}, false, ['encrypt'])
+
+  // 8. Nonce = HKDF-Expand(PRK, "Content-Encoding: nonce\0", 12 bytes)
+  const nonceBytes = new Uint8Array(await crypto.subtle.deriveBits(
+    {name:'HKDF', hash:'SHA-256', salt, info:enc.encode('Content-Encoding: nonce\0')}, prkKey, 96
+  ))
+
+  // 9. Pad payload: plaintext + 0x02 (delimiter) then encrypt
+  const plaintext = enc.encode(payload)
+  const padded = new Uint8Array([...plaintext, 0x02]) // RFC 8188 padding delimiter
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    {name:'AES-GCM', iv:nonceBytes}, cek, padded
+  ))
+
+  // 10. Build RFC 8188 header: salt(16) + rs(4, big-endian) + idlen(1) + serverPub(65)
+  const rs = 4096
+  const header = new Uint8Array(16 + 4 + 1 + serverPubRaw.length)
+  header.set(salt, 0)
+  new DataView(header.buffer).setUint32(16, rs, false) // big-endian record size
+  header[20] = serverPubRaw.length                     // keyid length
+  header.set(serverPubRaw, 21)
+
+  const body = new Uint8Array([...header, ...ciphertext])
+
+  // 11. VAPID auth header
+  const vapidAuth = await buildVapidJwt(sub.endpoint, pubKey, privKey, subject)
+
+  const res = await fetch(sub.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': vapidAuth,
+      'Content-Type': 'application/octet-stream',
+      'Content-Encoding': 'aes128gcm',
+      'TTL': '86400',
+    },
     body,
   })
   const txt = await res.text()
-  return {ok:res.ok||res.status===201, status:res.status, body:txt}
+  return {ok: res.ok || res.status === 201, status: res.status, body: txt}
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -154,7 +217,7 @@ Thank you!`,
     results.in_app = ne ? { success:false, error:ne.message } : { success:true }
     if (ne) console.error('in-app error:', ne)
 
-    // 2. Email
+    // 2. Email via Resend
     const RKEY = Deno.env.get('RESEND_API_KEY')
     if (RKEY) {
       const { data: ud } = await supabase.auth.admin.getUserById(vendor_user_id)
@@ -184,37 +247,61 @@ Thank you!`,
       } else { results.errors.push('vendor email not found') }
     } else { results.errors.push('RESEND_API_KEY missing') }
 
-    // 3. Push
+    // 3. Web Push (RFC 8291 aes128gcm)
     const VP = Deno.env.get('VAPID_PRIVATE_KEY')
     const VK = Deno.env.get('VAPID_PUBLIC_KEY')
     const { data: subs } = await (supabase.from('push_subscriptions' as any) as any).select('*').eq('user_id', vendor_user_id)
-    console.log('push subs:', subs?.length ?? 0)
+    console.log('push subs found:', subs?.length ?? 0)
     if (subs?.length && VP && VK) {
       const pp = JSON.stringify({
-        title:`✅ Payment Confirmed — ${fmt(Number(amount))}`,
-        body:`${period} · Stall ${stall_number} · ${ML[payment_method]||payment_method}`,
-        data:{type:'payment_confirmed',amount,period,receipt_number,reference_number,url:'/vendor/notifications'},
+        title: `✅ Payment Confirmed — ${fmt(Number(amount))}`,
+        body:  `${period} · Stall ${stall_number} · ${ML[payment_method]||payment_method}`,
+        data:  {type:'payment_confirmed', amount, period, receipt_number, reference_number, url:'/vendor/notifications'},
       })
       let sent = 0
       for (const sub of subs) {
         try {
-          const sd = typeof sub.subscription==='string' ? JSON.parse(sub.subscription) : sub.subscription
-          if (!sd?.keys?.p256dh || !sd?.keys?.auth) { console.error('bad sub keys'); continue }
-          const r = await webPushSend({endpoint:sub.endpoint,keys:sd.keys}, pp, VK, VP, 'mailto:nowellandal71@gmail.com')
+          const sd = typeof sub.subscription === 'string' ? JSON.parse(sub.subscription) : sub.subscription
+          if (!sd?.endpoint || !sd?.keys?.p256dh || !sd?.keys?.auth) {
+            console.error('bad sub keys for user:', vendor_user_id)
+            continue
+          }
+          const r = await webPushSend(
+            {endpoint: sd.endpoint, keys: sd.keys},
+            pp, VK, VP,
+            'mailto:nowellandal71@gmail.com'
+          )
           console.log('push result:', r.status, r.body)
           if (r.ok) sent++
-          else results.errors.push(`push ${r.status}: ${r.body}`)
-        } catch(e){ console.error('push err:',e); results.errors.push(`push ex: ${e}`) }
+          else {
+            results.errors.push(`push ${r.status}: ${r.body}`)
+            // Remove expired/invalid subscriptions (410 Gone or 404)
+            if (r.status === 410 || r.status === 404) {
+              await (supabase.from('push_subscriptions' as any) as any)
+                .delete().eq('id', sub.id)
+              console.log('removed expired sub:', sub.id)
+            }
+          }
+        } catch(e) {
+          console.error('push err:', e)
+          results.errors.push(`push ex: ${e}`)
+        }
       }
-      results.push = {success:sent>0,sent,total:subs.length}
+      results.push = {success: sent > 0, sent, total: subs.length}
     } else {
-      results.push = {success:false,reason:!VP?'VAPID not set':'no subs'}
+      results.push = {success: false, reason: !VP ? 'VAPID_PRIVATE_KEY not set' : !VK ? 'VAPID_PUBLIC_KEY not set' : 'no push subscriptions found'}
     }
 
     console.log('done:', JSON.stringify(results))
-    return new Response(JSON.stringify({success:true,results}),{status:200,headers:{...corsHeaders,'Content-Type':'application/json'}})
+    return new Response(
+      JSON.stringify({success: true, results}),
+      {status: 200, headers: {...corsHeaders, 'Content-Type': 'application/json'}}
+    )
   } catch(e: any) {
     console.error('fatal:', e)
-    return new Response(JSON.stringify({error:e.message}),{status:500,headers:{...corsHeaders,'Content-Type':'application/json'}})
+    return new Response(
+      JSON.stringify({error: e.message}),
+      {status: 500, headers: {...corsHeaders, 'Content-Type': 'application/json'}}
+    )
   }
 })

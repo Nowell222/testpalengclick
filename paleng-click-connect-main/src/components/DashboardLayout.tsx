@@ -7,6 +7,7 @@ import {
   FileBarChart, LogOut, Menu, X, Wallet, History, FileText, Store, Bell,
   Search, Receipt, Send, DollarSign, type LucideIcon,
 } from "lucide-react";
+import PushNotificationBanner from "@/components/PushNotificationBanner";
 
 interface NavItem { label: string; path: string; icon: LucideIcon; }
 
@@ -119,7 +120,14 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           <div className="flex-1" />
           <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-muted-foreground capitalize">{role}</span>
         </header>
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6 h-full">
+          {/* Push notification prompt — only shown to vendors, persists across all vendor pages */}
+          {role === "vendor" && (
+            <div className="mb-4">
+              <PushNotificationBanner />
+            </div>
+          )}
           <Outlet />
         </main>
       </div>
