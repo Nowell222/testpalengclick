@@ -150,7 +150,7 @@ const AdminNews = () => {
       if (!title.trim() || !content.trim()) throw new Error("Title and content are required");
       const { error } = await supabase.from("announcements").insert({ title, content, published_by: user?.id });
       if (error) throw error;
-      // Also send notification to all vendors
+      // Send in-app notification + push to all vendors
       const { data: vendors } = await supabase.from("vendors").select("user_id");
       if (vendors?.length) {
         await supabase.from("notifications").insert(
@@ -161,6 +161,35 @@ const AdminNews = () => {
             type: "announcement",
           }))
         );
+        // Trigger push notifications for each vendor via notify-vendor-like logic
+        // We use Supabase Edge Function if available, otherwise fall back gracefully
+        try {
+          const anonKey = (window as any).__VITE_SUPABASE_KEY__ ||
+            import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+          const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || "";
+          // Send push to all vendor push subscriptions via a simple fetch
+          // The edge function handles VAPID encryption
+          for (const v of vendors) {
+            fetch(`${supabaseUrl}/functions/v1/notify-vendor`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": anonKey, "Authorization": `Bearer ${anonKey}` },
+              body: JSON.stringify({
+                vendor_user_id: v.user_id,
+                vendor_name: "Vendor",
+                stall_number: "—", section: "—", amount: 0,
+                period_month: new Date().getMonth() + 1,
+                period_year: new Date().getFullYear(),
+                payment_method: "announcement",
+                payment_type: "announcement",
+                receipt_number: "", reference_number: "",
+                cashier_name: title,
+                _push_only: true,
+                _push_title: `📢 ${title}`,
+                _push_body: content.slice(0, 120),
+              }),
+            }).catch(() => {}); // fire and forget
+          }
+        } catch {}
       }
     },
     onSuccess: () => {

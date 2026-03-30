@@ -188,7 +188,26 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { vendor_user_id, vendor_name, stall_number, section, amount,
       period_month, period_year, payment_method, payment_type,
-      receipt_number, reference_number, cashier_name } = body
+      receipt_number, reference_number, cashier_name,
+      _push_only, _push_title, _push_body } = body
+
+    // Push-only mode: just send a push notification (for announcements etc)
+    if (_push_only && _push_title) {
+      const VP = Deno.env.get('VAPID_PRIVATE_KEY')
+      const VK = Deno.env.get('VAPID_PUBLIC_KEY')
+      const { data: subs } = await (supabase.from('push_subscriptions' as any) as any).select('*').eq('user_id', vendor_user_id)
+      if (subs?.length && VP && VK) {
+        const pp = JSON.stringify({ title: _push_title, body: _push_body || '', data: { type: 'announcement', url: '/vendor/news' } })
+        for (const sub of subs) {
+          try {
+            const sd = typeof sub.subscription === 'string' ? JSON.parse(sub.subscription) : sub.subscription
+            if (!sd?.endpoint || !sd?.keys?.p256dh || !sd?.keys?.auth) continue
+            await webPushSend({ endpoint: sd.endpoint, keys: sd.keys }, pp, VK, VP, 'mailto:nowellandal71@gmail.com')
+          } catch(e) { console.error('push-only err:', e) }
+        }
+      }
+      return new Response(JSON.stringify({ success: true, mode: 'push_only' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
 
     console.log('notify-vendor:', vendor_user_id, amount)
 

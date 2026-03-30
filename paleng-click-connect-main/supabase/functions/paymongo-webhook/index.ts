@@ -10,7 +10,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serve(async (req: { method: string; json: () => any; }) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {

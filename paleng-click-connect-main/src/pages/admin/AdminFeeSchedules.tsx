@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Loader2, Search, Save, RefreshCw, CheckCircle2,
-  Store, DollarSign, Edit3, X, AlertCircle, ChevronDown,
+  Store, DollarSign, Edit3, X, AlertCircle, ChevronDown, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,6 +216,9 @@ const AdminFeeSchedules = () => {
   const [filterSection,setFilterSection]= useState("all");
   const [year,         setYear]         = useState(new Date().getFullYear());
   const [editVendor,   setEditVendor]   = useState<any>(null);
+  const [bulkSection,  setBulkSection]  = useState("General");
+  const [bulkRate,     setBulkRate]     = useState("");
+  const [bulkApplying, setBulkApplying] = useState(false);
   const queryClient                     = useQueryClient();
 
   const SECTIONS = ["General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
@@ -257,6 +260,40 @@ const AdminFeeSchedules = () => {
     return matchSearch && matchSection;
   });
 
+
+  const handleBulkApply = async () => {
+    if (!bulkRate || Number(bulkRate) <= 0) { toast.error('Enter a valid rate.'); return; }
+    setBulkApplying(true);
+    try {
+      const targets = vendors.filter((v: any) => {
+        const st = v.stalls as any;
+        return bulkSection === 'All' || st?.section === bulkSection;
+      });
+      if (!targets.length) { toast.error('No vendors in selected section.'); setBulkApplying(false); return; }
+      const rate = Number(bulkRate);
+      // Upsert all 12 months for each vendor stall
+      const upserts = targets.flatMap((v: any) =>
+        Array.from({length: 12}, (_, i) => ({
+          stall_id: v.stall_id, year, month: i + 1, amount: rate, note: null,
+        }))
+      );
+      const { error } = await (supabase.from('stall_fee_schedules' as any) as any)
+        .upsert(upserts, { onConflict: 'stall_id,year,month' });
+      if (error) throw error;
+      // Also update stalls.monthly_rate
+      const stallIds = targets.map((v: any) => v.stall_id).filter(Boolean);
+      if (stallIds.length) await supabase.from('stalls').update({ monthly_rate: rate }).in('id', stallIds);
+      toast.success(`Applied ${fmt(rate)}/month to ${targets.length} vendor${targets.length > 1 ? 's' : ''} in ${bulkSection} section for ${year}.`);
+      queryClient.invalidateQueries({ queryKey: ['all-fee-schedules', year] });
+      queryClient.invalidateQueries({ queryKey: ['admin-fee-vendors'] });
+      setBulkRate('');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBulkApplying(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {editVendor && <VendorFeeEditor vendor={editVendor} year={year} onClose={() => setEditVendor(null)} />}
@@ -282,6 +319,50 @@ const AdminFeeSchedules = () => {
           If no schedule is set for a month, the stall's default monthly rate is used.
           Saving a schedule instantly updates the vendor's SOA, the cashier's SOA view, and all reports.
         </div>
+      </div>
+
+
+      {/* Bulk apply rate by section */}
+      <div className='rounded-2xl border bg-card p-4 shadow-civic space-y-3'>
+        <div className='flex items-center gap-2'>
+          <Zap className='h-4 w-4 text-primary' />
+          <h3 className='font-semibold text-foreground text-sm'>Bulk Apply Rate by Section</h3>
+        </div>
+        <p className='text-xs text-muted-foreground'>Apply a single monthly rate to all vendors in a section for the selected year. Individual per-month edits can be done after.</p>
+        <div className='flex flex-wrap items-end gap-3'>
+          <div className='space-y-1'>
+            <label className='text-xs text-muted-foreground'>Section</label>
+            <select className='h-9 rounded-xl border bg-background px-3 text-sm' value={bulkSection} onChange={e => setBulkSection(e.target.value)}>
+              <option value='All'>All Sections</option>
+              {SECTIONS.map(s => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className='space-y-1'>
+            <label className='text-xs text-muted-foreground'>Monthly Rate (₱)</label>
+            <div className='relative'>
+              <span className='absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm'>₱</span>
+              <Input type='number' placeholder='e.g. 1450' className='h-9 pl-7 rounded-xl font-mono w-36' value={bulkRate} onChange={e => setBulkRate(e.target.value)} />
+            </div>
+          </div>
+          <div className='space-y-1'>
+            <label className='text-xs text-muted-foreground'>Year</label>
+            <select className='h-9 rounded-xl border bg-background px-3 text-sm' value={year} onChange={e => setYear(Number(e.target.value))}>
+              {[2024,2025,2026,2027].map(y => <option key={y}>{y}</option>)}
+            </select>
+          </div>
+          <Button className='gap-2 rounded-xl h-9' disabled={bulkApplying || !bulkRate} onClick={handleBulkApply}>
+            {bulkApplying ? <Loader2 className='h-4 w-4 animate-spin' /> : <Zap className='h-4 w-4' />}
+            Apply to {bulkSection === 'All' ? 'All' : bulkSection}
+          </Button>
+        </div>
+        {bulkRate && Number(bulkRate) > 0 && (
+          <p className='text-xs text-muted-foreground'>
+            Will apply <strong className='text-foreground'>{fmt(Number(bulkRate))}</strong>/month to{' '}
+            <strong className='text-foreground'>
+              {bulkSection === 'All' ? vendors.length : vendors.filter((v: any) => (v.stalls as any)?.section === bulkSection).length}
+            </strong> vendor{vendors.length !== 1 ? 's' : ''} for all 12 months of {year}.
+          </p>
+        )}
       </div>
 
       {/* Filters */}

@@ -10,7 +10,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, PieChart as RePieChart,
-  Pie, Cell, AreaChart, Area,
+  Pie, Cell, AreaChart, Area, Legend,
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,6 +81,8 @@ const AdminReports = () => {
   const [dateFrom,    setDateFrom]    = useState(() => { const d=new Date(); d.setDate(d.getDate()-29); return d.toISOString().split("T")[0]; });
   const [dateTo,      setDateTo]      = useState(() => new Date().toISOString().split("T")[0]);
   const [reportYear,  setReportYear]  = useState(new Date().getFullYear());
+  const [compareYear, setCompareYear]  = useState(new Date().getFullYear() - 1);
+  const [showYoY,     setShowYoY]      = useState(false);
   const [filterSection, setFilterSection] = useState("all");
   const [search,      setSearch]      = useState("");
 
@@ -100,7 +102,7 @@ const AdminReports = () => {
     queryKey: ["admin-reports-all"],
     refetchInterval: 60000,
     queryFn: async () => {
-      const yearStart = `${new Date().getFullYear()}-01-01T00:00:00`;
+      const yearStart = `${Math.min(new Date().getFullYear() - 3, new Date().getFullYear())}-01-01T00:00:00`;
       const [paymentsRes, vendorsRes, stallsRes] = await Promise.all([
         supabase.from("payments").select("*").gte("created_at", yearStart).order("created_at", { ascending: false }),
         supabase.from("vendors").select("id, user_id, stalls(stall_number, section, monthly_rate, status)"),
