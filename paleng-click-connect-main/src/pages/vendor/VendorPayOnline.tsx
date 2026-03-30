@@ -425,23 +425,39 @@ const VendorPayOnline = () => {
           </a>
         )}
 
-        {/* Polling status */}
-        <div className="rounded-xl bg-secondary/50 p-4 flex items-start gap-3 text-sm">
-          {pollingActive ? (
-            <><Loader2 className="h-4 w-4 animate-spin text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="font-medium text-foreground">Waiting for confirmation</p>
-              <p className="text-xs text-muted-foreground">This page updates automatically once payment is received.</p>
-            </div></>
-          ) : (
-            <><RefreshCw className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+        {/* Polling status — enhanced */}
+        {pollingActive ? (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              <div>
+                <p className="font-semibold text-foreground text-sm">Waiting for payment confirmation…</p>
+                <p className="text-xs text-muted-foreground">Checking automatically every 5 seconds. Keep this page open.</p>
+              </div>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-primary/10 overflow-hidden">
+              <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: "60%" }} />
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              ✅ This page will update automatically when your payment is confirmed.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-secondary/50 p-4 flex items-start gap-3 text-sm">
+            <RefreshCw className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <div>
               <p className="font-medium text-foreground">Already paid?</p>
               <button onClick={() => pendingPayId && pollPaymentStatus(pendingPayId)} className="text-xs text-primary hover:underline">
-                Check payment status
+                Check payment status now
               </button>
-            </div></>
-          )}
+            </div>
+          </div>
+        )}
+
+        {/* Tip */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 flex items-start gap-2">
+          <span className="shrink-0 mt-0.5">💡</span>
+          <span>You can close this page after paying. Check <strong>Payment History</strong> later to confirm your payment was received.</span>
         </div>
       </div>
     );

@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Loader2, Printer, Download, CheckCircle2, AlertCircle, TrendingUp, Calendar } from "lucide-react";
+import { useRef, useState } from "react";
+import { Loader2, Printer, Download, CheckCircle2, AlertCircle, TrendingUp, Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -93,18 +93,22 @@ const getPrintHTML = (data: any) => {
 const VendorStatement = () => {
   const { user }   = useAuth();
   const printRef   = useRef<HTMLIFrameElement>(null);
+  const thisYear   = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(thisYear);
+
+  // Available years: current year and up to 3 prior years
+  const availableYears = Array.from({ length: 4 }, (_, i) => thisYear - i);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["vendor-statement", user?.id],
+    queryKey: ["vendor-statement", user?.id, selectedYear],
     enabled: !!user,
     refetchInterval: 5000,
     queryFn: async () => {
       const { data: vendor }  = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, location)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
-      const currentYear = new Date().getFullYear();
       const [paymentsRes, schedulesRes] = await Promise.all([
         supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true }),
-        vendor?.stall_id ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall_id).eq("year", currentYear) : Promise.resolve({ data: [] }),
+        vendor?.stall_id ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall_id).eq("year", selectedYear) : Promise.resolve({ data: [] }),
       ]);
       return { vendor, profile, payments: paymentsRes.data || [], stall: vendor?.stalls as any, schedules: schedulesRes.data || [] };
     },
@@ -127,12 +131,12 @@ const VendorStatement = () => {
     return s ? Number(s.amount) : defaultRate;
   };
   const monthlyRate = defaultRate; // kept for compatibility
-  const currentYear  = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  const currentYear  = selectedYear;
+  const currentMonth = selectedYear === thisYear ? new Date().getMonth() + 1 : 12;
 
   // ── Raw paid amounts per month from DB ────────────────────────────────────
   const rawPaidMap: Record<number, number> = {};
-  payments.filter((p: any) => p.period_year === currentYear).forEach((p: any) => {
+  payments.filter((p: any) => p.period_year === selectedYear).forEach((p: any) => {
     if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
@@ -222,9 +226,22 @@ const VendorStatement = () => {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
-          <p className="text-sm text-muted-foreground">Official summary of your stall rental — {currentYear}</p>
+          <p className="text-sm text-muted-foreground">Official summary of your stall rental</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Year selector */}
+          <div className="relative">
+            <select
+              className="h-10 appearance-none rounded-xl border bg-card pl-3 pr-8 text-sm font-medium text-foreground shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={selectedYear}
+              onChange={e => setSelectedYear(Number(e.target.value))}
+            >
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}{y === thisYear ? " (Current)" : ""}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
           <Button variant="outline" className="gap-2 rounded-xl" onClick={doPrint}>
             <Printer className="h-4 w-4" /> Print
           </Button>

@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Bell, CreditCard, Megaphone, AlertTriangle, Loader2, X, Printer, CheckCircle2, Info } from "lucide-react";
+import { Bell, BellOff, CreditCard, Megaphone, AlertTriangle, Loader2, X, Printer, CheckCircle2, Info, CheckCheck, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { toast } from "sonner";
 
-// ─── Config ────────────────────────────────────────────────────────────────────
+// ─── Config ─────────────────────────────────────────────────────────────────────
 const TYPE_ICON:  Record<string, any>    = { reminder: Bell, confirmation: CreditCard, announcement: Megaphone, overdue: AlertTriangle, info: Bell };
 const TYPE_STYLE: Record<string, string> = {
   reminder:     "bg-primary/10 text-primary",
@@ -15,9 +17,7 @@ const TYPE_STYLE: Record<string, string> = {
   info:         "bg-primary/10 text-primary",
 };
 
-// ─── Parse receipt details from notification message ───────────────────────────
-// The cashier notification message uses bullet format:
-// "• Vendor: John Doe\n• Stall: G-001 — General\n• Amount Paid: ₱1,450.00\n..."
+// ─── Parse receipt details from notification message ────────────────────────────
 const parseReceiptFromMessage = (message: string): Record<string, string> | null => {
   if (!message?.includes("•")) return null;
   const lines  = message.split("\n").filter(l => l.trim().startsWith("•"));
@@ -27,14 +27,12 @@ const parseReceiptFromMessage = (message: string): Record<string, string> | null
     const clean = line.replace("•", "").trim();
     const idx   = clean.indexOf(":");
     if (idx === -1) return;
-    const key   = clean.slice(0, idx).trim();
-    const value = clean.slice(idx + 1).trim();
-    result[key] = value;
+    result[clean.slice(0, idx).trim()] = clean.slice(idx + 1).trim();
   });
   return Object.keys(result).length >= 3 ? result : null;
 };
 
-// ─── Print receipt ─────────────────────────────────────────────────────────────
+// ─── Print receipt ──────────────────────────────────────────────────────────────
 const printReceipt = (title: string, details: Record<string, string>, amount: string) => {
   const rows = Object.entries(details)
     .filter(([k]) => k !== "Amount Paid" && k !== "Amount")
@@ -75,11 +73,10 @@ ${rows}
   frame.onload = () => { setTimeout(() => { frame.contentWindow?.print(); document.body.removeChild(frame); }, 300); };
 };
 
-// ─── Receipt Modal ─────────────────────────────────────────────────────────────
+// ─── Receipt Modal ───────────────────────────────────────────────────────────────
 const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: () => void }) => {
   const details    = parseReceiptFromMessage(notification.message);
   if (!details) return null;
-
   const isRejection = notification.title?.includes("Rejected") || notification.title?.includes("❌");
   const amount      = details["Amount Paid"] || details["Amount"] || "—";
 
@@ -89,8 +86,6 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
       onClick={onClose}>
       <div className="bg-card rounded-2xl border shadow-xl w-full max-w-sm overflow-hidden"
         onClick={e => e.stopPropagation()}>
-
-        {/* Header — red for rejection, dark for receipt */}
         {isRejection ? (
           <div className="bg-accent text-white text-center px-5 py-4 space-y-0.5">
             <p className="text-[9px] tracking-[3px] uppercase opacity-70">Municipality of San Juan, Batangas</p>
@@ -106,22 +101,16 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
             <p className="text-[9px] opacity-40">Public Market Stall Rental</p>
           </div>
         )}
-
-        {/* Details */}
         <div className="divide-y">
           {Object.entries(details)
             .filter(([k]) => k !== "Amount Paid" && k !== "Amount")
             .map(([key, value]) => (
               <div key={key} className="flex items-center justify-between px-5 py-2.5">
                 <span className="text-xs text-muted-foreground shrink-0">{key}</span>
-                <span className={`text-xs font-semibold text-foreground text-right ml-3 ${
-                  key.includes("No.") || key.includes("Ref") ? "font-mono" : ""
-                }`}>{value as string}</span>
+                <span className={`text-xs font-semibold text-foreground text-right ml-3 ${key.includes("No.") || key.includes("Ref") ? "font-mono" : ""}`}>{value as string}</span>
               </div>
             ))}
         </div>
-
-        {/* Amount box */}
         {isRejection ? (
           <div className="mx-4 my-3 rounded-xl border-2 border-accent/30 bg-accent/5 py-4 text-center">
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Rejected Amount</p>
@@ -134,18 +123,14 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
             <p className="font-mono text-3xl font-bold text-success">{amount}</p>
           </div>
         )}
-
         {isRejection && (
           <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             Please contact the cashier or try paying again through another method.
           </div>
         )}
-
         <p className="text-center text-[9px] text-muted-foreground/50 border-t px-4 py-2">
           PALENG-CLICK · {new Date(notification.created_at).toLocaleString("en-PH")}
         </p>
-
-        {/* Actions */}
         <div className="flex gap-3 p-4 border-t">
           {!isRejection && (
             <Button variant="hero" className="flex-1 gap-2 rounded-xl"
@@ -158,6 +143,55 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
           </Button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── Push Settings Panel ─────────────────────────────────────────────────────────
+const PushSettingsPanel = () => {
+  const { isSupported, isSubscribed, isLoading, permission, subscribe, unsubscribe } = usePushNotifications();
+
+  if (!isSupported) return (
+    <div className="flex items-center gap-3 rounded-xl border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
+      <BellOff className="h-4 w-4 shrink-0" />
+      Push notifications are not supported in this browser.
+    </div>
+  );
+
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+      isSubscribed ? "border-success/20 bg-success/5" : "border-primary/20 bg-primary/5"
+    }`}>
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isSubscribed ? "bg-success/10" : "bg-primary/10"}`}>
+        {isSubscribed ? <BellRing className="h-4 w-4 text-success" /> : <Bell className="h-4 w-4 text-primary" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${isSubscribed ? "text-success" : "text-foreground"}`}>
+          {isSubscribed ? "Push Notifications Active" : "Enable Push Notifications"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {isSubscribed
+            ? "You'll receive alerts even when not logged in."
+            : permission === "denied"
+              ? "Blocked in browser. Click the 🔒 lock icon in the address bar to allow."
+              : "Get instant payment alerts on your device."}
+        </p>
+      </div>
+      {permission !== "denied" && (
+        <Button
+          size="sm"
+          variant={isSubscribed ? "outline" : "hero"}
+          className="h-8 text-xs gap-1.5 rounded-lg shrink-0"
+          disabled={isLoading}
+          onClick={isSubscribed ? unsubscribe : subscribe}
+        >
+          {isLoading
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : isSubscribed
+              ? <><BellOff className="h-3.5 w-3.5" /> Disable</>
+              : <><Bell className="h-3.5 w-3.5" /> Enable</>}
+        </Button>
+      )}
     </div>
   );
 };
@@ -186,9 +220,21 @@ const VendorNotifications = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendor-notifications"] }),
   });
 
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      await supabase.from("notifications")
+        .update({ read_status: true })
+        .eq("user_id", user!.id)
+        .eq("read_status", false);
+    },
+    onSuccess: () => {
+      toast.success("All notifications marked as read.");
+      queryClient.invalidateQueries({ queryKey: ["vendor-notifications"] });
+    },
+  });
+
   const handleClick = (n: any) => {
     if (!n.read_status) markRead.mutate(n.id);
-    // Open detail modal for confirmation OR rejection notifications that have parseable details
     const isRejection = n.title?.includes("Rejected") || n.title?.includes("❌");
     if ((n.type === "confirmation" || isRejection) && parseReceiptFromMessage(n.message)) {
       setSelected(n);
@@ -204,20 +250,30 @@ const VendorNotifications = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {selected && <ReceiptModal notification={selected} onClose={() => setSelected(null)} />}
 
-      <div className="flex items-start justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
           <p className="text-sm text-muted-foreground">Payment confirmations, reminders, and announcements</p>
         </div>
         {unreadCount > 0 && (
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-            {unreadCount}
-          </span>
+          <Button
+            size="sm" variant="outline"
+            className="gap-2 rounded-xl h-9 text-xs"
+            disabled={markAllRead.isPending}
+            onClick={() => markAllRead.mutate()}
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            Mark all as read ({unreadCount})
+          </Button>
         )}
       </div>
+
+      {/* Push notification settings — always visible */}
+      <PushSettingsPanel />
 
       {/* Hint for tappable notifications */}
       {notifications.some((n: any) => {
@@ -226,10 +282,11 @@ const VendorNotifications = () => {
       }) && (
         <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          Tap any payment notification to view details.
+          Tap any payment notification to view and print your receipt.
         </div>
       )}
 
+      {/* Notification list */}
       <div className="space-y-3">
         {notifications.map((n: any) => {
           const Icon        = TYPE_ICON[n.type]  || Bell;
@@ -262,7 +319,7 @@ const VendorNotifications = () => {
                   {hasReceipt && (
                     <div className={`mt-2 flex items-center gap-1.5 text-xs font-medium ${isRejection ? "text-accent" : "text-primary"}`}>
                       <CreditCard className="h-3 w-3" />
-                      {isRejection ? "Tap to view rejection details" : "Tap to view receipt"}
+                      {isRejection ? "Tap to view rejection details" : "Tap to view & print receipt"}
                     </div>
                   )}
                   {!n.read_status && (
