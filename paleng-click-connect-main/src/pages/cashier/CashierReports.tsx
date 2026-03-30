@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Download, Printer, FileText, Loader2, TrendingUp,
+  Download, Printer, FileText, Loader2, TrendingUp, FileSpreadsheet,
   TrendingDown, Minus, RefreshCw, Calendar, Users,
   CreditCard, Banknote, Smartphone, Building2, CheckCircle2,
   AlertCircle, Clock, BarChart2, PieChart, Activity,
@@ -64,6 +64,17 @@ const printHTML = (title: string, body: string) => `<!DOCTYPE html>
 ${body}
 <div class="footer">PALENG-CLICK System · Computer-generated report · ${new Date().toLocaleString("en-PH")}</div>
 </body></html>`;
+
+// ─── CSV Export helper ────────────────────────────────────────────────────────
+const exportCSV = (filename: string, rows: string[][], headers: string[]) => {
+  const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [headers, ...rows].map(r => r.map(escape).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = filename; link.click();
+  URL.revokeObjectURL(url);
+};
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 const CashierReports = () => {
@@ -260,6 +271,48 @@ const CashierReports = () => {
     frame.onload = () => setTimeout(() => frame.contentWindow?.print(), 300);
   };
 
+
+  const exportDailyCSV = () => {
+    const tp = completed.filter((p: any) => p.created_at?.startsWith(today));
+    const headers = ["Time","Vendor","Stall","Period","Amount","Method","Type","Reference No.","Receipt No."];
+    const rows = tp.map((p: any) => [
+      new Date(p.created_at).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"}),
+      p.vendor_name, p.stall_number,
+      p.period_month ? `${MONTHS_FULL[p.period_month-1]} ${p.period_year}` : "",
+      String(Number(p.amount).toFixed(2)), p.payment_method,
+      p.payment_type==="staggered"?"Partial":"Full",
+      p.reference_number||"", p.receipt_number||"",
+    ]);
+    exportCSV(`daily-collection-${today}.csv`, rows, headers);
+  };
+
+  const exportReceiptCSV = () => {
+    const headers = ["Receipt No.","Reference No.","Date","Vendor","Stall","Section","Period","Amount","Method","Type"];
+    const rows = rangePayments.map((p: any) => [
+      p.receipt_number||"", p.reference_number||"",
+      new Date(p.created_at).toLocaleDateString("en-PH"),
+      p.vendor_name, p.stall_number, p.section,
+      p.period_month ? `${MONTHS_FULL[p.period_month-1]} ${p.period_year}` : "",
+      String(Number(p.amount).toFixed(2)),
+      p.payment_method==="paymaya"?"Maya":p.payment_method,
+      p.payment_type==="staggered"?"Partial":"Full",
+    ]);
+    exportCSV(`receipt-log-${dateFrom}-to-${dateTo}.csv`, rows, headers);
+  };
+
+  const exportVendorStatusCSV = () => {
+    const headers = ["Vendor","Stall","Section","Monthly Rate","Total Paid","Outstanding","This Month Status","Remaining This Month"];
+    const vs = allData?.vendorStatus || [];
+    const rows = vs.map((v: any) => [
+      v.name, v.stall, v.section,
+      String(v.rate.toFixed(2)),
+      String(v.totalPaid.toFixed(2)),
+      String(v.outstanding.toFixed(2)),
+      v.thisMonthStatus,
+      String(v.remainingThisMonth.toFixed(2)),
+    ]);
+    exportCSV(`vendor-status-${MONTHS_FULL[new Date().getMonth()]}-${new Date().getFullYear()}.csv`, rows, headers);
+  };
   const printDailyReport = () => {
     const dayPayments = completed.filter((p: any) => p.created_at?.startsWith(today));
     const total = dayPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
@@ -625,6 +678,9 @@ const CashierReports = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" className="gap-2 rounded-xl" onClick={exportDailyCSV}>
+                <FileSpreadsheet className="h-4 w-4"/> Export CSV
+              </Button>
               <Button variant="outline" className="gap-2 rounded-xl" onClick={printDailyReport}>
                 <Printer className="h-4 w-4"/> Print
               </Button>
@@ -692,6 +748,7 @@ const CashierReports = () => {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="font-semibold text-foreground">Payment Receipt Log</h2>
             <div className="flex gap-2">
+              <Button variant="outline" className="gap-2 rounded-xl" onClick={exportReceiptCSV}><FileSpreadsheet className="h-4 w-4"/> Export CSV</Button>
               <Button variant="outline" className="gap-2 rounded-xl" onClick={printReceiptLog}><Printer className="h-4 w-4"/> Print</Button>
               <Button variant="hero" className="gap-2 rounded-xl" onClick={printReceiptLog}><Download className="h-4 w-4"/> Save PDF</Button>
             </div>
@@ -761,6 +818,7 @@ const CashierReports = () => {
               <p className="text-sm text-muted-foreground">{MONTHS_FULL[new Date().getMonth()]} {new Date().getFullYear()}</p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" className="gap-2 rounded-xl" onClick={exportVendorStatusCSV}><FileSpreadsheet className="h-4 w-4"/> Export CSV</Button>
               <Button variant="outline" className="gap-2 rounded-xl" onClick={printVendorStatus}><Printer className="h-4 w-4"/> Print</Button>
               <Button variant="hero" className="gap-2 rounded-xl" onClick={printVendorStatus}><Download className="h-4 w-4"/> Save PDF</Button>
             </div>

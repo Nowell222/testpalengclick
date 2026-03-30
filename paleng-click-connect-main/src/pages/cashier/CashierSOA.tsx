@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Search, Printer, Download, Loader2, User,
-  CheckCircle2, AlertCircle, ChevronRight, X,
+  CheckCircle2, AlertCircle, ChevronRight, X, Users, FileDown,
 } from "lucide-react";
 import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -228,10 +228,14 @@ const getPrintHTML = (soa: any) => {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const CashierSOA = () => {
-  const [search, setSearch]     = useState("");
-  const [selected, setSelected] = useState<any>(null);
-  const [printing, setPrinting] = useState(false);
-  const printFrameRef           = useRef<HTMLIFrameElement>(null);
+  const [search, setSearch]         = useState("");
+  const [selected, setSelected]     = useState<any>(null);
+  const [printing, setPrinting]     = useState(false);
+  const [bulkSection, setBulkSection] = useState("All");
+  const [bulkPrinting, setBulkPrinting] = useState(false);
+  const printFrameRef               = useRef<HTMLIFrameElement>(null);
+
+  const SECTIONS = ["All","General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
 
   // Fetch ALL vendors at once for instant search
   const { data: allVendors = [], isLoading } = useQuery({
@@ -287,6 +291,40 @@ const CashierSOA = () => {
     setSelected(soa);
   };
 
+  // Bulk print SOAs for a section
+  const handleBulkPrint = async () => {
+    setBulkPrinting(true);
+    const targets = bulkSection === "All"
+      ? allVendors
+      : allVendors.filter((v: any) => v.section === bulkSection);
+    if (!targets.length) { toast.error("No vendors in selected section."); setBulkPrinting(false); return; }
+    const currentYear = new Date().getFullYear();
+    const soaList = await Promise.all(targets.map(async (vendor: any) => {
+      const [paymentsRes, schedulesRes] = await Promise.all([
+        supabase.from("payments").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: true }),
+        vendor.stall?.id
+          ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall.id).eq("year", currentYear)
+          : Promise.resolve({ data: [] }),
+      ]);
+      return buildSOA(vendor, vendor.profile, paymentsRes.data || [], schedulesRes.data || []);
+    }));
+    const firstHTML = getPrintHTML(soaList[0]);
+    const styleMatch = firstHTML.match(/<style>([\s\S]*?)<\/style>/);
+    const styleBlock = styleMatch ? `<style>${styleMatch[1]}</style>` : "";
+    const bodies = soaList.map((soa, idx) => {
+      const full = getPrintHTML(soa);
+      const bodyMatch = full.match(/<body>([\s\S]*?)<\/body>/);
+      const body = bodyMatch ? bodyMatch[1] : "";
+      return `${idx > 0 ? '<div style="page-break-before:always"></div>' : ""}${body}`;
+    }).join("");
+    const fullHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Bulk SOA</title>${styleBlock}</head><body>${bodies}</body></html>`;
+    const frame = printFrameRef.current;
+    if (!frame) { setBulkPrinting(false); return; }
+    frame.srcdoc = fullHTML;
+    frame.onload = () => { setTimeout(() => { frame.contentWindow?.print(); setBulkPrinting(false); }, 400); };
+    toast.success(`Printing ${soaList.length} SOA${soaList.length > 1 ? "s" : ""}...`);
+  };
+
   // Print
   const handlePrint = () => {
     if (!selected) return;
@@ -328,6 +366,35 @@ const CashierSOA = () => {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
         <p className="text-sm text-muted-foreground">Search vendors, view their SOA, and print or save as PDF</p>
+      </div>
+
+      {/* Bulk print bar */}
+      <div className="rounded-2xl border bg-card p-4 shadow-civic flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">Bulk Print SOA by Section</span>
+        </div>
+        <select
+          className="h-9 rounded-xl border bg-background px-3 text-sm flex-1 min-w-[160px]"
+          value={bulkSection}
+          onChange={e => setBulkSection(e.target.value)}
+        >
+          {SECTIONS.map(s => (
+            <option key={s} value={s}>
+              {s === "All" ? `All Sections (${allVendors.length} vendors)` : `${s} Section (${allVendors.filter((v: any) => v.section === s).length} vendors)`}
+            </option>
+          ))}
+        </select>
+        <Button
+          variant="outline"
+          className="gap-2 rounded-xl h-9 shrink-0"
+          disabled={bulkPrinting || isLoading}
+          onClick={handleBulkPrint}
+        >
+          {bulkPrinting
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+            : <><FileDown className="h-4 w-4" /> Print All SOAs</>}
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[340px_1fr]">

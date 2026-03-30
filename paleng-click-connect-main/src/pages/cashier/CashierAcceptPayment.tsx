@@ -469,6 +469,28 @@ const WalkInPayment = ({ cashierProfile }: { cashierProfile: any }) => {
               )}
             </div>
 
+            {/* Advance payment option when current month is fully paid */}
+            {remaining===0 && periodMonth <= 12 && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  {MONTHS_FULL[periodMonth-1]} is fully paid
+                </p>
+                {periodMonth < 12 && (
+                  <>
+                    <p className="text-xs text-muted-foreground">Would you like to pay in advance for the next month?</p>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => { setPeriodMonth(m => Math.min(m + 1, 12)); setAmount(""); setPayType("full"); }}
+                    >
+                      Pay {MONTHS_FULL[periodMonth]} {periodYear} in Advance
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+
             {remaining > 0 && (
               <>
                 {/* Full / Partial toggle */}
