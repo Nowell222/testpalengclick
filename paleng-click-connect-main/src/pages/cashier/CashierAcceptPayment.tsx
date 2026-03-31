@@ -711,6 +711,7 @@ const CashierAcceptPayment = () => {
     },
     onError: (e: any) => toast.error(e.message),
   });
+  const [onlineReceipt, setOnlineReceipt] = useState<any>(null);
   const [viewPayment,   setViewPayment]   = useState<any>(null);
 
   const confirmPayment = useMutation({
