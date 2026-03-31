@@ -373,7 +373,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{roleLabels[role]}</span>
           <p className="text-xs text-foreground font-medium truncate">{displayName}</p>
         </div>
-        <nav className="flex-1 overflow-y-auto px-2 pb-4">
+        <nav className="overflow-y-auto px-2 py-2">
           {navItems.map((item) => (
             <Link key={item.path} to={item.path} onClick={() => setOpen(false)}
               className={`mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
@@ -384,7 +384,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
             </Link>
           ))}
         </nav>
-        <div className="border-t p-3">
+        <div className="border-t p-3 mt-auto">
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleLogout}>
             <LogOut className="h-4 w-4" /> Logout
           </Button>
