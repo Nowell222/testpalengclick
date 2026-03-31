@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import {
   Search, CheckCircle2, CreditCard, Loader2, Banknote,
   User, Printer, AlertCircle, Receipt, Smartphone,
-  Building2, X, RefreshCw, Clock, Eye,
+  Building2, X, RefreshCw, Clock, Eye, Scan,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -549,7 +549,7 @@ const CashierAcceptPayment = () => {
   const { user }    = useAuth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const [tab, setTab]  = useState<"online"|"walkin"|"manual">("online");
+  const [tab, setTab]  = useState<"online"|"walkin"|"manual"|"submissions">("online");
 
   // Cashier profile
   const { data: cashierProfile } = useQuery({
@@ -587,8 +587,130 @@ const CashierAcceptPayment = () => {
     },
   });
 
-  // Online confirm/reject
-  const [onlineReceipt, setOnlineReceipt] = useState<any>(null);
+  // ── Receipt submissions (vendor upload flow) ──────────────────────────────
+  const { data: submissions=[], isLoading: subsLoading, refetch: refetchSubs } = useQuery({
+    queryKey: ["cashier-submissions"],
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data: subs } = await (supabase.from("payment_submissions" as any) as any)
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      if (!subs?.length) return [];
+      const vendorIds = [...new Set(subs.map((s: any) => s.vendor_id))];
+      const { data: vendors } = await supabase.from("vendors")
+        .select("id, user_id, stalls(stall_number, section)")
+        .in("id", vendorIds);
+      const userIds = vendors?.map((v: any) => v.user_id) || [];
+      const { data: profiles } = await supabase.from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", userIds);
+      return subs.map((s: any) => {
+        const v  = vendors?.find((v: any) => v.id === s.vendor_id);
+        const pr = profiles?.find((pr: any) => pr.user_id === v?.user_id);
+        const st = v?.stalls as any;
+        return {
+          ...s,
+          vendor_name: pr ? `${pr.first_name} ${pr.last_name}` : "Unknown",
+          stall:       st?.stall_number || "—",
+          section:     st?.section      || "",
+        };
+      });
+    },
+  });
+
+  const [viewSubmission, setViewSubmission] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+
+  const acceptSubmission = useMutation({
+    mutationFn: async (s: any) => {
+      const cashierName = cashierProfile
+        ? `${cashierProfile.first_name} ${cashierProfile.last_name}`
+        : "Cashier";
+
+      // 1. Create a completed payment record
+      const { data: payment, error: payErr } = await supabase.from("payments").insert({
+        vendor_id:      s.vendor_id,
+        stall_id:       s.stall_id || null,
+        amount:         s.amount,
+        payment_method: s.payment_method || "instapay",
+        payment_type:   s.payment_type   || "due",
+        status:         "completed",
+        processed_by:   user?.id,
+        period_month:   s.period_month,
+        period_year:    s.period_year,
+        reference_number: s.ocr_reference || null,
+      }).select("id, reference_number, receipt_number").single();
+      if (payErr) throw payErr;
+
+      // 2. Update submission status
+      await (supabase.from("payment_submissions" as any) as any)
+        .update({
+          status:        "accepted",
+          payment_id:    payment.id,
+          processed_by:  user?.id,
+          processed_at:  new Date().toISOString(),
+        })
+        .eq("id", s.id);
+
+      // 3. Notify vendor
+      await notifyVendor({
+        vendor_user_id:   s.vendor_user_id,
+        vendor_name:      s.vendor_name,
+        stall_number:     s.stall,
+        section:          s.section || "General",
+        amount:           Number(s.amount),
+        period_month:     s.period_month,
+        period_year:      s.period_year,
+        payment_method:   s.payment_method || "instapay",
+        payment_type:     s.payment_type   || "due",
+        receipt_number:   payment.receipt_number || "",
+        reference_number: payment.reference_number || s.ocr_reference || "",
+        cashier_name:     cashierName,
+      });
+
+      return { ...s, payment };
+    },
+    onSuccess: (s) => {
+      toast.success(`Payment accepted for ${s.vendor_name}`);
+      setViewSubmission(null);
+      queryClient.invalidateQueries({ queryKey: ["cashier-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["cashier-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-payments"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const rejectSubmission = useMutation({
+    mutationFn: async ({ s, reason }: { s: any; reason: string }) => {
+      // 1. Update submission status
+      await (supabase.from("payment_submissions" as any) as any)
+        .update({
+          status:           "rejected",
+          rejection_reason: reason || "Payment could not be verified.",
+          processed_by:     user?.id,
+          processed_at:     new Date().toISOString(),
+        })
+        .eq("id", s.id);
+
+      // 2. Notify vendor — in-app rejection notice
+      await supabase.from("notifications").insert({
+        user_id: s.vendor_user_id,
+        title:   `❌ Payment Receipt Rejected`,
+        message: `Your receipt submission for ${MONTHS_FULL[(s.period_month||1)-1]} ${s.period_year} (${fmt(Number(s.amount))}) was rejected.\n• Reason: ${reason || "Payment could not be verified."}\n• Stall: ${s.stall} — ${s.section}\n\nPlease resubmit with a valid receipt or visit the cashier.`,
+        type:    "confirmation",
+      });
+    },
+    onSuccess: () => {
+      toast.success("Submission rejected and vendor notified.");
+      setViewSubmission(null);
+      setRejectionReason("");
+      setShowRejectInput(false);
+      queryClient.invalidateQueries({ queryKey: ["cashier-submissions"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
   const [viewPayment,   setViewPayment]   = useState<any>(null);
 
   const confirmPayment = useMutation({
@@ -754,11 +876,12 @@ Please contact the cashier or try paying again through another method.`,
       </div>
 
       {/* Tabs */}
-      <div className="flex rounded-xl bg-secondary p-1">
+      <div className="flex rounded-xl bg-secondary p-1 gap-0.5">
         {[
-          { id:"online",  label:"Online Payments", badge: pending.length },
-          { id:"walkin",  label:"Walk-in / Cash"   },
-          { id:"manual",  label:"Quick Manual"     },
+          { id:"submissions", label:"Receipts",       badge: submissions.length },
+          { id:"online",      label:"Online Pending",  badge: pending.length },
+          { id:"walkin",      label:"Walk-in / Cash"  },
+          { id:"manual",      label:"Quick Manual"    },
         ].map(t => (
           <button key={t.id} onClick={()=>setTab(t.id as any)}
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-medium transition-all ${tab===t.id?"bg-card text-foreground shadow-sm":"text-muted-foreground hover:text-foreground"}`}>
@@ -767,6 +890,197 @@ Please contact the cashier or try paying again through another method.`,
           </button>
         ))}
       </div>
+
+      {/* ── RECEIPT SUBMISSIONS (vendor upload flow) ─────────────────────────── */}
+      {tab==="submissions" && (
+        viewSubmission ? (
+          <div className="max-w-lg mx-auto space-y-4">
+            <button onClick={() => { setViewSubmission(null); setShowRejectInput(false); setRejectionReason(""); }}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-4 w-4" /> Back to list
+            </button>
+
+            {/* Header */}
+            <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+              <div className="bg-foreground text-background text-center px-5 py-4 space-y-0.5">
+                <p className="text-[9px] tracking-[3px] uppercase opacity-50">Republic of the Philippines</p>
+                <p className="text-xs font-bold">Municipality of San Juan, Batangas</p>
+                <p className="text-lg font-bold tracking-widest mt-1">RECEIPT SUBMISSION</p>
+                <p className="text-[9px] opacity-40">Online Payment — Pending Verification</p>
+              </div>
+
+              {/* Details */}
+              <div className="divide-y">
+                {[
+                  { label: "Vendor",         value: viewSubmission.vendor_name },
+                  { label: "Stall",          value: `${viewSubmission.stall} — ${viewSubmission.section}` },
+                  { label: "Period",         value: `${MONTHS_FULL[(viewSubmission.period_month||1)-1]} ${viewSubmission.period_year}` },
+                  { label: "Payment Type",   value: viewSubmission.payment_type === "staggered" ? "Partial" : "Full" },
+                  { label: "Method",         value: "InstaPay / Bank Transfer" },
+                  { label: "Submitted",      value: new Date(viewSubmission.created_at).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) },
+                ].map(r => (
+                  <div key={r.label} className="flex items-center justify-between px-5 py-2.5">
+                    <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
+                    <span className="text-xs font-semibold text-foreground text-right ml-3">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Amount */}
+              <div className="mx-4 my-3 rounded-xl border-2 border-primary/30 bg-primary/5 py-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Amount</p>
+                <p className="font-mono text-3xl font-bold text-foreground">{fmt(Number(viewSubmission.amount))}</p>
+              </div>
+            </div>
+
+            {/* OCR extracted data */}
+            {(viewSubmission.ocr_reference || viewSubmission.ocr_amount || viewSubmission.ocr_datetime || viewSubmission.ocr_recipient) && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                  <Scan className="h-3.5 w-3.5" /> Auto-detected from receipt
+                </p>
+                {[
+                  { label: "Reference No.", value: viewSubmission.ocr_reference, mono: true },
+                  { label: "Amount",        value: viewSubmission.ocr_amount ? fmt(Number(viewSubmission.ocr_amount)) : null },
+                  { label: "Date & Time",   value: viewSubmission.ocr_datetime },
+                  { label: "Recipient",     value: viewSubmission.ocr_recipient },
+                ].filter(f => f.value).map(f => (
+                  <div key={f.label} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{f.label}</span>
+                    <span className={`font-medium text-foreground text-right max-w-[60%] break-all ${f.mono ? "font-mono text-xs" : ""}`}>{f.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Receipt image */}
+            <div className="rounded-2xl border bg-card p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment Receipt</p>
+              <img
+                src={viewSubmission.receipt_url}
+                alt="Payment receipt"
+                className="w-full rounded-xl border object-contain max-h-80 bg-secondary/30 cursor-pointer"
+                onClick={() => window.open(viewSubmission.receipt_url, "_blank")}
+              />
+              <a href={viewSubmission.receipt_url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                <Eye className="h-3.5 w-3.5" /> Open full image
+              </a>
+            </div>
+
+            {/* Reject reason input */}
+            {showRejectInput && (
+              <div className="space-y-2">
+                <Label className="text-sm">Rejection Reason</Label>
+                <Input
+                  placeholder="e.g. Amount mismatch, invalid receipt, wrong account..."
+                  value={rejectionReason}
+                  onChange={e => setRejectionReason(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 gap-2 rounded-xl bg-success hover:bg-success/90 text-white"
+                disabled={acceptSubmission.isPending}
+                onClick={() => acceptSubmission.mutate(viewSubmission)}>
+                {acceptSubmission.isPending
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Accepting…</>
+                  : <><CheckCircle2 className="h-4 w-4" /> Accept</>}
+              </Button>
+              {!showRejectInput ? (
+                <Button variant="outline"
+                  className="flex-1 gap-2 rounded-xl text-accent border-accent/30 hover:bg-accent/10"
+                  onClick={() => setShowRejectInput(true)}>
+                  <X className="h-4 w-4" /> Reject
+                </Button>
+              ) : (
+                <Button
+                  className="flex-1 gap-2 rounded-xl bg-accent hover:bg-accent/90 text-white"
+                  disabled={rejectSubmission.isPending}
+                  onClick={() => rejectSubmission.mutate({ s: viewSubmission, reason: rejectionReason })}>
+                  {rejectSubmission.isPending
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Rejecting…</>
+                    : <><X className="h-4 w-4" /> Confirm Reject</>}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-foreground">{submissions.length}</strong> receipt{submissions.length!==1?"s":""} pending verification
+              </p>
+              <button onClick={() => refetchSubs()} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+
+            {subsLoading ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>
+            ) : submissions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border bg-card py-16 gap-2 text-muted-foreground">
+                <CheckCircle2 className="h-8 w-8 opacity-20"/>
+                <p className="font-medium">No pending receipt submissions</p>
+                <p className="text-xs">Vendors' receipt uploads will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {submissions.map((s: any) => (
+                  <div key={s.id} className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+                    <div className="flex items-start gap-4 p-4">
+                      {/* Receipt thumbnail */}
+                      <img
+                        src={s.receipt_url}
+                        alt="Receipt"
+                        className="h-16 w-16 rounded-xl object-cover border bg-secondary/30 shrink-0 cursor-pointer"
+                        onClick={() => window.open(s.receipt_url, "_blank")}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">{s.vendor_name}</p>
+                            <p className="text-xs text-muted-foreground">Stall {s.stall} · {s.section}</p>
+                          </div>
+                          <span className="font-mono font-bold text-foreground text-sm shrink-0">{fmt(Number(s.amount))}</span>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <span>{MONTHS_FULL[(s.period_month||1)-1]} {s.period_year}</span>
+                          {s.ocr_reference && (
+                            <span className="font-mono bg-secondary rounded px-1.5 py-0.5">Ref: {s.ocr_reference}</span>
+                          )}
+                          <span className="flex items-center gap-0.5">
+                            <Clock className="h-3 w-3" />
+                            {new Date(s.created_at).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t flex gap-0">
+                      <Button
+                        className="flex-1 gap-1.5 rounded-none rounded-bl-2xl text-xs h-9 bg-success hover:bg-success/90 text-white"
+                        disabled={acceptSubmission.isPending}
+                        onClick={() => acceptSubmission.mutate(s)}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Accept
+                      </Button>
+                      <div className="w-px bg-border" />
+                      <Button variant="ghost"
+                        className="flex-1 gap-1.5 rounded-none rounded-br-2xl text-xs h-9 text-muted-foreground hover:text-foreground"
+                        onClick={() => setViewSubmission(s)}>
+                        <Eye className="h-3.5 w-3.5" /> View Receipt
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      )}
 
       {/* ── ONLINE PAYMENTS ──────────────────────────────────────────────────── */}
       {tab==="online" && (
