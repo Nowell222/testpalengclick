@@ -280,43 +280,64 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </main>
         </div>
 
-        {/* ── MOBILE CONTENT (between header and bottom nav) ─────────────── */}
-        <div className="lg:hidden" style={{ paddingBottom: 80 }}>
+        {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
+        <div className="lg:hidden" style={{ paddingBottom: 96 }}>
           <div style={{ padding: "16px 16px" }}>
             <Outlet />
           </div>
         </div>
 
-        {/* ── MOBILE BOTTOM TAB BAR ──────────────────────────────────────── */}
-        <nav className="lg:hidden" style={{
+        {/* ── MOBILE BOTTOM TAB BAR — pill style, mobile only ────────────── */}
+        <style>{`
+          @media (min-width: 1024px) { #vendor-bottom-nav { display: none !important; } }
+        `}</style>
+        <div id="vendor-bottom-nav" style={{
           position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
-          background: C.bg,
-          borderTop: `1px solid ${C.border}`,
-          display: "grid", gridTemplateColumns: "repeat(5, 1fr)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          padding: "8px 16px calc(8px + env(safe-area-inset-bottom, 0px))",
+          background: "linear-gradient(to top, rgba(10,20,12,0.98) 60%, transparent)",
+          pointerEvents: "none",
         }}>
+          <nav style={{
+            display: "flex", alignItems: "center", justifyContent: "space-around",
+            background: "linear-gradient(135deg, #1a3020, #0f2018)",
+            borderRadius: 100,
+            border: "1px solid rgba(201,168,76,0.25)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.08) inset",
+            padding: "6px 8px",
+            pointerEvents: "all",
+          }}>
           {vendorBottomNav.map((item) => {
             const active = isActive(item.path);
             return (
-              <Link key={item.path} to={item.path} style={{ textDecoration: "none" }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "8px 4px 10px", position: "relative" }}>
-                  {active && (
-                    <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 28, height: 2, borderRadius: 2, background: `linear-gradient(90deg, ${C.gold}, ${C.goldLt})` }} />
-                  )}
+              <Link key={item.path} to={item.path} style={{ textDecoration: "none", flex: 1 }}>
+                <div style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  padding: "6px 4px", borderRadius: 100,
+                  background: active ? "linear-gradient(135deg, rgba(201,168,76,0.2), rgba(232,200,110,0.1))" : "transparent",
+                  transition: "background 0.2s",
+                  gap: 3,
+                }}>
                   <div style={{
-                    width: 32, height: 32, borderRadius: 9,
-                    background: active ? "rgba(201,168,76,0.14)" : "transparent",
-                    border: active ? `1px solid rgba(201,168,76,0.22)` : "1px solid transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 3,
+                    width: active ? 36 : 28, height: active ? 36 : 28,
+                    borderRadius: "50%",
+                    background: active ? `linear-gradient(135deg, ${C.gold}, ${C.goldLt})` : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.2s",
+                    boxShadow: active ? "0 2px 12px rgba(201,168,76,0.4)" : "none",
                   }}>
-                    <item.icon size={16} color={active ? C.goldLt : "rgba(240,230,200,0.38)"} />
+                    <item.icon size={active ? 17 : 15} color={active ? "#1a2e1a" : "rgba(240,230,200,0.45)"} />
                   </div>
-                  <span style={{ color: active ? C.goldLt : "rgba(240,230,200,0.38)", fontSize: 9, fontWeight: active ? 700 : 400, letterSpacing: 0.2 }}>{item.label}</span>
+                  <span style={{
+                    color: active ? C.goldLt : "rgba(240,230,200,0.4)",
+                    fontSize: 8.5, fontWeight: active ? 700 : 400,
+                    letterSpacing: 0.3, lineHeight: 1,
+                  }}>{item.label}</span>
                 </div>
               </Link>
             );
           })}
-        </nav>
+          </nav>
+        </div>
       </div>
     );
   }
