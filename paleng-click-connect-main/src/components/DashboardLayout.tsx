@@ -111,9 +111,9 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </div>
         </header>
 
-        {/* ── SLIDE-OVER DRAWER (mobile full nav) ────────────────────────── */}
+        {/* ── SLIDE-OVER DRAWER (mobile full nav, hidden on desktop) ─────── */}
         {open && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 50 }}>
+          <div className="lg:hidden" style={{ position: "fixed", inset: 0, zIndex: 50 }}>
             <div onClick={() => setOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(5,15,8,0.75)", backdropFilter: "blur(4px)" }} />
             <div style={{
               position: "absolute", top: 0, right: 0, bottom: 0, width: 285,
