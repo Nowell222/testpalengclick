@@ -81,8 +81,19 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     return (
       <div style={{ minHeight: "100vh", background: "#f8f5f0", fontFamily: "Georgia,'Times New Roman',serif" }}>
 
-        {/* ── MOBILE HEADER ───────────────────────────────────────────────── */}
-        <header className="lg:hidden" style={{
+        {/* ── MOBILE HEADER — hidden on desktop via inline style + CSS ────── */}
+        <style>{`
+          @media (min-width: 1024px) {
+            #vendor-mobile-header  { display: none !important; }
+            #vendor-mobile-content { display: none !important; }
+            #vendor-bottom-nav     { display: none !important; }
+          }
+          @media (max-width: 1023px) {
+            #vendor-desktop-layout { display: none !important; }
+          }
+        `}</style>
+
+        <header id="vendor-mobile-header" style={{
           position: "sticky", top: 0, zIndex: 40,
           background: C.bg, borderBottom: `2px solid ${C.gold}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -111,9 +122,9 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </div>
         </header>
 
-        {/* ── SLIDE-OVER DRAWER (mobile full nav, hidden on desktop) ─────── */}
+        {/* ── SLIDE-OVER DRAWER (mobile full nav) ───────────────────────── */}
         {open && (
-          <div className="lg:hidden" style={{ position: "fixed", inset: 0, zIndex: 50 }}>
+          <div id="vendor-mobile-header" style={{ position: "fixed", inset: 0, zIndex: 50 }}>
             <div onClick={() => setOpen(false)} style={{ position: "absolute", inset: 0, background: "rgba(5,15,8,0.75)", backdropFilter: "blur(4px)" }} />
             <div style={{
               position: "absolute", top: 0, right: 0, bottom: 0, width: 285,
@@ -194,8 +205,8 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </div>
         )}
 
-        {/* ── DESKTOP SIDEBAR + CONTENT ──────────────────────────────────── */}
-        <div className="hidden lg:flex" style={{ minHeight: "100vh" }}>
+        {/* ── DESKTOP SIDEBAR + CONTENT — hidden on mobile via CSS ──────── */}
+        <div id="vendor-desktop-layout" style={{ display: "flex", minHeight: "100vh" }}>
 
           {/* Desktop sidebar */}
           <aside style={{
@@ -272,7 +283,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
             </div>
           </aside>
 
-          {/* Content */}
+          {/* Desktop content */}
           <main style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
             <div style={{ padding: "24px", maxWidth: 1100, margin: "0 auto" }}>
               <Outlet />
@@ -280,17 +291,14 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </main>
         </div>
 
-        {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
-        <div className="lg:hidden" style={{ paddingBottom: 96 }}>
+        {/* ── MOBILE CONTENT — hidden on desktop via CSS ─────────────────── */}
+        <div id="vendor-mobile-content" style={{ paddingBottom: 96 }}>
           <div style={{ padding: "16px 16px" }}>
             <Outlet />
           </div>
         </div>
 
-        {/* ── MOBILE BOTTOM TAB BAR — pill style, mobile only ────────────── */}
-        <style>{`
-          @media (min-width: 1024px) { #vendor-bottom-nav { display: none !important; } }
-        `}</style>
+        {/* ── MOBILE BOTTOM TAB BAR — hidden on desktop via CSS ──────────── */}
         <div id="vendor-bottom-nav" style={{
           position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
           padding: "8px 16px calc(8px + env(safe-area-inset-bottom, 0px))",
