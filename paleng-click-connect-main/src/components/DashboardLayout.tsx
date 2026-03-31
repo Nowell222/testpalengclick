@@ -357,7 +357,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     <div className="flex min-h-screen bg-background">
       {open && <div className="fixed inset-0 z-40 bg-foreground/20 lg:hidden" onClick={() => setOpen(false)} />}
 
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex h-14 items-center justify-between border-b px-4">
           <Link to="/" className="flex items-center gap-2">
             <div style={{ width: 30, height: 30, borderRadius: 7, overflow: "hidden" }}>
