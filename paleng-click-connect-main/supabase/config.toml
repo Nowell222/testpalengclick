@@ -9,7 +9,12 @@ verify_jwt = false
 [functions.create-paymongo-source]
 verify_jwt = false
 
+
 [functions.paymongo-webhook]
 verify_jwt = false
+
+[functions.ocr-receipt]
+verify_jwt = false
+
 [functions.notify-vendor]
 verify_jwt = false
