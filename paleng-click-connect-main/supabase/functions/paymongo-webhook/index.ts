@@ -114,25 +114,59 @@ serve(async (req: { method: string; json: () => any; }) => {
         return json({ error: "DB update failed" }, 500);
       }
 
-      // Get the vendor user to send a notification
+      // Get the vendor user + stall details to send full notification
       const { data: paymentRow } = await supabase
         .from("payments")
-        .select("vendor_id, amount, period_month, period_year, vendors(user_id)")
+        .select("vendor_id, amount, period_month, period_year, payment_method, payment_type, receipt_number, vendors(user_id, stall_id, stalls(stall_number, section))")
         .eq("id", paymentDbId)
         .single();
 
       if (paymentRow?.vendors) {
-        const vendorUserId = (paymentRow.vendors as any).user_id;
-        const month = paymentRow.period_month;
-        const year  = paymentRow.period_year;
-        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        const vendorUserId  = (paymentRow.vendors as any).user_id;
+        const stall         = (paymentRow.vendors as any).stalls;
+        const stallNumber   = stall?.stall_number || "—";
+        const section       = stall?.section      || "—";
+        const month         = paymentRow.period_month;
+        const year          = paymentRow.period_year;
 
-        await supabase.from("notifications").insert({
-          user_id: vendorUserId,
-          title:   "Payment Confirmed ✓",
-          message: `Your stall fee of ₱${Number(paymentRow.amount).toLocaleString("en-PH",{minimumFractionDigits:2})} for ${months[(month||1)-1]} ${year} has been successfully received.`,
-          type:    "confirmation",
+        // Get vendor name from auth
+        const { data: ud } = await supabase.auth.admin.getUserById(vendorUserId);
+        const vendorName = ud?.user?.user_metadata?.full_name || ud?.user?.email || "Vendor";
+
+        // Determine payment method label
+        const methodMap: Record<string, string> = {
+          gcash: "GCash", paymaya: "Maya", instapay: "InstaPay", cash: "Cash at Cashier"
+        };
+        const paymentMethodLabel = methodMap[paymentRow.payment_method] || paymentRow.payment_method || "Online";
+
+        // Call notify-vendor — handles in-app + push notification
+        const SUPABASE_URL      = Deno.env.get("SUPABASE_URL")!;
+        const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+        await fetch(`${SUPABASE_URL}/functions/v1/notify-vendor`, {
+          method:  "POST",
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "apikey":        SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            vendor_user_id:   vendorUserId,
+            vendor_name:      vendorName,
+            stall_number:     stallNumber,
+            section:          section,
+            amount:           Number(paymentRow.amount),
+            period_month:     month,
+            period_year:      year,
+            payment_method:   paymentRow.payment_method || "gcash",
+            payment_type:     paymentRow.payment_type   || "full",
+            receipt_number:   paymentRow.receipt_number || "",
+            reference_number: paymentId || "",
+            cashier_name:     paymentMethodLabel,
+          }),
         });
+
+        console.log(`notify-vendor called for ${vendorUserId} — ${paymentMethodLabel}`);
       }
 
       console.log(`Payment ${paymentDbId} marked as completed`);
