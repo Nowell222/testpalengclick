@@ -787,8 +787,20 @@ Payment Details:
 • Date & Time: ${new Date().toLocaleString("en-PH", {year:"numeric",month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
 
 Please contact the cashier or try paying again through another method.`,
-          type: "overdue" as any,
+          type: "confirmation" as any,
         });
+        // Push notification on rejection
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}`, "apikey": anonKey },
+          body: JSON.stringify({
+            vendor_user_id: recipientUserId,
+            _push_only:     true,
+            _push_title:    "❌ Payment Rejected",
+            _push_body:     `Your ${METHOD_CONFIG[p.payment_method]?.label || p.payment_method} payment of ${fmt(Number(p.amount))} was rejected. Please visit the cashier.`,
+          }),
+        }).catch(() => {});
       }
     },
     onSuccess: () => { toast.success("Payment rejected — vendor notified."); refetchPending(); queryClient.invalidateQueries({ queryKey: ["cashier-dashboard"] }); },
