@@ -76,6 +76,7 @@ ${rows}
 
 // ─── Receipt Modal ───────────────────────────────────────────────────────────────
 const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: () => void }) => {
+   const isMobile = useIsMobile(); 
   const details    = parseReceiptFromMessage(notification.message);
   if (!details) return null;
   const isRejection = notification.title?.includes("Rejected") || notification.title?.includes("❌");
