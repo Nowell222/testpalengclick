@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
@@ -29,8 +28,6 @@ const FieldRow = ({ icon: Icon, label, value }: { icon: any; label: string; valu
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 const VendorStallInfo = () => {
-
-  const isMobile = useIsMobile();
   const { user }    = useAuth();
   const queryClient = useQueryClient();
 
@@ -183,12 +180,12 @@ const VendorStallInfo = () => {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 14 : 24 }}>
+    <div className="space-y-6">
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: isMobile ? "1.1rem" : "1.5rem", fontWeight: 700 }}>Stall Information</h1>
+          <h1 className="text-2xl font-bold text-foreground">Stall Information</h1>
           <p className="text-sm text-muted-foreground">Your stall details and account settings</p>
         </div>
         {!editing ? (
@@ -212,7 +209,7 @@ const VendorStallInfo = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* ── Left column ───────────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 16 }}>
+        <div className="space-y-4">
 
           {/* Stall details — read-only always */}
           <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
@@ -225,7 +222,7 @@ const VendorStallInfo = () => {
                 <p className="text-xs text-muted-foreground">{stall?.section || "General"} Section{stall?.location ? ` · ${stall.location}` : ""}</p>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? 8 : 12 }}>
+            <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-secondary/50 p-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Monthly Rate</p>
                 <p className="font-mono font-bold text-foreground">{fmt(stall?.monthly_rate || 1450)}</p>
@@ -261,7 +258,7 @@ const VendorStallInfo = () => {
 
             {editing ? (
               <div className="space-y-3">
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? 8 : 12 }}>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">First Name <span className="text-accent">*</span></Label>
                     <Input className="h-10 rounded-xl" value={form.first_name} onChange={set("first_name")} placeholder="First name" />
@@ -321,7 +318,7 @@ const VendorStallInfo = () => {
         </div>
 
         {/* ── Right column ──────────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 16 }}>
+        <div className="space-y-4">
 
           {/* Account / Login */}
           <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
@@ -330,7 +327,7 @@ const VendorStallInfo = () => {
             </h3>
 
             {editing ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 16 }}>
+              <div className="space-y-4">
                 {/* Email */}
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Email Address</Label>

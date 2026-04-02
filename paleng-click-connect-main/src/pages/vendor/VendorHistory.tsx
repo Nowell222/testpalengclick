@@ -10,7 +10,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -163,8 +162,6 @@ const printMonthSOA = (data: {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 const VendorHistory = () => {
-
-  const isMobile = useIsMobile();
   const { user }   = useAuth();
   const printRef   = useRef<HTMLIFrameElement>(null);
   const currentYear  = new Date().getFullYear();
@@ -271,13 +268,13 @@ const VendorHistory = () => {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 14 : 24 }}>
+    <div className="space-y-6">
       <iframe ref={printRef} style={{ display: "none" }} title="print-month-soa" />
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: isMobile ? "1.1rem" : "1.5rem", fontWeight: 700 }}>Payment History</h1>
+          <h1 className="text-2xl font-bold text-foreground">Payment History</h1>
           <p className="text-sm text-muted-foreground">Complete record of all your stall payments</p>
         </div>
         {/* Print SOA for selected month */}
@@ -290,7 +287,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? 8 : 12 }}>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "text-success",   icon: TrendingUp    },
           { label: "Transactions", value: String(stats.total),     color: "text-foreground", icon: CreditCard   },
@@ -486,7 +483,7 @@ const VendorHistory = () => {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p style={{ fontFamily: "monospace", fontSize: isMobile ? "1rem" : "1.25rem", fontWeight: 700 }} className=" text-foreground">{fmt(Number(p.amount))}</p>
+                    <p className="font-mono text-xl font-bold text-foreground">{fmt(Number(p.amount))}</p>
                     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold mt-1 ${statusCfg.badge}`}>
                       <StatusIcon className="h-3 w-3" />
                       {statusCfg.label}

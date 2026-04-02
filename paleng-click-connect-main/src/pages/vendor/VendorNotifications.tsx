@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 // ─── Config ─────────────────────────────────────────────────────────────────────
 const TYPE_ICON:  Record<string, any>    = { reminder: Bell, confirmation: CreditCard, announcement: Megaphone, overdue: AlertTriangle, info: Bell };
@@ -76,7 +75,6 @@ ${rows}
 
 // ─── Receipt Modal ───────────────────────────────────────────────────────────────
 const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: () => void }) => {
-   const isMobile = useIsMobile(); 
   const details    = parseReceiptFromMessage(notification.message);
   if (!details) return null;
   const isRejection = notification.title?.includes("Rejected") || notification.title?.includes("❌");
@@ -116,13 +114,13 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
         {isRejection ? (
           <div className="mx-4 my-3 rounded-xl border-2 border-accent/30 bg-accent/5 py-4 text-center">
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Rejected Amount</p>
-            <p style={{ fontFamily: "monospace", fontSize: isMobile ? "1.4rem" : "1.875rem", fontWeight: 700 }} className=" text-accent">{amount}</p>
+            <p className="font-mono text-3xl font-bold text-accent">{amount}</p>
             <p className="text-xs text-accent/70 mt-1">This payment was not processed</p>
           </div>
         ) : (
           <div className="mx-4 my-3 rounded-xl border-2 border-success/30 bg-success/5 py-4 text-center">
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Amount Paid</p>
-            <p style={{ fontFamily: "monospace", fontSize: isMobile ? "1.4rem" : "1.875rem", fontWeight: 700 }} className=" text-success">{amount}</p>
+            <p className="font-mono text-3xl font-bold text-success">{amount}</p>
           </div>
         )}
         {isRejection && (
@@ -151,8 +149,6 @@ const ReceiptModal = ({ notification, onClose }: { notification: any; onClose: (
 
 // ─── Push Settings Panel ─────────────────────────────────────────────────────────
 const PushSettingsPanel = () => {
-
-  const isMobile = useIsMobile();
   const { isSupported, isSubscribed, isLoading, permission, subscribe, unsubscribe } = usePushNotifications();
 
   if (!isSupported) return (
@@ -202,7 +198,6 @@ const PushSettingsPanel = () => {
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 const VendorNotifications = () => {
-  const isMobile = useIsMobile(); 
   const { user }       = useAuth();
   const queryClient    = useQueryClient();
   const [selected, setSelected] = useState<any>(null);
@@ -255,13 +250,13 @@ const VendorNotifications = () => {
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 12 : 20 }}>
+    <div className="space-y-5">
       {selected && <ReceiptModal notification={selected} onClose={() => setSelected(null)} />}
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: isMobile ? "1.1rem" : "1.5rem", fontWeight: 700 }}>Notifications</h1>
+          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
           <p className="text-sm text-muted-foreground">Payment confirmations, reminders, and announcements</p>
         </div>
         {unreadCount > 0 && (

@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 const MSG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   message:      { label: "Message",      color: "bg-primary/10 text-primary"   },
@@ -15,8 +14,6 @@ const MSG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 const VendorNews = () => {
-
-  const isMobile = useIsMobile();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [tab,     setTab]     = useState<"news" | "messages">("news");
@@ -135,11 +132,11 @@ const VendorNews = () => {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 14 : 24 }}>
+    <div className="space-y-6">
 
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: isMobile ? "1.1rem" : "1.5rem", fontWeight: 700 }}>News & Messages</h1>
+        <h1 className="text-2xl font-bold text-foreground">News & Messages</h1>
         <p className="text-sm text-muted-foreground">Announcements from the Municipal Treasurer's Office</p>
       </div>
 
@@ -163,7 +160,7 @@ const VendorNews = () => {
         newsLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 16 }}>
+          <div className="space-y-4">
             {news.map((n: any) => (
               <div key={n.id} className="rounded-2xl border bg-card p-5 shadow-civic">
                 <div className="flex items-start gap-3">
