@@ -180,57 +180,153 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     </div>
   );
 
-  // ── Shared: Bottom mobile tab bar ────────────────────────────────────────
-  const BottomNav = () => (
-    <div style={{
-      position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
-      padding: "8px 12px calc(8px + env(safe-area-inset-bottom, 0px))",
-      background: isVendor
-        ? "linear-gradient(to top, rgba(249,246,241,0.98) 65%, transparent)"
-        : "linear-gradient(to top, rgba(248,250,252,0.98) 65%, transparent)",
-      pointerEvents: "none",
-    }}>
-      <nav style={{
-        display: "flex", alignItems: "center", justifyContent: "space-around",
-        background: "#ffffff",
-        borderRadius: 100,
-        border: `1px solid ${isVendor ? V.border : "#e2e8f0"}`,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.05)",
-        padding: "5px 6px",
-        pointerEvents: "all",
-      }}>
-        {bottomItems.map((item) => {
-          const active = isActive(item.path);
-          const accent = isVendor ? V.green : rc.light;
-          const muted  = isVendor ? V.muted : rc.muted;
-          return (
-            <Link key={item.path} to={item.path} style={{ textDecoration: "none", flex: 1 }}>
-              <div style={{
-                display: "flex", flexDirection: "column", alignItems: "center",
-                padding: "5px 4px", borderRadius: 100, gap: 3,
-              }}>
+  // ── Shared: Bottom mobile tab bar with "More" sheet ─────────────────────
+  const BottomNav = () => {
+    const [moreOpen, setMoreOpen] = useState(false);
+    // First 4 items are always shown; rest go in the "More" sheet
+    const primaryItems = bottomItems.slice(0, 4);
+    // All nav items not in the first 4 primary slots
+    const moreItems = navItems.filter(n => !primaryItems.find(p => p.path === n.path));
+    const accent = isVendor ? V.green : rc.light;
+    const muted  = isVendor ? V.muted : rc.muted;
+
+    return (
+      <>
+        {/* More sheet backdrop */}
+        {moreOpen && (
+          <div
+            onClick={() => setMoreOpen(false)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 45,
+              background: "rgba(0,0,0,0.25)", backdropFilter: "blur(2px)",
+            }}
+          />
+        )}
+
+        {/* More sheet panel */}
+        {moreOpen && (
+          <div style={{
+            position: "fixed", bottom: 90, left: 12, right: 12, zIndex: 46,
+            background: "#fff",
+            borderRadius: 18,
+            border: `1px solid ${isVendor ? V.border : "#e2e8f0"}`,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
+            overflow: "hidden",
+          }}>
+            <div style={{
+              padding: "10px 16px 8px",
+              borderBottom: `1px solid ${isVendor ? V.border : "#f0f2f5"}`,
+              color: isVendor ? V.muted : "#9ca3af",
+              fontSize: 9, letterSpacing: 2, textTransform: "uppercase",
+            }}>More Navigation</div>
+            {moreItems.map(item => {
+              const active = isActive(item.path);
+              return (
+                <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)} style={{ textDecoration: "none" }}>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 12,
+                    padding: "12px 16px",
+                    background: active ? (isVendor ? V.greenBg : rc.pale) : "transparent",
+                    borderBottom: `1px solid ${isVendor ? V.border : "#f5f5f5"}`,
+                  }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                      background: active ? (isVendor ? V.green : rc.solid) : (isVendor ? V.greenBg : rc.pale),
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <item.icon size={14} color={active ? "#fff" : (isVendor ? V.green : rc.text)} />
+                    </div>
+                    <span style={{
+                      color: active ? (isVendor ? V.green : rc.text) : (isVendor ? V.text : "#374151"),
+                      fontSize: 13, fontWeight: active ? 700 : 400,
+                    }}>{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* The fixed bottom pill nav */}
+        <div style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
+          padding: "8px 12px calc(8px + env(safe-area-inset-bottom, 0px))",
+          background: isVendor
+            ? "linear-gradient(to top, rgba(249,246,241,0.98) 65%, transparent)"
+            : "linear-gradient(to top, rgba(248,250,252,0.98) 65%, transparent)",
+          pointerEvents: "none",
+        }}>
+          <nav style={{
+            display: "flex", alignItems: "center", justifyContent: "space-around",
+            background: "#ffffff",
+            borderRadius: 100,
+            border: `1px solid ${isVendor ? V.border : "#e2e8f0"}`,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.09), 0 1px 3px rgba(0,0,0,0.05)",
+            padding: "5px 6px",
+            pointerEvents: "all",
+          }}>
+            {primaryItems.map((item) => {
+              const active = isActive(item.path);
+              return (
+                <Link key={item.path} to={item.path} style={{ textDecoration: "none", flex: 1 }}>
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    padding: "5px 4px", borderRadius: 100, gap: 3,
+                  }}>
+                    <div style={{
+                      width: active ? 36 : 28, height: active ? 36 : 28,
+                      borderRadius: "50%",
+                      background: active ? (isVendor ? V.green : rc.solid) : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.2s",
+                      boxShadow: active ? `0 2px 10px ${isVendor ? "rgba(45,106,79,0.3)" : rc.solid + "44"}` : "none",
+                    }}>
+                      <item.icon size={active ? 16 : 15} color={active ? "#fff" : muted} />
+                    </div>
+                    <span style={{
+                      color: active ? accent : muted,
+                      fontSize: 8.5, fontWeight: active ? 700 : 400,
+                      letterSpacing: 0.3, lineHeight: 1,
+                    }}>{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+
+            {/* More button — opens sheet */}
+            {moreItems.length > 0 && (
+              <button
+                onClick={() => setMoreOpen(v => !v)}
+                style={{
+                  flex: 1, background: "none", border: "none", cursor: "pointer", padding: 0,
+                }}
+              >
                 <div style={{
-                  width: active ? 36 : 28, height: active ? 36 : 28,
-                  borderRadius: "50%",
-                  background: active ? (isVendor ? V.green : rc.solid) : "transparent",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "all 0.2s",
-                  boxShadow: active ? `0 2px 10px ${isVendor ? "rgba(45,106,79,0.3)" : rc.solid + "44"}` : "none",
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  padding: "5px 4px", borderRadius: 100, gap: 3,
                 }}>
-                  <item.icon size={active ? 16 : 15} color={active ? "#fff" : muted} />
+                  <div style={{
+                    width: moreOpen ? 36 : 28, height: moreOpen ? 36 : 28,
+                    borderRadius: "50%",
+                    background: moreOpen ? (isVendor ? V.green : rc.solid) : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all 0.2s",
+                  }}>
+                    <Menu size={moreOpen ? 16 : 15} color={moreOpen ? "#fff" : muted} />
+                  </div>
+                  <span style={{
+                    color: moreOpen ? accent : muted,
+                    fontSize: 8.5, fontWeight: moreOpen ? 700 : 400,
+                    letterSpacing: 0.3, lineHeight: 1,
+                  }}>More</span>
                 </div>
-                <span style={{
-                  color: active ? accent : muted,
-                  fontSize: 8.5, fontWeight: active ? 700 : 400,
-                  letterSpacing: 0.3, lineHeight: 1,
-                }}>{item.label}</span>
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
-  );
+              </button>
+            )}
+          </nav>
+        </div>
+      </>
+    );
+  };
 
   // ── Shared: Logout footer ────────────────────────────────────────────────
   const LogoutFooter = () => (

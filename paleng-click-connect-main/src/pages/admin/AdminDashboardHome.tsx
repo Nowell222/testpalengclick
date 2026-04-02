@@ -3,10 +3,11 @@ import {
   Users, TrendingUp, DollarSign, AlertCircle, Loader2,
   Store, CheckCircle2, Clock, CreditCard, ArrowRight,
   Smartphone, Building2, Banknote, Activity, BarChart2,
+  UserCheck, CalendarDays,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell,
+  ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +26,7 @@ const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string }>
   cash:     { icon: Banknote,   color: "bg-slate-500", label: "Cash"     },
 };
 
-const PIE_COLORS = ["#0f6e56","#1d9e75","#185fa5","#ba7517"];
+const PIE_COLORS = ["#1e3a5f","#2563eb","#059669","#b45309"];
 
 const AdminDashboardHome = () => {
   const { data, isLoading } = useQuery({
@@ -53,7 +54,6 @@ const AdminDashboardHome = () => {
       const completed     = allPayments.filter(p => p.status === "completed");
       const todayPay      = completed.filter(p => p.created_at?.startsWith(todayStr));
 
-      // Enrich recent 8 payments with vendor/profile info
       const recent8       = allPayments.slice(0, 8);
       const vendorIds8    = [...new Set(recent8.map(p => p.vendor_id))];
       const { data: vend8 } = await supabase.from("vendors").select("id, user_id, stalls(stall_number, section)").in("id", vendorIds8);
@@ -67,7 +67,6 @@ const AdminDashboardHome = () => {
         return { ...p, vendor_name: pr ? `${pr.first_name} ${pr.last_name}` : "Unknown", stall: st?.stall_number || "—", section: st?.section || "" };
       });
 
-      // Monthly totals for chart
       const monthlyMap: Record<number, number> = {};
       MONTHS_SHORT.forEach((_, i) => { monthlyMap[i] = 0; });
       completed.forEach(p => {
@@ -76,26 +75,6 @@ const AdminDashboardHome = () => {
       });
       const monthlyData = MONTHS_SHORT.map((m, i) => ({ month: m, amount: monthlyMap[i] }));
 
-      // Weekly (last 7 days)
-      const weekData: Record<string, number> = {};
-      const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now); d.setDate(now.getDate() - i);
-        weekData[d.toISOString().split("T")[0]] = 0;
-      }
-      completed.filter(p => {
-        const d = new Date(p.created_at);
-        const start = new Date(now); start.setDate(now.getDate() - 6);
-        return d >= start;
-      }).forEach(p => {
-        const k = p.created_at?.split("T")[0];
-        if (k && weekData[k] !== undefined) weekData[k] += Number(p.amount);
-      });
-      const weeklyData = Object.entries(weekData).map(([date, amount]) => ({
-        day: days[new Date(date).getDay()], amount,
-      }));
-
-      // Payment method breakdown
       const methodMap: Record<string, number> = {};
       completed.forEach(p => { methodMap[p.payment_method] = (methodMap[p.payment_method] || 0) + Number(p.amount); });
       const methodData = Object.entries(methodMap).map(([method, amount]) => ({
@@ -103,7 +82,6 @@ const AdminDashboardHome = () => {
         amount,
       }));
 
-      // Vendor payment status this month
       const monthPaidByVendor: Record<string, number> = {};
       completed.filter(p => p.period_month === currentMonth && p.period_year === currentYear)
         .forEach(p => { monthPaidByVendor[p.vendor_id] = (monthPaidByVendor[p.vendor_id] || 0) + Number(p.amount); });
@@ -118,7 +96,6 @@ const AdminDashboardHome = () => {
         else unpaidVendors++;
       });
 
-      // Unpaid vendors list (for overdue section)
       const unpaidList = vendors
         .filter(v => {
           const st   = v.stalls as any;
@@ -154,7 +131,7 @@ const AdminDashboardHome = () => {
         occupiedStalls:   stalls.filter(s => s.status === "occupied").length,
         pendingCount,
         paidVendors, partialVendors, unpaidVendors,
-        recentTx, monthlyData, weeklyData, methodData, unpaidDetails,
+        recentTx, monthlyData, methodData, unpaidDetails,
         currentMonth, currentYear,
       };
     },
@@ -167,19 +144,21 @@ const AdminDashboardHome = () => {
   );
 
   const d = data!;
+  const collectionRate = d.totalVendors > 0 ? Math.round(d.paidVendors / d.totalVendors * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+            <CalendarDays className="h-3.5 w-3.5" />
             {new Date().toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
-        {d.pendingCount > 0 && (
+        {d.pendingCount > 0 ? (
           <Link to="/admin/payments">
             <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 hover:bg-amber-100 transition-colors">
               <Clock className="h-4 w-4" />
@@ -187,16 +166,21 @@ const AdminDashboardHome = () => {
               <ArrowRight className="h-3.5 w-3.5" />
             </div>
           </Link>
+        ) : (
+          <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>All payments up to date</span>
+          </div>
         )}
       </div>
 
-      {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: "Total Collections",  value: fmt(d.totalCollected),  sub: "all time",                    icon: DollarSign, color: "text-success",    bg: "bg-success/10"  },
-          { label: "Today's Collection", value: fmt(d.totalToday),      sub: `${d.txToday} transactions`,   icon: Activity,   color: "text-primary",    bg: "bg-primary/10"  },
-          { label: "Active Vendors",     value: String(d.totalVendors), sub: "registered vendors",          icon: Users,      color: "text-foreground",  bg: "bg-secondary"   },
-          { label: "Stall Occupancy",    value: `${d.occupiedStalls}/${d.totalStalls}`, sub: `${d.totalStalls > 0 ? Math.round(d.occupiedStalls/d.totalStalls*100) : 0}% occupied`, icon: Store, color: d.occupiedStalls === d.totalStalls ? "text-success" : "text-primary", bg: d.occupiedStalls === d.totalStalls ? "bg-success/10" : "bg-primary/10" },
+          { label: "Total Collections",  value: fmt(d.totalCollected),  sub: "all time",                    icon: DollarSign, color: "text-success",  bg: "bg-success/10" },
+          { label: "Today's Collection", value: fmt(d.totalToday),      sub: `${d.txToday} transactions`,   icon: Activity,   color: "text-blue-600", bg: "bg-blue-50"    },
+          { label: "Active Vendors",     value: String(d.totalVendors), sub: "registered vendors",          icon: Users,      color: "text-foreground",bg: "bg-secondary"  },
+          { label: "Stall Occupancy",    value: `${d.occupiedStalls}/${d.totalStalls}`, sub: `${d.totalStalls > 0 ? Math.round(d.occupiedStalls/d.totalStalls*100) : 0}% occupied`, icon: Store, color: d.occupiedStalls === d.totalStalls ? "text-success" : "text-blue-600", bg: d.occupiedStalls === d.totalStalls ? "bg-success/10" : "bg-blue-50" },
         ].map((c, i) => (
           <motion.div key={c.label}
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
@@ -213,22 +197,49 @@ const AdminDashboardHome = () => {
         ))}
       </div>
 
-      {/* ── Vendor payment rate this month ─────────────────────────────────── */}
+      {/* Quick Actions — moved up directly below KPIs */}
+      <div className="rounded-2xl border bg-card p-4 shadow-civic">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Manage Users",  to: "/admin/users",    icon: Users,      desc: "Add or edit accounts" },
+            { label: "View Payments", to: "/admin/payments", icon: CreditCard, desc: "All payment records"  },
+            { label: "QR Codes",      to: "/admin/qr-codes", icon: Store,      desc: "Manage stall QRs"     },
+            { label: "Reports",       to: "/admin/reports",  icon: TrendingUp, desc: "Analytics & exports"  },
+          ].map(a => (
+            <Link key={a.to} to={a.to}
+              className="flex items-center gap-3 rounded-xl border bg-secondary/30 p-3 hover:bg-blue-50 hover:border-blue-200 hover:-translate-y-0.5 transition-all">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                <a.icon className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">{a.label}</p>
+                <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Vendor Payment Rate Banner */}
       <div className="rounded-2xl border bg-card p-5 shadow-civic">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h3 className="font-semibold text-foreground">Vendor Payment Rate — {MONTHS_FULL[d.currentMonth - 1]} {d.currentYear}</h3>
+            <div className="flex items-center gap-2 mb-0.5">
+              <UserCheck className="h-4 w-4 text-blue-600" />
+              <h3 className="font-semibold text-foreground">Vendor Payment Rate — {MONTHS_FULL[d.currentMonth - 1]} {d.currentYear}</h3>
+            </div>
             <p className="text-xs text-muted-foreground">{d.paidVendors} of {d.totalVendors} vendors paid in full</p>
           </div>
           <div className="flex items-center gap-4 text-sm">
             {[
-              { label: "Paid",    count: d.paidVendors,    color: "bg-success" },
-              { label: "Partial", count: d.partialVendors, color: "bg-primary" },
-              { label: "Unpaid",  count: d.unpaidVendors,  color: "bg-accent"  },
+              { label: "Paid",    count: d.paidVendors,    color: "bg-success"  },
+              { label: "Partial", count: d.partialVendors, color: "bg-blue-500" },
+              { label: "Unpaid",  count: d.unpaidVendors,  color: "bg-accent"   },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <span className={`h-2.5 w-2.5 rounded-full ${s.color}`} />
-                <span className="text-muted-foreground">{s.label}</span>
+                <span className="text-muted-foreground text-xs">{s.label}</span>
                 <span className="font-bold text-foreground">{s.count}</span>
               </div>
             ))}
@@ -239,27 +250,28 @@ const AdminDashboardHome = () => {
             const total = d.totalVendors || 1;
             return (<>
               <div className="h-full bg-success transition-all" style={{ width: `${d.paidVendors/total*100}%` }} />
-              <div className="h-full bg-primary transition-all" style={{ width: `${d.partialVendors/total*100}%` }} />
-              <div className="h-full bg-accent transition-all"  style={{ width: `${d.unpaidVendors/total*100}%` }} />
+              <div className="h-full bg-blue-500 transition-all" style={{ width: `${d.partialVendors/total*100}%` }} />
+              <div className="h-full bg-accent transition-all"   style={{ width: `${d.unpaidVendors/total*100}%` }} />
             </>);
           })()}
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          {d.totalVendors > 0 ? Math.round(d.paidVendors / d.totalVendors * 100) : 0}% collection rate this month
-        </p>
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-muted-foreground">{collectionRate}% collection rate this month</p>
+          <span className={`text-xs font-semibold ${collectionRate >= 80 ? "text-success" : collectionRate >= 50 ? "text-blue-600" : "text-accent"}`}>
+            {collectionRate >= 80 ? "On Track" : collectionRate >= 50 ? "Moderate" : "Needs Attention"}
+          </span>
+        </div>
       </div>
 
-      {/* ── Charts row ─────────────────────────────────────────────────────── */}
+      {/* Charts row */}
       <div className="grid gap-5 lg:grid-cols-3">
-
-        {/* Monthly bar chart */}
         <div className="lg:col-span-2 rounded-2xl border bg-card p-5 shadow-civic">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold text-foreground">Monthly Collections — {d.currentYear}</h3>
               <p className="text-xs text-muted-foreground">{fmt(d.totalCollected)} collected this year</p>
             </div>
-            <BarChart2 className="h-4 w-4 text-primary" />
+            <BarChart2 className="h-4 w-4 text-blue-600" />
           </div>
           <ResponsiveContainer width="100%" height={190}>
             <BarChart data={d.monthlyData} barSize={20}>
@@ -268,30 +280,44 @@ const AdminDashboardHome = () => {
               <YAxis tick={{ fontSize: 10, fill: "hsl(220,10%,55%)" }} tickFormatter={fmtK} axisLine={false} tickLine={false} width={48} />
               <Tooltip formatter={(v: number) => [fmt(v), "Collected"]}
                 contentStyle={{ borderRadius: "10px", border: "1px solid hsl(220,13%,88%)", fontSize: "12px" }} />
-              <Bar dataKey="amount" fill="hsl(185,60%,35%)" radius={[6,6,0,0]} />
+              <Bar dataKey="amount" fill="#2563eb" radius={[6,6,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Method breakdown pie */}
         <div className="rounded-2xl border bg-card p-5 shadow-civic">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">By Method</h3>
-            <CreditCard className="h-4 w-4 text-primary" />
+            <CreditCard className="h-4 w-4 text-blue-600" />
           </div>
           {d.methodData.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground py-10">No data yet</p>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie data={d.methodData} dataKey="amount" nameKey="method"
-                    cx="50%" cy="50%" outerRadius={60} innerRadius={30}>
-                    {d.methodData.map((_: any, i: number) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => fmt(v)} />
-                </PieChart>
-              </ResponsiveContainer>
+              {/* Desktop pie */}
+              <div className="hidden sm:block">
+                <ResponsiveContainer width="100%" height={140}>
+                  <PieChart>
+                    <Pie data={d.methodData} dataKey="amount" nameKey="method"
+                      cx="50%" cy="50%" outerRadius={60} innerRadius={30}>
+                      {d.methodData.map((_: any, i: number) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => fmt(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Mobile stacked bar */}
+              <div className="sm:hidden mb-4">
+                <p className="text-xs text-muted-foreground mb-2">Payment breakdown</p>
+                <div className="h-5 w-full rounded-full overflow-hidden flex">
+                  {(() => {
+                    const total = d.methodData.reduce((s: number, m: any) => s + m.amount, 0) || 1;
+                    return d.methodData.map((m: any, i: number) => (
+                      <div key={m.method} style={{ width: `${m.amount/total*100}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    ));
+                  })()}
+                </div>
+              </div>
               <div className="mt-3 space-y-2">
                 {d.methodData.map((m: any, i: number) => (
                   <div key={m.method} className="flex items-center justify-between text-xs">
@@ -308,15 +334,60 @@ const AdminDashboardHome = () => {
         </div>
       </div>
 
-      {/* ── Bottom row ─────────────────────────────────────────────────────── */}
-      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      {/* Bottom row — Unpaid first on mobile via order */}
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+
+        {/* Unpaid vendors — order-first forces it above recent tx on mobile */}
+        <div className="rounded-2xl border bg-card shadow-civic order-first lg:order-none">
+          <div className="flex items-center justify-between border-b px-5 py-3.5">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-accent" />
+              <h3 className="font-semibold text-foreground">Unpaid This Month</h3>
+            </div>
+            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+              {d.unpaidVendors + d.partialVendors}
+            </span>
+          </div>
+          <div className="divide-y max-h-[400px] overflow-y-auto">
+            {d.unpaidDetails.map((v: any, i: number) => (
+              <div key={i} className="flex items-start justify-between px-5 py-3 hover:bg-secondary/30 transition-colors">
+                <div className="flex items-start gap-2.5">
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${v.isPartial ? "bg-blue-50" : "bg-accent/10"}`}>
+                    <AlertCircle className={`h-3.5 w-3.5 ${v.isPartial ? "text-blue-600" : "text-accent"}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{v.name}</p>
+                    <p className="text-xs text-muted-foreground">Stall {v.stall} · {v.section}</p>
+                    {v.isPartial && <span className="text-xs text-blue-600">Partially paid</span>}
+                  </div>
+                </div>
+                <p className={`font-mono text-sm font-bold shrink-0 ${v.isPartial ? "text-blue-600" : "text-accent"}`}>
+                  {fmt(v.remaining)}
+                </p>
+              </div>
+            ))}
+            {d.unpaidDetails.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <CheckCircle2 className="h-8 w-8 text-success opacity-60" />
+                <p className="text-sm font-medium text-success">All vendors paid this month!</p>
+              </div>
+            )}
+          </div>
+          {(d.unpaidVendors + d.partialVendors) > 6 && (
+            <div className="border-t px-5 py-3">
+              <p className="text-xs text-center text-muted-foreground">
+                +{(d.unpaidVendors + d.partialVendors) - 6} more vendors with outstanding balance
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Recent transactions */}
         <div className="rounded-2xl border bg-card shadow-civic">
           <div className="flex items-center justify-between border-b px-5 py-3.5">
             <h3 className="font-semibold text-foreground">Recent Transactions</h3>
             <Link to="/admin/payments">
-              <Button variant="ghost" size="sm" className="text-primary h-7 text-xs gap-1">
+              <Button variant="ghost" size="sm" className="text-blue-600 h-7 text-xs gap-1">
                 View All <ArrowRight className="h-3 w-3" />
               </Button>
             </Link>
@@ -339,9 +410,7 @@ const AdminDashboardHome = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{t.vendor_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Stall {t.stall} · {t.section}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Stall {t.stall} · {t.section}</p>
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
                     <div className={`flex h-5 w-5 items-center justify-center rounded ${methodCfg.color}`}>
@@ -364,75 +433,6 @@ const AdminDashboardHome = () => {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Unpaid vendors this month */}
-        <div className="rounded-2xl border bg-card shadow-civic">
-          <div className="flex items-center justify-between border-b px-5 py-3.5">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-accent" />
-              <h3 className="font-semibold text-foreground">Unpaid This Month</h3>
-            </div>
-            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
-              {d.unpaidVendors + d.partialVendors}
-            </span>
-          </div>
-          <div className="divide-y max-h-[420px] overflow-y-auto">
-            {d.unpaidDetails.map((v: any, i: number) => (
-              <div key={i} className="flex items-start justify-between px-5 py-3 hover:bg-secondary/30 transition-colors">
-                <div className="flex items-start gap-2.5">
-                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${v.isPartial ? "bg-primary/10" : "bg-accent/10"}`}>
-                    <AlertCircle className={`h-3.5 w-3.5 ${v.isPartial ? "text-primary" : "text-accent"}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{v.name}</p>
-                    <p className="text-xs text-muted-foreground">Stall {v.stall} · {v.section}</p>
-                    {v.isPartial && <span className="text-xs text-primary">Partially paid</span>}
-                  </div>
-                </div>
-                <p className={`font-mono text-sm font-bold shrink-0 ${v.isPartial ? "text-primary" : "text-accent"}`}>
-                  {fmt(v.remaining)}
-                </p>
-              </div>
-            ))}
-            {d.unpaidDetails.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-                <CheckCircle2 className="h-8 w-8 text-success opacity-60" />
-                <p className="text-sm font-medium text-success">All vendors paid this month!</p>
-              </div>
-            )}
-          </div>
-          {(d.unpaidVendors + d.partialVendors) > 6 && (
-            <div className="border-t px-5 py-3">
-              <p className="text-xs text-center text-muted-foreground">
-                +{(d.unpaidVendors + d.partialVendors) - 6} more vendors with outstanding balance
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Quick actions ───────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card p-5 shadow-civic">
-        <h3 className="font-semibold text-foreground mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: "Manage Users",    to: "/admin/users",    icon: Users,      desc: "Add or edit accounts" },
-            { label: "View Payments",   to: "/admin/payments", icon: CreditCard, desc: "All payment records"  },
-            { label: "QR Codes",        to: "/admin/qr-codes", icon: Store,      desc: "Manage stall QRs"     },
-            { label: "Reports",         to: "/admin/reports",  icon: TrendingUp, desc: "Analytics & exports"  },
-          ].map(a => (
-            <Link key={a.to} to={a.to}
-              className="flex items-center gap-3 rounded-xl border bg-secondary/30 p-4 hover:bg-secondary/60 hover:-translate-y-0.5 transition-all">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <a.icon className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{a.label}</p>
-                <p className="text-xs text-muted-foreground">{a.desc}</p>
-              </div>
-            </Link>
-          ))}
         </div>
       </div>
 
