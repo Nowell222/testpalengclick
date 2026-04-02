@@ -202,6 +202,7 @@ const PushSettingsPanel = () => {
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 const VendorNotifications = () => {
+  const isMobile = useIsMobile(); 
   const { user }       = useAuth();
   const queryClient    = useQueryClient();
   const [selected, setSelected] = useState<any>(null);
