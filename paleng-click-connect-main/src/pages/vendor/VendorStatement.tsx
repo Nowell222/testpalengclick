@@ -225,7 +225,7 @@ const VendorStatement = () => {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
+          <h1 style={{ fontSize: "clamp(1.15rem, 5vw, 1.5rem)", fontWeight: 700 }} className=" text-foreground">Statement of Account</h1>
           <p className="text-sm text-muted-foreground">Official summary of your stall rental</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -252,7 +252,7 @@ const VendorStatement = () => {
       </div>
 
       {/* Summary stat cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
         {[
           { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "text-foreground",  icon: Calendar,     bg: "bg-secondary"   },
           { label: "Total Paid",     value: fmt(totalPaid),          color: "text-success",     icon: TrendingUp,   bg: "bg-success/10"  },

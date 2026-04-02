@@ -274,7 +274,7 @@ const VendorHistory = () => {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Payment History</h1>
+          <h1 style={{ fontSize: "clamp(1.15rem, 5vw, 1.5rem)", fontWeight: 700 }}>Payment History</h1>
           <p className="text-sm text-muted-foreground">Complete record of all your stall payments</p>
         </div>
         {/* Print SOA for selected month */}
@@ -287,7 +287,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
         {[
           { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "text-success",   icon: TrendingUp    },
           { label: "Transactions", value: String(stats.total),     color: "text-foreground", icon: CreditCard   },
@@ -532,7 +532,7 @@ const VendorHistory = () => {
 
       {/* ── TABLE VIEW ───────────────────────────────────────────────────── */}
       {filtered.length > 0 && viewMode === "table" && (
-        <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
+        <div className="rounded-2xl border bg-card shadow-civic" style={{ overflowX: "auto" }}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-secondary/50">

@@ -256,7 +256,7 @@ const VendorNotifications = () => {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+          <h1 style={{ fontSize: "clamp(1.15rem, 5vw, 1.5rem)", fontWeight: 700 }}>Notifications</h1>
           <p className="text-sm text-muted-foreground">Payment confirmations, reminders, and announcements</p>
         </div>
         {unreadCount > 0 && (
