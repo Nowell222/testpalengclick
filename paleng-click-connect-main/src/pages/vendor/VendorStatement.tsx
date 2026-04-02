@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -91,6 +92,8 @@ const getPrintHTML = (data: any) => {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 const VendorStatement = () => {
+
+  const isMobile = useIsMobile();
   const { user }   = useAuth();
   const printRef   = useRef<HTMLIFrameElement>(null);
   const thisYear   = new Date().getFullYear();
@@ -219,13 +222,13 @@ const VendorStatement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 14 : 24 }}>
       <iframe ref={printRef} style={{ display: "none" }} title="print-soa" />
 
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: "clamp(1.15rem, 5vw, 1.5rem)", fontWeight: 700 }} className=" text-foreground">Statement of Account</h1>
+          <h1 style={{ fontSize: isMobile ? "1.1rem" : "1.5rem", fontWeight: 700 }}>Statement of Account</h1>
           <p className="text-sm text-muted-foreground">Official summary of your stall rental</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -252,7 +255,7 @@ const VendorStatement = () => {
       </div>
 
       {/* Summary stat cards */}
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? 8 : 12 }}>
         {[
           { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "text-foreground",  icon: Calendar,     bg: "bg-secondary"   },
           { label: "Total Paid",     value: fmt(totalPaid),          color: "text-success",     icon: TrendingUp,   bg: "bg-success/10"  },
