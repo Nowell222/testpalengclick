@@ -421,8 +421,9 @@ const VendorHistory = () => {
       {/* Search + filters */}
       <div className="bg-white border-b border-slate-100 px-4 py-3 lg:bg-transparent lg:border-none lg:px-0 lg:py-0">
         <div className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            {/* Search */}
+          {/* Mobile: 2-row layout. Desktop: single flex row */}
+          <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap">
+            {/* Row 1 mobile: search full-width */}
             <div className="relative flex-1 min-w-[160px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search reference, receipt…"
@@ -430,58 +431,61 @@ const VendorHistory = () => {
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
 
-            {/* Month */}
-            <select
-              className="h-10 rounded-xl border bg-background px-3 text-sm min-w-[130px]"
-              value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
-              <option value="all">All Months</option>
-              {MONTHS.map((m, i) => (
-                <option key={m} value={String(i + 1)}>{m}</option>
-              ))}
-            </select>
+            {/* Row 2 mobile: month + year + more + view toggle in one row */}
+            <div className="flex gap-2 items-center">
+              {/* Month */}
+              <select
+                className="h-10 rounded-xl border bg-background px-3 text-sm flex-1 min-w-0"
+                value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+                <option value="all">All Months</option>
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={String(i + 1)}>{m}</option>
+                ))}
+              </select>
 
-            {/* Year */}
-            <select
-              className="h-10 rounded-xl border bg-background px-3 text-sm"
-              value={filterYear} onChange={e => setFilterYear(Number(e.target.value))}>
-              {availableYears.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+              {/* Year */}
+              <select
+                className="h-10 rounded-xl border bg-background px-3 text-sm w-[80px]"
+                value={filterYear} onChange={e => setFilterYear(Number(e.target.value))}>
+                {availableYears.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
 
-            {/* More filters */}
-            <Button variant="outline" size="sm"
-              className={`h-10 gap-2 rounded-xl ${showFilters ? "border-blue-500 text-blue-600 bg-blue-50" : ""}`}
-              onClick={() => setShowFilters(v => !v)}>
-              <Filter className="h-4 w-4" /> More
-              {(filterStatus !== "all" || filterMethod !== "all") && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">
-                  {[filterStatus !== "all", filterMethod !== "all"].filter(Boolean).length}
-                </span>
-              )}
-            </Button>
-
-            {/* Clear */}
-            {hasFilters && (
-              <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground rounded-xl" onClick={clearFilters}>
-                <X className="h-3.5 w-3.5" /> Clear
+              {/* More filters */}
+              <Button variant="outline" size="sm"
+                className={`h-10 gap-1.5 rounded-xl shrink-0 ${showFilters ? "border-blue-500 text-blue-600 bg-blue-50" : ""}`}
+                onClick={() => setShowFilters(v => !v)}>
+                <Filter className="h-4 w-4" /> <span className="hidden sm:inline">More</span>
+                {(filterStatus !== "all" || filterMethod !== "all") && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">
+                    {[filterStatus !== "all", filterMethod !== "all"].filter(Boolean).length}
+                  </span>
+                )}
               </Button>
-            )}
 
-            {/* View mode toggle */}
-            <div className="flex items-center rounded-xl border bg-secondary p-1 gap-0.5 ml-auto">
-              <button onClick={() => setViewMode("card")} title="Card view"
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-                  viewMode === "card" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}>
-                <LayoutList className="h-4 w-4" />
-              </button>
-              <button onClick={() => setViewMode("table")} title="Table view"
-                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-                  viewMode === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}>
-                <Table2 className="h-4 w-4" />
-              </button>
+              {/* Clear */}
+              {hasFilters && (
+                <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground rounded-xl shrink-0 px-2" onClick={clearFilters}>
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+
+              {/* View mode toggle */}
+              <div className="flex items-center rounded-xl border bg-secondary p-1 gap-0.5 shrink-0">
+                <button onClick={() => setViewMode("card")} title="Card view"
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                    viewMode === "card" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  <LayoutList className="h-4 w-4" />
+                </button>
+                <button onClick={() => setViewMode("table")} title="Table view"
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                    viewMode === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  <Table2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 

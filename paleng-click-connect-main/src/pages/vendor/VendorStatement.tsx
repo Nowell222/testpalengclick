@@ -269,10 +269,10 @@ const VendorStatement = () => {
       </div>
 
       {/* Mobile actions bar */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
-        <div className="relative">
+      <div className="lg:hidden flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-100 gap-3">
+        <div className="relative flex-1 min-w-0">
           <select
-            className="h-9 appearance-none rounded-xl border bg-white pl-3 pr-7 text-sm font-medium text-slate-900 cursor-pointer focus:outline-none"
+            className="h-9 w-full appearance-none rounded-xl border bg-white pl-3 pr-7 text-sm font-medium text-slate-900 cursor-pointer focus:outline-none"
             value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
             {availableYears.map(y => (
               <option key={y} value={y}>{y}{y === thisYear ? " (Current)" : ""}</option>
@@ -280,7 +280,7 @@ const VendorStatement = () => {
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <button onClick={doPrint}
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100">
             <Printer className="h-3.5 w-3.5" /> Print

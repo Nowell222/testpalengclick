@@ -686,7 +686,6 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          <div style={{ height: 80 }} />
         </div>
 
         {/* Unified bottom nav */}
