@@ -174,58 +174,59 @@ const VendorStallInfo = () => {
   return (
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
 
-      {/* Profile Hero — unified for all screen sizes */}
-      <div className="lg:rounded-2xl lg:mb-4" style={{ background: DS.gradientHeader }}>
-        <div className="flex flex-col items-center px-5 pt-8 pb-10 lg:flex-row lg:text-left lg:gap-6 lg:px-8 lg:pt-6 lg:pb-8">
+      {/* ── Mobile Profile Hero ─────────────────────────────────────────── */}
+      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+        <div className="flex flex-col items-center px-5 pt-8 pb-10">
           {/* Avatar */}
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3 lg:mb-0 shrink-0"
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3"
             style={{ background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.4)" }}>
             <span className="text-3xl font-black text-white">
               {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
             </span>
           </div>
-          <div className="flex-1 text-center lg:text-left">
-            <p className="text-xl font-black text-white">
-              {profile?.first_name} {profile?.last_name}
-            </p>
-            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
-              Stall #{stall?.stall_number || "—"} · {stall?.section || "General"} Section
-            </p>
-            <div className="flex items-center justify-center lg:justify-start gap-1.5 rounded-full px-4 py-1.5 mt-3 w-fit mx-auto lg:mx-0"
-              style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)" }}>
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-              <span className="text-xs font-bold text-green-400">
-                {isActive ? "Active Vendor" : "Suspended"}
-              </span>
-            </div>
+          <p className="text-xl font-black text-white">
+            {profile?.first_name} {profile?.last_name}
+          </p>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
+            Stall #{stall?.stall_number || "—"} · {stall?.section || "General"} Section
+          </p>
+          <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5 mt-3"
+            style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)" }}>
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+            <span className="text-xs font-bold text-green-400">
+              {isActive ? "Active Vendor" : "Suspended"}
+            </span>
           </div>
-          {/* Edit button on desktop inside hero */}
-          {!editing ? (
-            <button onClick={() => setEditing(true)}
-              className="hidden lg:flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold shrink-0"
-              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}>
-              <Edit3 className="h-4 w-4" /> Edit Profile
-            </button>
-          ) : (
-            <div className="hidden lg:flex gap-2 shrink-0">
-              <button onClick={cancelEdit}
-                className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold"
-                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}>
-                <X className="h-4 w-4" /> Cancel
-              </button>
-              <button className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold"
-                style={{ background: "#fff", color: DS.blue900 }}
-                disabled={saveAll.isPending} onClick={() => saveAll.mutate()}>
-                {saveAll.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* ── Cards ────────────────────────────────────────────────────────── */}
-      <div className="px-3 -mt-6 lg:mt-0 lg:px-0 lg:grid lg:grid-cols-2 lg:gap-4 space-y-3 lg:space-y-0 pb-24 lg:pb-6">
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Stall Information</h1>
+          <p className="text-sm text-muted-foreground">Your stall details and account settings</p>
+        </div>
+        {!editing ? (
+          <Button variant="outline" className="gap-2 rounded-xl" onClick={() => setEditing(true)}>
+            <Edit3 className="h-4 w-4" /> Edit Profile
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2 rounded-xl" onClick={cancelEdit}>
+              <X className="h-4 w-4" /> Cancel
+            </Button>
+            <Button variant="hero" className="gap-2 rounded-xl"
+              disabled={saveAll.isPending}
+              onClick={() => saveAll.mutate()}>
+              {saveAll.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Changes
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Cards — overlap the hero on mobile ─────────────────────────── */}
+      <div className="px-3 -mt-6 lg:mt-0 lg:px-0 space-y-3 pb-24 lg:pb-0">
 
         {/* Stall Details Card */}
         <div className="rounded-2xl bg-white overflow-hidden"

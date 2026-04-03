@@ -260,8 +260,8 @@ const VendorNotifications = () => {
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
       {selected && <ReceiptModal notification={selected} onClose={() => setSelected(null)} />}
 
-      {/* Hero — unified */}
-      <div className="lg:rounded-2xl lg:mb-4" style={{ background: DS.gradientHeader }}>
+      {/* Mobile mini-hero */}
+      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-5">
           <div className="flex items-end justify-between">
             <div>
@@ -280,6 +280,24 @@ const VendorNotifications = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+          <p className="text-sm text-muted-foreground">Payment confirmations, reminders, and announcements</p>
+        </div>
+        {unreadCount > 0 && (
+          <Button
+            size="sm" variant="outline"
+            className="gap-2 rounded-xl h-9 text-xs"
+            disabled={markAllRead.isPending}
+            onClick={() => markAllRead.mutate()}>
+            <CheckCheck className="h-3.5 w-3.5" />
+            Mark all as read ({unreadCount})
+          </Button>
+        )}
       </div>
 
       <div className="px-4 py-4 lg:px-0 space-y-3">

@@ -404,24 +404,24 @@ const VendorHistory = () => {
   );
 
   return (
-    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-4">
+    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-6">
       <iframe ref={printRef} style={{ display: "none" }} title="print-month-soa" />
 
-      {/* Hero header — unified for all screen sizes */}
-      <div style={{ background: DS.gradientHeader }} className="lg:rounded-2xl lg:mx-0">
+      {/* Mobile mini-hero header */}
+      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-5">
           <h1 className="text-2xl font-black text-white">Payment History</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Complete record of all your stall payments</p>
           {/* Stats row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-4">
+          <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
               { label: "Total Paid",   value: fmt(stats.totalPaid) },
               { label: "Transactions", value: String(stats.total) },
               { label: "Completed",    value: String(stats.completed) },
               { label: "Pending",      value: String(stats.pending), amber: stats.pending > 0 },
             ].map(s => (
-              <div key={s.label} className="rounded-xl px-3 py-2.5"
-                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
+              <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
                 <p className="font-mono text-base font-black text-white" style={{ color: (s as any).amber ? "#fde68a" : "white" }}>{s.value}</p>
                 <p className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{s.label}</p>
               </div>
@@ -430,8 +430,40 @@ const VendorHistory = () => {
         </div>
       </div>
 
-      {/* Search + filters — unified */}
-      <div className="bg-white border-b border-slate-100 px-4 py-3 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm">
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Payment History</h1>
+          <p className="text-sm text-muted-foreground">Complete record of all your stall payments</p>
+        </div>
+        {filterMonth !== "all" && (
+          <Button variant="hero" className="gap-2 rounded-xl" onClick={handlePrintMonthSOA}>
+            <Printer className="h-4 w-4" />
+            Print {MONTHS[Number(filterMonth) - 1]} {filterYear} SOA
+          </Button>
+        )}
+      </div>
+
+      {/* Desktop summary cards */}
+      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "text-green-600",  icon: TrendingUp    },
+          { label: "Transactions", value: String(stats.total),     color: "text-foreground", icon: CreditCard    },
+          { label: "Completed",    value: String(stats.completed), color: "text-green-600",  icon: CheckCircle2  },
+          { label: "Pending",      value: String(stats.pending),   color: stats.pending > 0 ? "text-amber-600" : "text-muted-foreground", icon: Clock },
+        ].map(c => (
+          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
+              <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+            </div>
+            <p className={`font-mono text-lg font-bold ${c.color}`}>{c.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Search + filters */}
+      <div className="bg-white border-b border-slate-100 px-4 py-3 lg:bg-transparent lg:border-none lg:px-0 lg:py-0">
         <div className="space-y-3">
           {/* Mobile: 2-row layout. Desktop: single flex row */}
           <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap">
@@ -552,8 +584,8 @@ const VendorHistory = () => {
         </div>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex gap-2 px-4 pb-2 overflow-x-auto bg-white lg:bg-transparent lg:px-0" style={{ scrollbarWidth: "none" }}>
+      {/* Mobile filter chips */}
+      <div className="lg:hidden flex gap-2 px-4 pb-2 overflow-x-auto bg-white" style={{ scrollbarWidth: "none" }}>
         {["all","completed","pending","failed"].map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
             className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
@@ -568,7 +600,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Results count */}
-      <p className="text-sm text-muted-foreground px-4 lg:px-0">
+      <p className="hidden lg:block text-sm text-muted-foreground">
         Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
         <strong className="text-foreground">{payments.length}</strong> transactions
       </p>

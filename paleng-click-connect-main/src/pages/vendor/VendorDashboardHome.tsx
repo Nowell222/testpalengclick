@@ -212,15 +212,229 @@ const VendorDashboardHome = () => {
   ] as const;
 
   /* ─── DESKTOP VIEW ──────────────────────────────────────────────────────────── */
+  const DesktopView = () => (
+    <div className="hidden lg:block space-y-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Hello, {profile?.first_name}! 👋</h1>
+          <p className="text-sm text-muted-foreground">
+            Stall {stall?.stall_number || "—"} · {stall?.section || "General"} Section ·{" "}
+            {new Date().toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
+        {d.unreadNotifs.length > 0 && (
+          <Link to="/vendor/notifications">
+            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors">
+              <Bell className="h-4 w-4" />
+              <span>{d.unreadNotifs.length} unread notification{d.unreadNotifs.length > 1 ? "s" : ""}</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </div>
+          </Link>
+        )}
+      </div>
 
-  /* ─── UNIFIED VIEW (mobile design scaled for desktop) ──────────────────────── */
+      {/* Status Banner */}
+      {d.isCurrentMonthPaid ? (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between rounded-2xl border border-success/20 bg-success/5 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success/15 shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+            </div>
+            <div>
+              <p className="font-semibold text-success">{MONTHS[currentMonth - 1]} {d.currentYear} — Paid ✓</p>
+              <p className="text-xs text-muted-foreground">Your stall fee for this month is fully settled</p>
+            </div>
+          </div>
+          {!d.allPaid && d.nextUnpaidMonth <= 12 && (
+            <Link to="/vendor/pay">
+              <Button size="sm" variant="outline" className="border-success/30 text-success hover:bg-success/10 shrink-0">
+                Pay {MONTHS[d.nextUnpaidMonth - 1]} early <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
+          )}
+        </motion.div>
+      ) : (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between rounded-2xl border border-accent/20 bg-accent/5 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 shrink-0">
+              <AlertCircle className="h-5 w-5 text-accent" />
+            </div>
+            <div>
+              <p className="font-semibold text-accent">
+                {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} {d.currentYear} — Payment Due
+              </p>
+              {d.paidThisMonth > 0
+                ? <p className="text-xs text-muted-foreground">{fmt(d.paidThisMonth)} paid · {fmt(d.remainingThisMonth)} remaining</p>
+                : <p className="text-xs text-muted-foreground">{fmt(monthlyRate)} due this month</p>}
+            </div>
+          </div>
+          <Link to="/vendor/pay">
+            <Button size="sm" variant="hero" className="shrink-0">Pay Now <ArrowRight className="ml-1.5 h-3 w-3" /></Button>
+          </Link>
+        </motion.div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+        <motion.div whileHover={{ y: -2 }} className="rounded-2xl border bg-card p-5 shadow-civic">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+            {d.isCurrentMonthPaid ? "Next Bill" : "Amount Due"}
+          </p>
+          <p className="font-mono text-3xl font-bold text-foreground leading-none">
+            {fmt(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate))}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            {d.isCurrentMonthPaid
+              ? `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth + 1) - 1] || "All months paid"} ${d.currentYear}`
+              : `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} ${d.currentYear}`}
+          </p>
+          {d.paidThisMonth > 0 && !d.isCurrentMonthPaid && (
+            <div className="mt-3 space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Paid so far</span><span>{fmt(d.paidThisMonth)}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${paidPct}%` }} />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Remaining</span><span className="text-accent font-medium">{fmt(d.remainingThisMonth)}</span>
+              </div>
+            </div>
+          )}
+          <Link to="/vendor/pay" className="block mt-4">
+            <Button variant="hero" size="lg" className="w-full">
+              <CreditCard className="mr-2 h-4 w-4" />
+              {d.isCurrentMonthPaid ? "Pay in Advance" : "Pay Now"}
+            </Button>
+          </Link>
+        </motion.div>
+        <div className="rounded-2xl border bg-card p-5 shadow-civic flex flex-col items-center text-center">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Your Stall QR Code</p>
+          <div className="rounded-xl border-2 border-dashed border-border p-3 bg-white">
+            {vendor?.qr_code ? <QRCodeSVG value={vendor.qr_code} size={120} level="H" /> : <QrCode className="h-16 w-16 text-muted-foreground/30" />}
+          </div>
+          <p className="mt-2.5 font-semibold text-foreground text-sm">Stall {stall?.stall_number}</p>
+          <p className="text-xs font-mono text-muted-foreground mt-0.5 break-all leading-relaxed">{vendor?.qr_code}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",       icon: Calendar,     color: "text-foreground",  bg: "bg-secondary"  },
+          { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, icon: TrendingUp, color: "text-green-600",   bg: "bg-green-50"   },
+          { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, sub: "paid in full", icon: CheckCircle2, color: d.monthsPaid === d.currentMonth ? "text-green-600" : "text-blue-600", bg: d.monthsPaid === d.currentMonth ? "bg-green-50" : "bg-blue-50" },
+          { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",     icon: AlertCircle,  color: d.totalOutstanding === 0 ? "text-green-600" : "text-accent", bg: d.totalOutstanding === 0 ? "bg-green-50" : "bg-accent/10" },
+        ].map(c => (
+          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${c.bg}`}>
+                <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+              </div>
+            </div>
+            <p className={`font-mono text-xl font-bold ${c.color}`}>{c.value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{c.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+        <div className="space-y-5">
+          {/* Chart */}
+          <div className="rounded-2xl border bg-card p-5 shadow-civic">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-foreground">Payment Progress</h3>
+                <p className="text-xs text-muted-foreground">Blue = paid · Gray = due</p>
+              </div>
+              <Link to="/vendor/statement"><Button variant="ghost" size="sm" className="text-primary h-7 text-xs gap-1">Full SOA <ArrowRight className="h-3 w-3" /></Button></Link>
+            </div>
+            {d.chartData.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-10">No payment data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={d.chartData} barGap={3} barSize={14}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,91%)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(220,10%,55%)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "hsl(220,10%,55%)" }} tickFormatter={v => v >= 1000 ? `₱${v/1000}k` : `₱${v}`} axisLine={false} tickLine={false} width={45} />
+                  <Tooltip formatter={(v: number, name: string) => [fmt(v), name === "paid" ? "Paid" : "Due"]} contentStyle={{ borderRadius: "10px", border: "1px solid hsl(220,13%,88%)", fontSize: "12px" }} />
+                  <Bar dataKey="due"  fill="#e2e8f0" radius={[4,4,0,0]} name="due" />
+                  <Bar dataKey="paid" fill="#2563eb" radius={[4,4,0,0]} name="paid" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Recent Payments — desktop collapsible */}
+          <div className="rounded-2xl border bg-card shadow-civic">
+            <div className="flex items-center justify-between border-b px-5 py-3.5">
+              <h3 className="font-semibold text-foreground">Recent Payments</h3>
+              <Link to="/vendor/history"><Button variant="ghost" size="sm" className="text-primary h-7 text-xs gap-1">View All <ArrowRight className="h-3 w-3" /></Button></Link>
+            </div>
+            <div className="divide-y">
+              {(paymentsExpanded ? d.payments : d.payments.slice(0, 3)).map((p: any) => (
+                <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/30 transition-colors">
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${p.status === "completed" ? "bg-green-100" : p.status === "pending" ? "bg-amber-100" : "bg-red-100"}`}>
+                    {p.status === "completed" ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : p.status === "pending" ? <Clock className="h-4 w-4 text-amber-600" /> : <AlertCircle className="h-4 w-4 text-red-500" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">
+                      {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : new Date(p.created_at).toLocaleDateString("en-PH")}
+                    </p>
+                    <p className="text-xs text-muted-foreground capitalize">{p.payment_method} · {p.payment_type === "staggered" ? "Partial" : "Full payment"}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-mono text-sm font-bold text-foreground">{fmt(Number(p.amount))}</p>
+                    <p className={`text-xs font-medium capitalize ${p.status === "completed" ? "text-green-600" : p.status === "pending" ? "text-amber-600" : "text-red-500"}`}>{p.status}</p>
+                  </div>
+                </div>
+              ))}
+              {d.payments.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
+                  <CreditCard className="h-8 w-8 opacity-30" /><p className="text-sm">No payments recorded yet</p>
+                  <Link to="/vendor/pay"><Button size="sm" variant="outline" className="mt-1">Make your first payment</Button></Link>
+                </div>
+              )}
+            </div>
+            {d.payments.length > 3 && (
+              <button onClick={() => setPaymentsExpanded(v => !v)}
+                className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-t hover:bg-slate-50 transition-colors"
+                style={{ color: DS.blue600 }}>
+                {paymentsExpanded
+                  ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
+                  : <><ChevronDown className="h-3.5 w-3.5" /> Show {d.payments.length - 3} more payments</>}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-card p-4 shadow-civic h-fit">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Links</p>
+          <div className="space-y-0.5">
+            {quickLinks.map(l => (
+              <Link key={l.to} to={l.to} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                <div className="flex items-center gap-2.5"><l.icon className="h-4 w-4" />{l.label}</div>
+                <div className="flex items-center gap-1.5">
+                  {(l as any).badge ? (<span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">{(l as any).badge}</span>) : null}
+                  <ArrowRight className="h-3.5 w-3.5 opacity-40" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ─── MOBILE VIEW ───────────────────────────────────────────────────────────── */
   const MobileView = () => {
     const shownPayments = paymentsExpanded ? d.payments : d.payments.slice(0, 3);
 
     return (
-      <div className="-mx-4 -mt-4">
+      <div className="block lg:hidden -mx-4 -mt-4">
 
-        {/* Slide panels — mobile only */}
+        {/* Slide panels */}
         <SlidePanel open={showHistoryPanel} onClose={() => { setShowHistoryPanel(false); setActiveTab("balance"); }}
           title="Payment History" unreadNotifs={d.unreadNotifs.length}>
           <VendorHistory />
@@ -311,9 +525,9 @@ const VendorDashboardHome = () => {
         {/* ── White body ── */}
         <div style={{ background: "#f0f4f8" }}>
 
-          {/* Action grid — 6 cols on desktop, 3 on mobile */}
+          {/* Action grid */}
           <div className="bg-white px-4 pt-4 pb-3 mb-2">
-            <div className="grid grid-cols-3 lg:grid-cols-6 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               {mobileActions.map(a => (
                 <Link key={a.to} to={a.to}
                   className="flex flex-col items-center gap-1.5 py-2 rounded-xl transition-colors active:bg-slate-50">
@@ -371,19 +585,15 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          {/* Stats — scroll on mobile, grid on desktop */}
+          {/* Stats scroll */}
           <div>
             <div className="flex items-center justify-between px-4 pt-2 pb-2">
               <p className="text-sm font-bold" style={{ color: DS.blue900 }}>Your Summary</p>
-              <button onClick={() => setShowStatementPanel(true)} className="text-xs font-semibold flex items-center gap-1 lg:hidden" style={{ color: DS.blue600 }}>
+              <button onClick={() => setShowStatementPanel(true)} className="text-xs font-semibold flex items-center gap-1" style={{ color: DS.blue600 }}>
                 View SOA <ArrowRight className="h-3 w-3" />
               </button>
-              <Link to="/vendor/statement" className="hidden lg:flex items-center gap-1 text-xs font-semibold" style={{ color: DS.blue600 }}>
-                View SOA <ArrowRight className="h-3 w-3" />
-              </Link>
             </div>
-            {/* Mobile: horizontal scroll */}
-            <div className="flex lg:hidden gap-2.5 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="flex gap-2.5 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               {[
                 { label: "Total Paid",     value: fmt(d.totalPaidYear),    bg: "#dcfce7", iconColor: "#16a34a", icon: TrendingUp  },
                 { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, bg: "#dbeafe", iconColor: "#2563eb", icon: Calendar   },
@@ -399,32 +609,10 @@ const VendorDashboardHome = () => {
                 </div>
               ))}
             </div>
-            {/* Desktop: 4-col grid */}
-            <div className="hidden lg:grid grid-cols-4 gap-3 px-4 pb-3">
-              {[
-                { label: "Total Paid",     value: fmt(d.totalPaidYear),    bg: "#dcfce7", iconColor: "#16a34a", icon: TrendingUp  },
-                { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, bg: "#dbeafe", iconColor: "#2563eb", icon: Calendar   },
-                { label: "Outstanding",    value: fmt(d.totalOutstanding), bg: d.totalOutstanding === 0 ? "#dcfce7" : "#fef3c7", iconColor: d.totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle },
-                { label: "Monthly Rate",   value: fmt(monthlyRate),        bg: "#f1f5f9", iconColor: "#475569", icon: CreditCard },
-              ].map(s => (
-                <div key={s.label} className="bg-white rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: s.bg }}>
-                    <s.icon className="h-5 w-5" style={{ color: s.iconColor } as any} />
-                  </div>
-                  <div>
-                    <p className="font-black text-lg text-slate-900 leading-tight" style={{ fontVariantNumeric: "tabular-nums" }}>{s.value}</p>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold">{s.label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* QR Banner + Chart — side by side on desktop */}
-          <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-3 lg:px-4 lg:mb-3">
-
           {/* QR Banner */}
-          <div className="mx-3 mb-2 lg:mx-0 lg:mb-0 rounded-2xl overflow-hidden" style={{ background: DS.gradientCard }}>
+          <div className="mx-3 mb-2 rounded-2xl overflow-hidden" style={{ background: DS.gradientCard }}>
             <div className="flex items-center gap-4 p-4">
               <div className="flex-1">
                 <p className="text-white font-bold text-sm mb-1">Your Stall QR Code</p>
@@ -445,7 +633,7 @@ const VendorDashboardHome = () => {
           </div>
 
           {/* Payment chart */}
-          <div className="bg-white mb-2 lg:mb-0 lg:rounded-2xl lg:border lg:border-slate-100 px-4 py-4">
+          <div className="bg-white mb-2 px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm font-bold" style={{ color: DS.blue900 }}>Payment Progress</p>
@@ -469,18 +657,13 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          </div>{/* end lg:grid QR+Chart wrapper */}
-
-          {/* Recent payments — desktop gets card wrapper + link to history page */}
-          <div className="bg-white mb-2 lg:mx-4 lg:rounded-2xl lg:border lg:border-slate-100 lg:mb-3">
+          {/* Recent payments — collapsible, show 3 by default */}
+          <div className="bg-white mb-2">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50">
               <p className="text-sm font-bold" style={{ color: DS.blue900 }}>Recent Payments</p>
-              <button onClick={() => setShowHistoryPanel(true)} className="text-xs font-semibold flex items-center gap-1 lg:hidden" style={{ color: DS.blue600 }}>
+              <button onClick={() => setShowHistoryPanel(true)} className="text-xs font-semibold flex items-center gap-1" style={{ color: DS.blue600 }}>
                 View All ›
               </button>
-              <Link to="/vendor/history" className="hidden lg:flex items-center gap-1 text-xs font-semibold" style={{ color: DS.blue600 }}>
-                View All <ArrowRight className="h-3 w-3" />
-              </Link>
             </div>
             <div>
               {shownPayments.map((p: any, i: number) => (
@@ -513,6 +696,7 @@ const VendorDashboardHome = () => {
                 </div>
               )}
             </div>
+            {/* Expand / collapse toggle */}
             {d.payments.length > 3 && (
               <button onClick={() => setPaymentsExpanded(v => !v)}
                 className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-t border-slate-50 hover:bg-slate-50 transition-colors"
@@ -524,16 +708,20 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          <div className="lg:hidden h-2" />
         </div>
 
-        {/* Bottom nav — mobile only */}
+        {/* Unified bottom nav */}
         <VendorBottomNav unreadNotifs={d.unreadNotifs.length} />
       </div>
     );
   };
 
-  return <MobileView />;
+  return (
+    <>
+      <DesktopView />
+      <MobileView />
+    </>
+  );
 };
 
 export default VendorDashboardHome;

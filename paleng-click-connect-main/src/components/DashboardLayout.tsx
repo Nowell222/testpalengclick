@@ -453,191 +453,91 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   // ════════════════════════════════════════════════════════════════════════════
   // VENDOR — warm ivory design
   // ════════════════════════════════════════════════════════════════════════════
-  // VENDOR — unified dark-blue design (mobile + desktop)
-  // ════════════════════════════════════════════════════════════════════════════
-  const VD = {
-    navy:    "#0d2240",
-    dark:    "#1a3a5f",
-    blue:    "#2563eb",
-    bright:  "#3b82f6",
-    muted:   "rgba(255,255,255,0.55)",
-    subtle:  "rgba(255,255,255,0.1)",
-    border:  "rgba(255,255,255,0.12)",
-    bg:      "#f0f4f8",
-  };
-
   if (isVendor) {
-    const VendorNavList = () => (
-      <nav style={{ flex: 1, overflowY: "auto", padding: "8px 10px" }}>
-        <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", padding: "6px 8px 10px" }}>Navigation</div>
-        {navItems.map((item) => {
-          const active = isActive(item.path);
-          return (
-            <Link key={item.path} to={item.path} style={{ textDecoration: "none" }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 11px", borderRadius: 10, marginBottom: 2,
-                background: active ? "rgba(255,255,255,0.12)" : "transparent",
-                border: active ? "1px solid rgba(255,255,255,0.18)" : "1px solid transparent",
-                cursor: "pointer", transition: "all 0.15s",
-              }}>
-                <div style={{
-                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                  background: active ? VD.blue : "rgba(255,255,255,0.06)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: active ? "0 2px 8px rgba(37,99,235,0.4)" : "none",
-                  transition: "all 0.15s",
-                }}>
-                  <item.icon size={14} color={active ? "#fff" : "rgba(255,255,255,0.5)"} />
-                </div>
-                <span style={{ color: active ? "#fff" : "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: active ? 700 : 400, transition: "all 0.15s" }}>
-                  {item.label}
-                </span>
-                {active && <div style={{ marginLeft: "auto", width: 5, height: 5, borderRadius: "50%", background: VD.bright, flexShrink: 0 }} />}
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
-    );
-
     return (
-      <div style={{ minHeight: "100vh", background: VD.bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: V.bg, fontFamily }}>
         <style>{`
-          @media (min-width: 1024px) { .v-mobile-only { display: none !important; } }
-          @media (max-width: 1023px) { .v-desktop-only { display: none !important; } }
-          .v-nav-link:hover > div { background: rgba(255,255,255,0.08) !important; }
+          @media (min-width: 1024px) {
+            .v-mobile-only { display: none !important; }
+          }
+          @media (max-width: 1023px) {
+            .v-desktop-only { display: none !important; }
+          }
         `}</style>
+
+        {/* Mobile drawer */}
+        {open && <Drawer />}
 
         {/* ── MOBILE HEADER ──────────────────────────────────────────────── */}
         <header className="v-mobile-only" style={{
           position: "sticky", top: 0, zIndex: 40,
-          background: `linear-gradient(135deg, ${VD.navy} 0%, ${VD.dark} 60%, ${VD.blue} 100%)`,
+          background: "linear-gradient(135deg, #0d2240 0%, #1a3a5f 60%, #2563eb 100%)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 16px", height: 52,
           boxShadow: "0 2px 12px rgba(13,34,64,0.35)",
         }}>
+          {/* Left: logo + wordmark */}
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0, background: "rgba(255,255,255,0.1)" }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 7, overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0,
+              background: "rgba(255,255,255,0.1)",
+            }}>
               <img src="/favicon.png" alt="PC" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <div>
-              <div style={{ color: "#fff", fontWeight: 800, fontSize: 13, letterSpacing: 0.5, lineHeight: 1.2 }}>PALENG-CLICK</div>
-              <div style={{ color: VD.muted, fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div>
+              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 13, letterSpacing: 0.5, lineHeight: 1.2 }}>PALENG-CLICK</div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: VD.subtle, border: `1px solid ${VD.border}`, borderRadius: 20, padding: "4px 10px 4px 6px" }}>
-            <div style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, background: `linear-gradient(135deg, #60a5fa, ${VD.blue})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+
+          {/* Right: username + role pill */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 20, padding: "4px 10px 4px 6px",
+          }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
               <span style={{ color: "#fff", fontWeight: 700, fontSize: 9 }}>{initials}</span>
             </div>
             <div>
-              <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>{firstName}</div>
+              <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>{firstName}</div>
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 7.5, letterSpacing: 1.5, textTransform: "uppercase" }}>Vendor</div>
             </div>
           </div>
         </header>
 
-        {/* ── DESKTOP LAYOUT ─────────────────────────────────────────────── */}
+        {/* ── DESKTOP ────────────────────────────────────────────────────── */}
         <div className="v-desktop-only" style={{ display: "flex", minHeight: "100vh" }}>
-
-          {/* Dark navy sidebar */}
           <aside style={{
-            width: 260, flexShrink: 0,
-            background: `linear-gradient(180deg, ${VD.navy} 0%, #112035 100%)`,
+            width: 252, flexShrink: 0, background: "#ffffff",
+            borderRight: `1px solid ${V.border}`,
             display: "flex", flexDirection: "column",
             position: "sticky", top: 0, height: "100vh",
-            boxShadow: "4px 0 24px rgba(13,34,64,0.25)",
           }}>
-            {/* Brand */}
-            <div style={{ padding: "22px 16px 18px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-              <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 16 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, overflow: "hidden", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", flexShrink: 0 }}>
+            <div style={{ height: 4, background: `linear-gradient(90deg, ${V.green}, ${V.greenLt})` }} />
+            <div style={{ padding: "18px 16px 14px", borderBottom: `1px solid ${V.border}` }}>
+              <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 14 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, overflow: "hidden", border: `1px solid ${V.border}` }}>
                   <img src="/favicon.png" alt="PC" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </div>
                 <div>
-                  <div style={{ color: "#fff", fontWeight: 800, fontSize: 13.5, letterSpacing: 0.5 }}>PALENG-CLICK</div>
-                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 8.5, letterSpacing: 2, textTransform: "uppercase" }}>San Juan, Batangas</div>
+                  <div style={{ color: V.text, fontWeight: 700, fontSize: 13, letterSpacing: 0.4 }}>PALENG-CLICK</div>
+                  <div style={{ color: V.muted, fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>San Juan, Batangas</div>
                 </div>
               </Link>
-
-              {/* User card */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 10,
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                borderRadius: 12, padding: "10px 12px",
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                  background: `linear-gradient(135deg, ${VD.bright}, ${VD.blue})`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 2px 10px rgba(37,99,235,0.4)",
-                }}>
-                  <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>{initials}</span>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ color: "#fff", fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</div>
-                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 1 }}>Vendor</div>
-                </div>
-              </div>
+              <UserPill />
             </div>
-
-            <VendorNavList />
-
-            {/* Logout footer */}
-            <div style={{ padding: "12px 10px 20px", borderTop: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
-              <div style={{ color: "rgba(255,255,255,0.2)", fontSize: 9, textAlign: "center", marginBottom: 10 }}>
-                Municipality of San Juan, Batangas
-              </div>
-              <button onClick={handleLogout} style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)",
-                borderRadius: 10, padding: "10px", cursor: "pointer", color: "#f87171", fontSize: 12.5, fontWeight: 600,
-              }}>
-                <LogOut size={13} /> Logout
-              </button>
-            </div>
+            <NavList />
+            <LogoutFooter />
           </aside>
-
-          {/* Main content area */}
-          <main style={{ flex: 1, minWidth: 0, overflowY: "auto", background: VD.bg }}>
-            {/* Desktop top bar */}
-            <div style={{
-              position: "sticky", top: 0, zIndex: 30,
-              background: "rgba(240,244,248,0.92)",
-              backdropFilter: "blur(12px)",
-              borderBottom: "1px solid rgba(37,99,235,0.1)",
-              padding: "0 32px", height: 52,
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              boxShadow: "0 1px 8px rgba(13,34,64,0.06)",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {navItems.find(n => isActive(n.path)) && (() => {
-                  const current = navItems.find(n => isActive(n.path))!;
-                  return (
-                    <>
-                      <div style={{ width: 26, height: 26, borderRadius: 7, background: `linear-gradient(135deg, ${VD.dark}, ${VD.blue})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <current.icon size={13} color="#fff" />
-                      </div>
-                      <span style={{ color: VD.navy, fontWeight: 700, fontSize: 14 }}>{current.label}</span>
-                    </>
-                  );
-                })()}
-              </div>
-              <div style={{
-                background: `linear-gradient(135deg, ${VD.dark}, ${VD.blue})`,
-                borderRadius: 20, padding: "4px 12px 4px 6px",
-                display: "flex", alignItems: "center", gap: 7,
-              }}>
-                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ color: "#fff", fontWeight: 800, fontSize: 9 }}>{initials}</span>
-                </div>
-                <span style={{ color: "#fff", fontWeight: 600, fontSize: 11 }}>{firstName}</span>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 9, textTransform: "uppercase", letterSpacing: 1 }}>· Vendor</span>
-              </div>
-            </div>
-
-            <div style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
+          <main style={{ flex: 1, minWidth: 0, overflowY: "auto", background: V.bg }}>
+            <div style={{ padding: "28px", maxWidth: 1100, margin: "0 auto" }}>
               <div style={{ marginBottom: 16 }}><PushNotificationBanner /></div>
               <Outlet />
             </div>
@@ -645,11 +545,13 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         </div>
 
         {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
+        {/* Keep the 16px padding wrapper — vendor pages use -mx-4 -mt-4 to break out of it */}
         <div className="v-mobile-only" style={{ paddingBottom: 96 }}>
           <div style={{ padding: "16px" }}>
             <Outlet />
           </div>
         </div>
+        {/* No old BottomNav here — each vendor page renders VendorBottomNav itself */}
       </div>
     );
   }
