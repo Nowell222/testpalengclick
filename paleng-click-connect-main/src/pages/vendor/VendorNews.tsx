@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import VendorMobileShell from "@/components/VendorMobileShell";
 
 const MSG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   message:      { label: "Message",      color: "bg-primary/10 text-primary"   },
@@ -133,7 +132,6 @@ const VendorNews = () => {
   };
 
   return (
-    <VendorMobileShell title="News & Messages" subtitle="Announcements and direct messages">
     <div className="space-y-6">
 
       {/* Header */}
@@ -305,7 +303,6 @@ const VendorNews = () => {
         </div>
       )}
     </div>
-    </VendorMobileShell>
   );
 };
 
