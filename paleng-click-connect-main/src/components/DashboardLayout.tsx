@@ -465,37 +465,6 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           }
         `}</style>
 
-        {/* ── MOBILE HEADER ──────────────────────────────────────────────── */}
-        <header className="v-mobile-only" style={{
-          position: "sticky", top: 0, zIndex: 40,
-          background: "#fff", borderBottom: `1px solid ${V.border}`,
-          boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", height: 56,
-        }}>
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
-            <div style={{ width: 30, height: 30, borderRadius: 7, overflow: "hidden", border: `1px solid ${V.border}`, flexShrink: 0 }}>
-              <img src="/favicon.png" alt="PC" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-            </div>
-            <div>
-              <div style={{ color: V.text, fontWeight: 700, fontSize: 13, letterSpacing: 0.4 }}>PALENG-CLICK</div>
-              <div style={{ color: V.muted, fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div>
-            </div>
-          </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ color: V.text, fontSize: 12, fontWeight: 600 }}>{firstName}</div>
-              <div style={{ color: V.muted, fontSize: 8, letterSpacing: 1.5, textTransform: "uppercase" }}>Vendor</div>
-            </div>
-            <button onClick={() => setOpen(true)} style={{
-              background: V.greenBg, border: "1px solid #c8e6c9",
-              borderRadius: 8, padding: "7px 9px", cursor: "pointer", display: "flex", color: V.green,
-            }}>
-              <Menu size={17} />
-            </button>
-          </div>
-        </header>
-
         {/* Mobile drawer */}
         {open && <Drawer />}
 
@@ -532,16 +501,9 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         </div>
 
         {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
-        <div className="v-mobile-only" style={{ paddingBottom: 96, background: V.bg }}>
-          <div style={{ padding: "16px" }}>
-            <div style={{ marginBottom: 12 }}><PushNotificationBanner /></div>
-            <Outlet />
-          </div>
-        </div>
-
-        {/* ── MOBILE BOTTOM TAB ──────────────────────────────────────────── */}
+        {/* No wrapper/padding — vendor pages are full-bleed and own their layout */}
         <div className="v-mobile-only">
-          <BottomNav />
+          <Outlet />
         </div>
       </div>
     );
