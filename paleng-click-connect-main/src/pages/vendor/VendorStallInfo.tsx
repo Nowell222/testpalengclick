@@ -7,7 +7,6 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import VendorMobileShell from "@/components/VendorMobileShell";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,7 +180,6 @@ const VendorStallInfo = () => {
   );
 
   return (
-    <VendorMobileShell title="Stall & Profile" subtitle="Your stall details and account info">
     <div className="space-y-6">
 
       {/* Header */}
@@ -448,7 +446,6 @@ const VendorStallInfo = () => {
         </div>
       </div>
     </div>
-    </VendorMobileShell>
   );
 };
 
