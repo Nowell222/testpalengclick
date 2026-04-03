@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import VendorMobileShell from "@/components/VendorMobileShell";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { toast } from "sonner";
 
@@ -250,6 +251,7 @@ const VendorNotifications = () => {
   );
 
   return (
+    <VendorMobileShell title="Notifications" subtitle="Payment alerts and reminders">
     <div className="space-y-5">
       {selected && <ReceiptModal notification={selected} onClose={() => setSelected(null)} />}
 
@@ -341,6 +343,7 @@ const VendorNotifications = () => {
         )}
       </div>
     </div>
+    </VendorMobileShell>
   );
 };
 

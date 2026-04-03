@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import VendorMobileShell from "@/components/VendorMobileShell";
 import { toast } from "sonner";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -364,6 +365,7 @@ const VendorPayOnline = () => {
 
   // ── Main form ───────────────────────────────────────────────────────────────
   return (
+    <VendorMobileShell title="Pay Online" subtitle="Submit your stall payment">
     <div className="max-w-lg space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Pay Online</h1>
@@ -647,6 +649,7 @@ const VendorPayOnline = () => {
         </div>
       )}
     </div>
+    </VendorMobileShell>
   );
 };
 

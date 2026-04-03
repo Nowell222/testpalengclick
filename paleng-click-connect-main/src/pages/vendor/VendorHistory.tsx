@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import VendorMobileShell from "@/components/VendorMobileShell";
 
 const MONTHS = [
   "January","February","March","April","May","June",
@@ -268,6 +269,7 @@ const VendorHistory = () => {
   );
 
   return (
+    <VendorMobileShell title="Payment History" subtitle="Your stall payment records">
     <div className="space-y-6">
       <iframe ref={printRef} style={{ display: "none" }} title="print-month-soa" />
 
@@ -612,6 +614,7 @@ const VendorHistory = () => {
         </div>
       )}
     </div>
+    </VendorMobileShell>
   );
 };
 
