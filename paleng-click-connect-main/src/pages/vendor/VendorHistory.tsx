@@ -3,6 +3,7 @@ import {
   CheckCircle2, AlertCircle, Clock, Loader2, Search,
   CreditCard, Smartphone, Building2, Banknote, Filter,
   TrendingUp, X, LayoutList, Table2, Printer, Calendar,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,15 @@ const MONTHS = [
 ];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
+const DS = {
+  gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
+  blue900: "#0d2240",
+  blue800: "#1a3a5f",
+  blue600: "#2563eb",
+  blue50:  "#eff6ff",
+  blue100: "#dbeafe",
+};
+
 const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
   gcash:    { icon: Smartphone, color: "bg-blue-500",  label: "GCash"    },
   paymaya:  { icon: Smartphone, color: "bg-green-600", label: "Maya"     },
@@ -25,9 +35,9 @@ const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string }>
 };
 
 const STATUS_CONFIG: Record<string, { icon: any; badge: string; text: string; label: string }> = {
-  completed: { icon: CheckCircle2, badge: "bg-success/10 text-success border-success/20",  text: "text-success",   label: "Completed" },
+  completed: { icon: CheckCircle2, badge: "bg-green-100 text-green-700 border-green-200",  text: "text-green-600",  label: "Completed" },
   pending:   { icon: Clock,        badge: "bg-amber-100 text-amber-700 border-amber-200",  text: "text-amber-600", label: "Pending"   },
-  failed:    { icon: AlertCircle,  badge: "bg-accent/10 text-accent border-accent/20",     text: "text-accent",    label: "Failed"    },
+  failed:    { icon: AlertCircle,  badge: "bg-red-100 text-red-700 border-red-200",        text: "text-red-500",   label: "Failed"    },
 };
 
 // ── Month SOA print ──────────────────────────────────────────────────────────
@@ -99,7 +109,6 @@ const printMonthSOA = (data: {
   .sig-name{font-weight:bold;font-size:10px;color:#111;text-transform:uppercase}
   .footer{margin-top:20px;text-align:center;font-size:8px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}
 </style></head><body>
-
 <div class="hdr">
   <div class="rep">Republic of the Philippines</div>
   <div class="lgu">Municipality of San Juan, Batangas · Office of the Municipal Treasurer</div>
@@ -107,7 +116,6 @@ const printMonthSOA = (data: {
   <div class="sub">Public Market Stall Rental</div>
   <div class="period-badge">${monthName.toUpperCase()} ${year}</div>
 </div>
-
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
@@ -116,18 +124,15 @@ const printMonthSOA = (data: {
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH",{year:"numeric",month:"long",day:"numeric"})}</p></div>
 </div>
-
 <div class="summary">
   <div class="sum-box"><div class="lbl">Monthly Due</div><div class="val">${fmt(monthlyRate)}</div></div>
   <div class="sum-box paid"><div class="lbl">Total Paid</div><div class="val">${fmt(totalPaid)}</div></div>
   <div class="sum-box pend"><div class="lbl">Pending</div><div class="val">${fmt(totalPend)}</div></div>
   <div class="sum-box bal"><div class="lbl">Balance</div><div class="val">${fmt(balance)}</div></div>
 </div>
-
 <div class="status-banner ${isPaid ? "paid-banner" : "bal-banner"}">
   ${isPaid ? `✓ ${monthName} ${year} is FULLY PAID` : `⚠ Outstanding Balance: ${fmt(balance)} for ${monthName} ${year}`}
 </div>
-
 <table>
   <thead>
     <tr>
@@ -139,7 +144,6 @@ const printMonthSOA = (data: {
     ${payments.length > 0 ? txRows : `<tr><td colspan="8" class="no-tx">No transactions recorded for ${monthName} ${year}</td></tr>`}
   </tbody>
 </table>
-
 <div class="totals">
   <div class="t-row"><span>Monthly Fee Due (${monthName} ${year})</span><span class="mono">${fmt(monthlyRate)}</span></div>
   <div class="t-row"><span>Total Amount Paid</span><span class="mono settled">${fmt(totalPaid)}</span></div>
@@ -149,18 +153,108 @@ const printMonthSOA = (data: {
     <span class="mono ${isPaid ? "settled" : "outstanding"}">${fmt(balance)}</span>
   </div>
 </div>
-
 <div class="sigs">
   <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">${profile?.first_name} ${profile?.last_name}</div>Vendor / Lessee</div></div>
   <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">Cashier</div>Prepared by</div></div>
   <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">Municipal Treasurer</div>Noted by</div></div>
 </div>
-
 <div class="footer">PALENG-CLICK System · Computer-generated document · ${new Date().toLocaleString("en-PH")}</div>
 </body></html>`;
 };
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ── Collapsible History Card ──────────────────────────────────────────────────
+const HistoryCard = ({ p }: { p: any }) => {
+  const [expanded, setExpanded] = useState(false);
+  const statusCfg = STATUS_CONFIG[p.status] || STATUS_CONFIG.pending;
+  const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, color: "bg-slate-400", label: p.payment_method };
+  const StatusIcon = statusCfg.icon;
+  const MethodIcon = methodCfg.icon;
+
+  return (
+    <div className="rounded-2xl border bg-white overflow-hidden shadow-sm"
+      style={{ border: "1px solid #e2e8f0" }}>
+      {/* Header row — always visible, click to expand */}
+      <div
+        className="flex items-start justify-between px-4 pt-4 pb-3 cursor-pointer"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="flex items-start gap-3">
+          <div className={`mt-0.5 flex h-10 h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            p.status === "completed" ? "bg-green-100" :
+            p.status === "pending"   ? "bg-amber-100"  : "bg-red-100"
+          }`}>
+            <StatusIcon className={`h-5 w-5 ${statusCfg.text}`} />
+          </div>
+          <div>
+            <p className="font-bold text-slate-900 text-sm">
+              {p.period_month && p.period_year
+                ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
+                : new Date(p.created_at).toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+              {" · "}
+              {new Date(p.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold mt-1.5 ${statusCfg.badge}`}>
+              <StatusIcon className="h-3 w-3" />
+              {statusCfg.label}
+            </span>
+          </div>
+        </div>
+        <div className="text-right shrink-0 flex flex-col items-end gap-1">
+          <p className="font-mono text-lg font-black text-slate-900">{fmt(Number(p.amount))}</p>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center`}
+            style={{ background: DS.blue50, border: `1px solid ${DS.blue100}` }}>
+            {expanded
+              ? <ChevronUp className="h-3.5 w-3.5" style={{ color: DS.blue600 }} />
+              : <ChevronDown className="h-3.5 w-3.5" style={{ color: DS.blue600 }} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <>
+          <div className="h-px mx-4" style={{ background: "#f1f5f9" }} />
+          <div className="flex items-center justify-between px-4 py-3 flex-wrap gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className={`flex h-5 w-5 items-center justify-center rounded ${methodCfg.color}`}>
+                <MethodIcon className="h-3 w-3 text-white" />
+              </div>
+              <span className="text-xs text-slate-500">{methodCfg.label}</span>
+            </div>
+            <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+              p.payment_type === "staggered"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-slate-200 bg-slate-50 text-slate-500"
+            }`}>
+              {p.payment_type === "staggered" ? "Partial" : "Full Payment"}
+            </span>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              {p.reference_number && (
+                <span className="font-mono bg-slate-100 px-2 py-0.5 rounded">Ref: {p.reference_number}</span>
+              )}
+              {p.receipt_number && (
+                <span className="font-mono bg-slate-100 px-2 py-0.5 rounded">RC: {p.receipt_number}</span>
+              )}
+            </div>
+          </div>
+
+          {p.status === "pending" && (
+            <div className="mx-4 mb-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              {p.payment_method === "cash"
+                ? "Awaiting cashier confirmation. Bring your reference number to the cashier."
+                : "Payment processing. This will update automatically once confirmed."}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
 const VendorHistory = () => {
   const { user }   = useAuth();
   const printRef   = useRef<HTMLIFrameElement>(null);
@@ -170,7 +264,7 @@ const VendorHistory = () => {
   const [search,        setSearch]        = useState("");
   const [filterStatus,  setFilterStatus]  = useState("all");
   const [filterMethod,  setFilterMethod]  = useState("all");
-  const [filterMonth,   setFilterMonth]   = useState<string>("all");   // "1"–"12" or "all"
+  const [filterMonth,   setFilterMonth]   = useState<string>("all");
   const [filterYear,    setFilterYear]    = useState<number>(currentYear);
   const [showFilters,   setShowFilters]   = useState(false);
   const [viewMode,      setViewMode]      = useState<"card" | "table">("card");
@@ -196,12 +290,10 @@ const VendorHistory = () => {
   });
 
   const payments    = queryData?.payments    || [];
-  const vendorInfo  = queryData?.vendor;
   const profile     = queryData?.profile;
   const stall       = queryData?.stall;
   const monthlyRate = (stall as any)?.monthly_rate || 1450;
 
-  // Available years from payment data
   const availableYears = useMemo(() => {
     const years = new Set<number>(payments.map((p: any) => p.period_year).filter(Boolean));
     years.add(currentYear);
@@ -235,7 +327,6 @@ const VendorHistory = () => {
     });
   }, [payments, search, filterStatus, filterMethod, filterMonth, filterYear]);
 
-  // Payments for the selected month (for SOA print)
   const monthPayments = useMemo(() => {
     if (filterMonth === "all") return [];
     return payments.filter((p: any) =>
@@ -268,16 +359,38 @@ const VendorHistory = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-6">
       <iframe ref={printRef} style={{ display: "none" }} title="print-month-soa" />
 
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
+      {/* Mobile mini-hero header */}
+      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+        <div className="px-5 pt-5 pb-5">
+          <h1 className="text-2xl font-black text-white">Payment History</h1>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Complete record of all your stall payments</p>
+          {/* Stats row */}
+          <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            {[
+              { label: "Total Paid",   value: fmt(stats.totalPaid) },
+              { label: "Transactions", value: String(stats.total) },
+              { label: "Completed",    value: String(stats.completed) },
+              { label: "Pending",      value: String(stats.pending), amber: stats.pending > 0 },
+            ].map(s => (
+              <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
+                <p className="font-mono text-base font-black text-white" style={{ color: (s as any).amber ? "#fde68a" : "white" }}>{s.value}</p>
+                <p className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Payment History</h1>
           <p className="text-sm text-muted-foreground">Complete record of all your stall payments</p>
         </div>
-        {/* Print SOA for selected month */}
         {filterMonth !== "all" && (
           <Button variant="hero" className="gap-2 rounded-xl" onClick={handlePrintMonthSOA}>
             <Printer className="h-4 w-4" />
@@ -286,12 +399,12 @@ const VendorHistory = () => {
         )}
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Desktop summary cards */}
+      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "text-success",   icon: TrendingUp    },
-          { label: "Transactions", value: String(stats.total),     color: "text-foreground", icon: CreditCard   },
-          { label: "Completed",    value: String(stats.completed), color: "text-success",   icon: CheckCircle2  },
+          { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "text-green-600",  icon: TrendingUp    },
+          { label: "Transactions", value: String(stats.total),     color: "text-foreground", icon: CreditCard    },
+          { label: "Completed",    value: String(stats.completed), color: "text-green-600",  icon: CheckCircle2  },
           { label: "Pending",      value: String(stats.pending),   color: stats.pending > 0 ? "text-amber-600" : "text-muted-foreground", icon: Clock },
         ].map(c => (
           <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
@@ -305,132 +418,147 @@ const VendorHistory = () => {
       </div>
 
       {/* Search + filters */}
-      <div className="space-y-3">
-        <div className="flex gap-2 flex-wrap">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[160px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search reference, receipt…" className="h-10 pl-10 rounded-xl"
-              value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-
-          {/* Month quick-select */}
-          <select
-            className="h-10 rounded-xl border bg-background px-3 text-sm min-w-[130px]"
-            value={filterMonth}
-            onChange={e => setFilterMonth(e.target.value)}
-          >
-            <option value="all">All Months</option>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={String(i + 1)}>{m}</option>
-            ))}
-          </select>
-
-          {/* Year quick-select */}
-          <select
-            className="h-10 rounded-xl border bg-background px-3 text-sm"
-            value={filterYear}
-            onChange={e => setFilterYear(Number(e.target.value))}
-          >
-            {availableYears.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-
-          {/* More filters button */}
-          <Button variant="outline" size="sm"
-            className={`h-10 gap-2 rounded-xl ${showFilters ? "border-primary text-primary bg-primary/5" : ""}`}
-            onClick={() => setShowFilters(v => !v)}>
-            <Filter className="h-4 w-4" /> More
-            {(filterStatus !== "all" || filterMethod !== "all") && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
-                {[filterStatus !== "all", filterMethod !== "all"].filter(Boolean).length}
-              </span>
-            )}
-          </Button>
-
-          {/* Clear */}
-          {hasFilters && (
-            <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground rounded-xl" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5" /> Clear
-            </Button>
-          )}
-
-          {/* View mode toggle */}
-          <div className="flex items-center rounded-xl border bg-secondary p-1 gap-0.5 ml-auto">
-            <button onClick={() => setViewMode("card")} title="Card view"
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-                viewMode === "card" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}>
-              <LayoutList className="h-4 w-4" />
-            </button>
-            <button onClick={() => setViewMode("table")} title="Table view"
-              className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-                viewMode === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}>
-              <Table2 className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Expanded filters — status & method */}
-        {showFilters && (
-          <div className="rounded-2xl border bg-card p-4 shadow-civic grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
-              <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
-                value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                <option value="all">All Statuses</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
+      <div className="bg-white border-b border-slate-100 px-4 py-3 lg:bg-transparent lg:border-none lg:px-0 lg:py-0">
+        <div className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[160px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search reference, receipt…"
+                className="h-10 pl-10 rounded-xl"
+                value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Method</label>
-              <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
-                value={filterMethod} onChange={e => setFilterMethod(e.target.value)}>
-                <option value="all">All Methods</option>
-                <option value="cash">Cash</option>
-                <option value="gcash">GCash</option>
-                <option value="paymaya">Maya</option>
-                <option value="instapay">InstaPay</option>
-              </select>
-            </div>
-          </div>
-        )}
 
-        {/* Active filter summary pill */}
-        {filterMonth !== "all" && (
-          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5">
-            <Calendar className="h-4 w-4 text-primary shrink-0" />
-            <p className="text-sm text-primary font-medium flex-1">
-              Showing <strong>{MONTHS[Number(filterMonth) - 1]} {filterYear}</strong> — {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
-              {filtered.filter((p: any) => p.status === "completed").length > 0 && (
-                <span className="text-muted-foreground font-normal">
-                  {" · "}Total paid: <span className="font-semibold text-success">
-                    {fmt(filtered.filter((p: any) => p.status === "completed").reduce((s: number, p: any) => s + Number(p.amount), 0))}
-                  </span>
+            {/* Month */}
+            <select
+              className="h-10 rounded-xl border bg-background px-3 text-sm min-w-[130px]"
+              value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+              <option value="all">All Months</option>
+              {MONTHS.map((m, i) => (
+                <option key={m} value={String(i + 1)}>{m}</option>
+              ))}
+            </select>
+
+            {/* Year */}
+            <select
+              className="h-10 rounded-xl border bg-background px-3 text-sm"
+              value={filterYear} onChange={e => setFilterYear(Number(e.target.value))}>
+              {availableYears.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+
+            {/* More filters */}
+            <Button variant="outline" size="sm"
+              className={`h-10 gap-2 rounded-xl ${showFilters ? "border-blue-500 text-blue-600 bg-blue-50" : ""}`}
+              onClick={() => setShowFilters(v => !v)}>
+              <Filter className="h-4 w-4" /> More
+              {(filterStatus !== "all" || filterMethod !== "all") && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] text-white">
+                  {[filterStatus !== "all", filterMethod !== "all"].filter(Boolean).length}
                 </span>
               )}
-            </p>
-            <Button size="sm" variant="hero" className="gap-1.5 h-8 rounded-lg shrink-0" onClick={handlePrintMonthSOA}>
-              <Printer className="h-3.5 w-3.5" />
-              Print SOA
             </Button>
+
+            {/* Clear */}
+            {hasFilters && (
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground rounded-xl" onClick={clearFilters}>
+                <X className="h-3.5 w-3.5" /> Clear
+              </Button>
+            )}
+
+            {/* View mode toggle */}
+            <div className="flex items-center rounded-xl border bg-secondary p-1 gap-0.5 ml-auto">
+              <button onClick={() => setViewMode("card")} title="Card view"
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                  viewMode === "card" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                <LayoutList className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode("table")} title="Table view"
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+                  viewMode === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                <Table2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        )}
+
+          {/* Expanded filters */}
+          {showFilters && (
+            <div className="rounded-2xl border bg-card p-4 shadow-civic grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
+                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+                  value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                  <option value="all">All Statuses</option>
+                  <option value="completed">Completed</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Method</label>
+                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+                  value={filterMethod} onChange={e => setFilterMethod(e.target.value)}>
+                  <option value="all">All Methods</option>
+                  <option value="cash">Cash</option>
+                  <option value="gcash">GCash</option>
+                  <option value="paymaya">Maya</option>
+                  <option value="instapay">InstaPay</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Month filter active banner */}
+          {filterMonth !== "all" && (
+            <div className="flex items-center gap-2 rounded-xl border px-4 py-2.5"
+              style={{ borderColor: DS.blue100, background: DS.blue50 }}>
+              <Calendar className="h-4 w-4 shrink-0" style={{ color: DS.blue600 }} />
+              <p className="text-sm flex-1" style={{ color: DS.blue600 }}>
+                <strong>{MONTHS[Number(filterMonth) - 1]} {filterYear}</strong> — {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
+                {filtered.filter((p: any) => p.status === "completed").length > 0 && (
+                  <span className="text-slate-500 font-normal">
+                    {" · "}Total paid: <span className="font-semibold text-green-600">
+                      {fmt(filtered.filter((p: any) => p.status === "completed").reduce((s: number, p: any) => s + Number(p.amount), 0))}
+                    </span>
+                  </span>
+                )}
+              </p>
+              <Button size="sm" variant="hero" className="gap-1.5 h-8 rounded-lg shrink-0" onClick={handlePrintMonthSOA}>
+                <Printer className="h-3.5 w-3.5" />
+                Print SOA
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile filter chips */}
+      <div className="lg:hidden flex gap-2 px-4 pb-2 overflow-x-auto bg-white" style={{ scrollbarWidth: "none" }}>
+        {["all","completed","pending","failed"].map(s => (
+          <button key={s} onClick={() => setFilterStatus(s)}
+            className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+            style={{
+              background: filterStatus === s ? DS.blue900 : "white",
+              color: filterStatus === s ? "white" : "#64748b",
+              border: filterStatus === s ? `1.5px solid ${DS.blue900}` : "1.5px solid #e2e8f0",
+            }}>
+            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
       </div>
 
       {/* Results count */}
-      <p className="text-sm text-muted-foreground">
+      <p className="hidden lg:block text-sm text-muted-foreground">
         Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
         <strong className="text-foreground">{payments.length}</strong> transactions
       </p>
 
       {/* Empty state */}
       {filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border bg-card py-16 gap-3 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-2xl border bg-card py-16 gap-3 text-muted-foreground mx-4 lg:mx-0">
           <CreditCard className="h-10 w-10 opacity-20" />
           <p className="font-medium">
             {payments.length === 0
@@ -450,106 +578,39 @@ const VendorHistory = () => {
         </div>
       )}
 
-      {/* ── CARD VIEW ────────────────────────────────────────────────────── */}
+      {/* ── CARD VIEW ─────────────────────────────────────────────────────── */}
       {filtered.length > 0 && viewMode === "card" && (
-        <div className="space-y-3">
-          {filtered.map((p: any) => {
-            const statusCfg = STATUS_CONFIG[p.status] || STATUS_CONFIG.pending;
-            const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, color: "bg-muted", label: p.payment_method };
-            const StatusIcon = statusCfg.icon;
-            const MethodIcon = methodCfg.icon;
-
-            return (
-              <div key={p.id} className="rounded-2xl border bg-card shadow-civic overflow-hidden hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between px-5 pt-4 pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                      p.status === "completed" ? "bg-success/10" :
-                      p.status === "pending"   ? "bg-amber-100"  : "bg-accent/10"
-                    }`}>
-                      <StatusIcon className={`h-4 w-4 ${statusCfg.text}`} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {p.period_month && p.period_year
-                          ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
-                          : new Date(p.created_at).toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
-                        {" · "}
-                        {new Date(p.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-mono text-xl font-bold text-foreground">{fmt(Number(p.amount))}</p>
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold mt-1 ${statusCfg.badge}`}>
-                      <StatusIcon className="h-3 w-3" />
-                      {statusCfg.label}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-px bg-border mx-5" />
-
-                <div className="flex items-center justify-between px-5 py-3 flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`flex h-5 w-5 items-center justify-center rounded ${methodCfg.color}`}>
-                      <MethodIcon className="h-3 w-3 text-white" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">{methodCfg.label}</span>
-                  </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                    p.payment_type === "staggered"
-                      ? "border-primary/20 bg-primary/5 text-primary"
-                      : "border-border bg-secondary text-muted-foreground"
-                  }`}>
-                    {p.payment_type === "staggered" ? "Partial" : "Full Payment"}
-                  </span>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {p.reference_number && (
-                      <span className="font-mono bg-secondary px-2 py-0.5 rounded">Ref: {p.reference_number}</span>
-                    )}
-                    {p.receipt_number && (
-                      <span className="font-mono bg-secondary px-2 py-0.5 rounded">RC: {p.receipt_number}</span>
-                    )}
-                  </div>
-                </div>
-
-                {p.status === "pending" && (
-                  <div className="mx-5 mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-                    {p.payment_method === "cash"
-                      ? "Awaiting cashier confirmation. Bring your reference number to the cashier."
-                      : "Payment processing. This will update automatically once confirmed."}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="space-y-2.5 px-4 pb-4 lg:px-0 lg:pb-0 lg:space-y-3"
+          style={{ background: filtered.length > 0 ? "#f0f4f8" : "transparent" }}
+        >
+          <div className="pt-2 lg:pt-0" />
+          {filtered.map((p: any) => (
+            <HistoryCard key={p.id} p={p} />
+          ))}
+          <div className="pb-2 lg:pb-0" />
         </div>
       )}
 
-      {/* ── TABLE VIEW ───────────────────────────────────────────────────── */}
+      {/* ── TABLE VIEW ────────────────────────────────────────────────────── */}
       {filtered.length > 0 && viewMode === "table" && (
-        <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
+        <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto mx-4 lg:mx-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-secondary/50">
+              <tr className="border-b" style={{ background: DS.blue900 }}>
                 {["Date","Period","Amount","Method","Type","Status","Reference","Receipt"].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap text-white text-xs">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y">
               {filtered.map((p: any) => {
                 const statusCfg = STATUS_CONFIG[p.status] || STATUS_CONFIG.pending;
-                const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, color: "bg-muted", label: p.payment_method };
+                const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, color: "bg-slate-400", label: p.payment_method };
                 const StatusIcon = statusCfg.icon;
                 const MethodIcon = methodCfg.icon;
 
                 return (
-                  <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
+                  <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <p className="text-sm font-medium text-foreground">
                         {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
@@ -575,8 +636,8 @@ const VendorHistory = () => {
                     <td className="px-4 py-3">
                       <span className={`rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${
                         p.payment_type === "staggered"
-                          ? "border-primary/20 bg-primary/5 text-primary"
-                          : "border-border bg-secondary text-muted-foreground"
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}>
                         {p.payment_type === "staggered" ? "Partial" : "Full"}
                       </span>
