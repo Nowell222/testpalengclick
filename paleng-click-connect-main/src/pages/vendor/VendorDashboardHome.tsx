@@ -55,7 +55,7 @@ const SlidePanel = ({
               <X className="h-5 w-5 text-white" />
             </button>
           </div>
-          <div className="flex-1 min-h-0" style={{ paddingBottom: 80 }}>
+          <div className="flex-1 min-h-0 p-4" style={{ paddingBottom: 80 }}>
             {children}
           </div>
           <VendorBottomNav unreadNotifs={unreadNotifs} />
