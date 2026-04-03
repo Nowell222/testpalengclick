@@ -3,13 +3,13 @@ import { useState, useEffect } from "react";
 import {
   QrCode, MapPin, User, Calendar, Loader2, Edit3, Save, X,
   Download, Phone, Home, CheckCircle2, Mail, Lock, Eye, EyeOff,
-  UserCircle, AlertCircle,
+  UserCircle, AlertCircle, LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
-import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -39,7 +39,8 @@ const FieldRow = ({ icon: Icon, label, value }: { icon: any; label: string; valu
 );
 
 const VendorStallInfo = () => {
-  const { user }    = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate    = useNavigate();
   const queryClient = useQueryClient();
 
   const [editing,      setEditing]      = useState(false);
@@ -516,6 +517,16 @@ const VendorStallInfo = () => {
           </div>
         </div>
 
+        {/* Logout — mobile only */}
+        <button
+          className="lg:hidden w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all"
+          style={{ background: "#fff5f5", border: "1.5px solid #fecaca", color: "#dc2626" }}
+          onClick={async () => { await signOut(); navigate("/login"); }}
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
+
       </div>
 
       {/* Unified bottom nav — mobile only */}
@@ -525,4 +536,3 @@ const VendorStallInfo = () => {
 };
 
 export default VendorStallInfo;
-
