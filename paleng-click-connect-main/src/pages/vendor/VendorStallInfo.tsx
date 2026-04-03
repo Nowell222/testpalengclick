@@ -1,3 +1,4 @@
+import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState, useEffect } from "react";
 import {
   QrCode, MapPin, User, Calendar, Loader2, Edit3, Save, X,
@@ -15,18 +16,28 @@ import { toast } from "sonner";
 
 const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
-// ── Field Row (view mode) ──────────────────────────────────────────────────────
+const DS = {
+  gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
+  gradientCard:   "linear-gradient(135deg, #1a3a5f 0%, #2563eb 100%)",
+  blue900: "#0d2240",
+  blue800: "#1a3a5f",
+  blue600: "#2563eb",
+  blue50:  "#eff6ff",
+  blue100: "#dbeafe",
+};
+
 const FieldRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
-  <div className="flex items-start gap-3">
-    <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-    <div className="min-w-0">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium text-foreground break-words">{value || "—"}</p>
+  <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
+    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
+      <Icon className="h-4 w-4" style={{ color: DS.blue600 }} />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold">{label}</p>
+      <p className="font-semibold text-slate-900 mt-0.5 break-words">{value || "—"}</p>
     </div>
   </div>
 );
 
-// ── Main Component ─────────────────────────────────────────────────────────────
 const VendorStallInfo = () => {
   const { user }    = useAuth();
   const queryClient = useQueryClient();
@@ -38,16 +49,9 @@ const VendorStallInfo = () => {
   const [emailChanged, setEmailChanged] = useState(false);
 
   const [form, setForm] = useState({
-    first_name:     "",
-    middle_name:    "",
-    last_name:      "",
-    contact_number: "",
-    address:        "",
-    email:          "",
-    // password change fields
-    current_password:  "",
-    new_password:      "",
-    confirm_password:  "",
+    first_name: "", middle_name: "", last_name: "",
+    contact_number: "", address: "", email: "",
+    current_password: "", new_password: "", confirm_password: "",
   });
 
   const { data, isLoading } = useQuery({
@@ -56,13 +60,11 @@ const VendorStallInfo = () => {
     queryFn: async () => {
       const { data: vendor }  = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
-      // Get current email from auth session
       const { data: { user: authUser } } = await supabase.auth.getUser();
       return { vendor, profile, stall: vendor?.stalls as any, email: authUser?.email || "" };
     },
   });
 
-  // Populate form when data loads
   useEffect(() => {
     if (data) {
       setForm(f => ({
@@ -73,9 +75,7 @@ const VendorStallInfo = () => {
         contact_number: data.profile?.contact_number  || "",
         address:        data.profile?.address         || "",
         email:          data.email                    || "",
-        current_password:  "",
-        new_password:      "",
-        confirm_password:  "",
+        current_password: "", new_password: "", confirm_password: "",
       }));
       setEmailChanged(false);
     }
@@ -86,14 +86,10 @@ const VendorStallInfo = () => {
   const profile = data?.profile;
   const isActive = profile?.status === "active";
 
-  // ── Save mutation ──────────────────────────────────────────────────────────
   const saveAll = useMutation({
     mutationFn: async () => {
       const errors: string[] = [];
-
-      // 1. Update profile fields
-      const { error: profileErr } = await supabase
-        .from("profiles")
+      const { error: profileErr } = await supabase.from("profiles")
         .update({
           first_name:     form.first_name.trim(),
           middle_name:    form.middle_name.trim() || null,
@@ -104,22 +100,18 @@ const VendorStallInfo = () => {
         .eq("user_id", user!.id);
       if (profileErr) errors.push(`Profile: ${profileErr.message}`);
 
-      // 2. Update email if changed
       if (form.email.trim() && form.email.trim() !== data?.email) {
         const { error: emailErr } = await supabase.auth.updateUser({ email: form.email.trim() });
         if (emailErr) errors.push(`Email: ${emailErr.message}`);
         else setEmailChanged(true);
       }
 
-      // 3. Update password if filled in
       if (form.new_password) {
         if (!form.current_password) throw new Error("Enter your current password to change it.");
         if (form.new_password.length < 6) throw new Error("New password must be at least 6 characters.");
         if (form.new_password !== form.confirm_password) throw new Error("New passwords do not match.");
-        // Re-authenticate to verify current password
         const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email:    data?.email || "",
-          password: form.current_password,
+          email: data?.email || "", password: form.current_password,
         });
         if (signInErr) throw new Error("Current password is incorrect.");
         const { error: pwdErr } = await supabase.auth.updateUser({ password: form.new_password });
@@ -150,9 +142,7 @@ const VendorStallInfo = () => {
         contact_number: data.profile?.contact_number  || "",
         address:        data.profile?.address         || "",
         email:          data.email                    || "",
-        current_password:  "",
-        new_password:      "",
-        confirm_password:  "",
+        current_password: "", new_password: "", confirm_password: "",
       });
     }
     setEditing(false);
@@ -164,7 +154,7 @@ const VendorStallInfo = () => {
     if (!canvas) return;
     const url  = canvas.toDataURL("image/png");
     const link = document.createElement("a");
-    link.href     = url;
+    link.href = url;
     link.download = `QR-Stall-${stall?.stall_number || "vendor"}.png`;
     link.click();
     toast.success("QR code downloaded!");
@@ -180,10 +170,36 @@ const VendorStallInfo = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
 
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
+      {/* ── Mobile Profile Hero ─────────────────────────────────────────── */}
+      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+        <div className="flex flex-col items-center px-5 pt-8 pb-10">
+          {/* Avatar */}
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3"
+            style={{ background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.4)" }}>
+            <span className="text-3xl font-black text-white">
+              {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
+            </span>
+          </div>
+          <p className="text-xl font-black text-white">
+            {profile?.first_name} {profile?.last_name}
+          </p>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
+            Stall #{stall?.stall_number || "—"} · {stall?.section || "General"} Section
+          </p>
+          <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5 mt-3"
+            style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)" }}>
+            <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+            <span className="text-xs font-bold text-green-400">
+              {isActive ? "Active Vendor" : "Suspended"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Stall Information</h1>
           <p className="text-sm text-muted-foreground">Your stall details and account settings</p>
@@ -207,69 +223,133 @@ const VendorStallInfo = () => {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* ── Left column ───────────────────────────────────────────────── */}
-        <div className="space-y-4">
+      {/* ── Cards — overlap the hero on mobile ─────────────────────────── */}
+      <div className="px-3 -mt-6 lg:mt-0 lg:px-0 space-y-3 pb-24 lg:pb-0">
 
-          {/* Stall details — read-only always */}
-          <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <MapPin className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground">Stall #{stall?.stall_number || "—"}</h3>
-                <p className="text-xs text-muted-foreground">{stall?.section || "General"} Section{stall?.location ? ` · ${stall.location}` : ""}</p>
-              </div>
+        {/* Stall Details Card */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
+              <MapPin className="h-4 w-4" style={{ color: DS.blue600 }} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-secondary/50 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Monthly Rate</p>
-                <p className="font-mono font-bold text-foreground">{fmt(stall?.monthly_rate || 1450)}</p>
-              </div>
-              <div className={`rounded-xl p-3 ${isActive ? "bg-success/5 border border-success/20" : "bg-accent/5 border border-accent/20"}`}>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Status</p>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className={`h-3.5 w-3.5 ${isActive ? "text-success" : "text-accent"}`} />
-                  <p className={`text-sm font-semibold ${isActive ? "text-success" : "text-accent"}`}>
-                    {isActive ? "Active" : "Suspended"}
-                  </p>
-                </div>
-              </div>
+            <span className="font-bold text-slate-900">Stall Details</span>
+          </div>
+          <div className="grid grid-cols-2 gap-0">
+            <div className="p-4 border-b border-r border-slate-50">
+              <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Stall #</p>
+              <p className="text-2xl font-black mt-1" style={{ color: DS.blue900, fontFamily: "'JetBrains Mono', monospace" }}>
+                {stall?.stall_number || "—"}
+              </p>
             </div>
-            <div className="flex items-start gap-3 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-muted-foreground">Award Date</p>
-                <p className="font-medium text-foreground">
-                  {vendor?.award_date
-                    ? new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })
-                    : "—"}
-                </p>
+            <div className="p-4 border-b border-slate-50">
+              <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Section</p>
+              <p className="text-lg font-black text-slate-900 mt-1">{stall?.section || "General"}</p>
+            </div>
+            <div className="p-4 border-r border-slate-50">
+              <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Monthly Rate</p>
+              <p className="text-lg font-black text-green-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {fmt(stall?.monthly_rate || 1450)}
+              </p>
+            </div>
+            <div className="p-4">
+              <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Status</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className={`w-2 h-2 rounded-full ${isActive ? "bg-green-500" : "bg-red-500"}`} />
+                <span className={`text-sm font-bold ${isActive ? "text-green-600" : "text-red-600"}`}>
+                  {isActive ? "Active" : "Suspended"}
+                </span>
               </div>
             </div>
           </div>
+          {vendor?.award_date && (
+            <div className="flex items-center gap-3 px-4 py-3 border-t border-slate-50">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
+                <Calendar className="h-4 w-4" style={{ color: DS.blue600 }} />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Award Date</p>
+                <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                  {new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
-          {/* Personal Info */}
-          <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <UserCircle className="h-4 w-4 text-primary" /> Personal Information
-            </h3>
+        {/* QR Code Card */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
+              <QrCode className="h-4 w-4" style={{ color: DS.blue600 }} />
+            </div>
+            <span className="font-bold text-slate-900">Your QR Code</span>
+          </div>
+          <div className="flex flex-col items-center px-4 py-5 gap-3">
+            {vendor?.qr_code ? (
+              <>
+                <div className="rounded-2xl p-3 bg-white"
+                  style={{ border: `2px solid ${DS.blue100}` }}>
+                  <QRCodeSVG value={vendor.qr_code} size={160} level="H" />
+                </div>
+                <div id="vendor-qr-canvas" style={{ display: "none" }}>
+                  <QRCodeCanvas value={vendor.qr_code} size={400} />
+                </div>
+                <p className="text-[10px] font-mono text-slate-400 break-all max-w-xs text-center">
+                  {vendor.qr_code}
+                </p>
+                <button
+                  onClick={handleDownloadQR}
+                  className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
+                  style={{ background: DS.blue50, border: `1.5px solid ${DS.blue100}`, color: DS.blue800 }}>
+                  <Download className="h-4 w-4" /> Download QR Code
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-muted-foreground py-6">
+                <QrCode className="h-16 w-16 opacity-20" />
+                <p className="text-sm">No QR code assigned yet</p>
+              </div>
+            )}
+          </div>
+        </div>
 
+        {/* Personal Information Card */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
+                <UserCircle className="h-4 w-4" style={{ color: DS.blue600 }} />
+              </div>
+              <span className="font-bold text-slate-900">Personal Information</span>
+            </div>
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all"
+                style={{ background: DS.blue50, border: `1px solid ${DS.blue100}`, color: DS.blue600 }}>
+                <Edit3 className="h-3.5 w-3.5" /> Edit
+              </button>
+            )}
+          </div>
+
+          <div className="px-4 py-2">
             {editing ? (
-              <div className="space-y-3">
+              <div className="space-y-3 py-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">First Name <span className="text-accent">*</span></Label>
+                    <Label className="text-xs text-slate-500">First Name <span className="text-red-500">*</span></Label>
                     <Input className="h-10 rounded-xl" value={form.first_name} onChange={set("first_name")} placeholder="First name" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Last Name <span className="text-accent">*</span></Label>
+                    <Label className="text-xs text-slate-500">Last Name <span className="text-red-500">*</span></Label>
                     <Input className="h-10 rounded-xl" value={form.last_name} onChange={set("last_name")} placeholder="Last name" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Middle Name</Label>
+                  <Label className="text-xs text-slate-500">Middle Name</Label>
                   <Input className="h-10 rounded-xl" value={form.middle_name} onChange={set("middle_name")} placeholder="Middle name (optional)" />
                 </div>
               </div>
@@ -278,17 +358,22 @@ const VendorStallInfo = () => {
                 value={[profile?.first_name, profile?.middle_name, profile?.last_name].filter(Boolean).join(" ")} />
             )}
           </div>
+        </div>
 
-          {/* Contact Info */}
-          <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Phone className="h-4 w-4 text-primary" /> Contact Information
-            </h3>
-
+        {/* Contact Information Card */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
+              <Phone className="h-4 w-4" style={{ color: DS.blue600 }} />
+            </div>
+            <span className="font-bold text-slate-900">Contact Information</span>
+          </div>
+          <div className="px-4 py-2">
             {editing ? (
-              <div className="space-y-3">
+              <div className="space-y-3 py-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Contact Number</Label>
+                  <Label className="text-xs text-slate-500">Contact Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input className="h-10 pl-9 rounded-xl" value={form.contact_number}
@@ -296,7 +381,7 @@ const VendorStallInfo = () => {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Address</Label>
+                  <Label className="text-xs text-slate-500">Address</Label>
                   <div className="relative">
                     <Home className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <textarea
@@ -309,7 +394,7 @@ const VendorStallInfo = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3 text-sm">
+              <div>
                 <FieldRow icon={Phone} label="Contact Number" value={profile?.contact_number || ""} />
                 <FieldRow icon={Home}  label="Address"        value={profile?.address        || ""} />
               </div>
@@ -317,20 +402,21 @@ const VendorStallInfo = () => {
           </div>
         </div>
 
-        {/* ── Right column ──────────────────────────────────────────────── */}
-        <div className="space-y-4">
-
-          {/* Account / Login */}
-          <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <Mail className="h-4 w-4 text-primary" /> Account / Login
-            </h3>
-
+        {/* Account / Login Card */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
+              <Mail className="h-4 w-4" style={{ color: DS.blue600 }} />
+            </div>
+            <span className="font-bold text-slate-900">Account / Login</span>
+          </div>
+          <div className="px-4 py-2">
             {editing ? (
-              <div className="space-y-4">
+              <div className="space-y-4 py-2">
                 {/* Email */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Email Address</Label>
+                  <Label className="text-xs text-slate-500">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input type="email" className="h-10 pl-9 rounded-xl" value={form.email}
@@ -344,7 +430,6 @@ const VendorStallInfo = () => {
                   )}
                 </div>
 
-                {/* Divider */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-border" />
                   <span className="text-xs text-muted-foreground">Change Password (optional)</span>
@@ -353,7 +438,7 @@ const VendorStallInfo = () => {
 
                 {/* Current password */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Current Password</Label>
+                  <Label className="text-xs text-slate-500">Current Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input type={showPwd ? "text" : "password"} className="h-10 pl-9 pr-10 rounded-xl"
@@ -368,7 +453,7 @@ const VendorStallInfo = () => {
 
                 {/* New password */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">New Password</Label>
+                  <Label className="text-xs text-slate-500">New Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input type={showNewPwd ? "text" : "password"} className="h-10 pl-9 pr-10 rounded-xl"
@@ -383,7 +468,7 @@ const VendorStallInfo = () => {
 
                 {/* Confirm password */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Confirm New Password</Label>
+                  <Label className="text-xs text-slate-500">Confirm New Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input type={showConfPwd ? "text" : "password"} className="h-10 pl-9 pr-10 rounded-xl"
@@ -395,58 +480,49 @@ const VendorStallInfo = () => {
                     </button>
                   </div>
                   {form.new_password && form.confirm_password && form.new_password !== form.confirm_password && (
-                    <p className="text-xs text-accent flex items-center gap-1.5">
+                    <p className="text-xs text-red-500 flex items-center gap-1.5">
                       <AlertCircle className="h-3.5 w-3.5" /> Passwords do not match.
                     </p>
                   )}
                   {form.new_password && form.confirm_password && form.new_password === form.confirm_password && (
-                    <p className="text-xs text-success flex items-center gap-1.5">
+                    <p className="text-xs text-green-600 flex items-center gap-1.5">
                       <CheckCircle2 className="h-3.5 w-3.5" /> Passwords match.
                     </p>
                   )}
                 </div>
+
+                {/* Save / Cancel buttons */}
+                <div className="flex gap-2 pt-2">
+                  <button onClick={cancelEdit}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-slate-600 bg-slate-100">
+                    <X className="h-4 w-4" /> Cancel
+                  </button>
+                  <button
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+                    style={{ background: DS.gradientCard }}
+                    disabled={saveAll.isPending}
+                    onClick={() => saveAll.mutate()}>
+                    {saveAll.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save Changes
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3 text-sm">
+              <div>
                 <FieldRow icon={Mail} label="Email Address" value={data?.email || ""} />
                 <FieldRow icon={Lock} label="Password" value="••••••••" />
               </div>
             )}
           </div>
-
-          {/* QR Code */}
-          <div className="rounded-2xl border bg-card p-5 shadow-civic flex flex-col items-center gap-4">
-            <div className="text-center">
-              <p className="font-semibold text-foreground">Your QR Code</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Present for payment and market inspection</p>
-            </div>
-
-            {vendor?.qr_code ? (
-              <>
-                <div className="rounded-2xl border-2 border-primary/20 bg-white p-4">
-                  <QRCodeSVG value={vendor.qr_code} size={180} />
-                </div>
-                <div id="vendor-qr-canvas" style={{ display: "none" }}>
-                  <QRCodeCanvas value={vendor.qr_code} size={400} />
-                </div>
-                <p className="text-[10px] font-mono text-muted-foreground break-all max-w-xs text-center">
-                  {vendor.qr_code}
-                </p>
-                <Button variant="outline" className="gap-2 rounded-xl w-full" onClick={handleDownloadQR}>
-                  <Download className="h-4 w-4" /> Download QR Code
-                </Button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-muted-foreground py-6">
-                <QrCode className="h-16 w-16 opacity-20" />
-                <p className="text-sm">No QR code assigned yet</p>
-              </div>
-            )}
-          </div>
         </div>
+
       </div>
+
+      {/* Unified bottom nav — mobile only */}
+      <VendorBottomNav />
     </div>
   );
 };
 
 export default VendorStallInfo;
+
