@@ -12,7 +12,15 @@ const MONTHS = [
 ];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
-// ─── Print HTML ────────────────────────────────────────────────────────────────
+const DS = {
+  gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
+  blue900: "#0d2240",
+  blue600: "#2563eb",
+  blue50:  "#eff6ff",
+  blue100: "#dbeafe",
+};
+
+// ─── Print HTML — kept exactly as original ────────────────────────────────────
 const getPrintHTML = (data: any) => {
   const { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate } = data;
   const rowsHTML = rows.map((r: any) => `
@@ -96,7 +104,6 @@ const VendorStatement = () => {
   const thisYear   = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(thisYear);
 
-  // Available years: current year and up to 3 prior years
   const availableYears = Array.from({ length: 4 }, (_, i) => thisYear - i);
 
   const { data, isLoading } = useQuery({
@@ -125,41 +132,28 @@ const VendorStatement = () => {
   const payments    = data?.payments || [];
   const schedules   = data?.schedules || [];
   const defaultRate = stall?.monthly_rate || 1450;
-  // Get fee for a specific month (uses schedule if set, otherwise default)
   const getMonthFee = (month: number) => {
     const s = schedules.find((s: any) => s.month === month);
     return s ? Number(s.amount) : defaultRate;
   };
-  const monthlyRate = defaultRate; // kept for compatibility
+  const monthlyRate  = defaultRate;
   const currentYear  = selectedYear;
   const currentMonth = selectedYear === thisYear ? new Date().getMonth() + 1 : 12;
 
-  // ── Raw paid amounts per month from DB ────────────────────────────────────
   const rawPaidMap: Record<number, number> = {};
   payments.filter((p: any) => p.period_year === selectedYear).forEach((p: any) => {
     if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
-  // ── Single cascade loop: distribute all payments forward using per-month fees ─
-  // Rules:
-  //  1. Each month's credited amount = rawPaid[m] + carry from previous month
-  //  2. Excess above the month's fee carries forward to the next month
-  //  3. A month with no raw payment but carry from overpayment is marked Advance
-  //  4. A partially-paid month does NOT carry anything forward — carry stops there
-  //     i.e. Sept must be FULLY paid before any excess moves to October
   const displayPaidMap: Record<number, number> = {};
   let carryOver = 0;
-
   for (let m = 1; m <= 12; m++) {
     const due      = getMonthFee(m);
     const credited = (rawPaidMap[m] || 0) + carryOver;
     displayPaidMap[m] = credited;
-
     if (credited >= due) {
-      // Fully paid or overpaid — carry the excess to next month
       carryOver = credited - due;
     } else {
-      // Partially paid or unpaid — carry stops here, next month starts fresh
       carryOver = 0;
     }
   }
@@ -183,30 +177,13 @@ const VendorStatement = () => {
     const m        = i + 1;
     const due      = getMonthFee(m);
     const credited = displayPaidMap[m] || 0;
-
-    // For display: show only up to the due amount as "paid" for that month.
-    // e.g. due=₱550, vendor paid ₱1,500 total → show ₱550 paid, not ₱1,500
     const displayPaid = Math.min(credited, due);
     const balance     = Math.max(0, due - credited);
-
-    // Advance = future month that is already covered by carry-over from previous overpayment
-    // Only mark as advance if the month is AFTER the current month
-    const isAdvance  = m > currentMonth && credited >= due;   // future, fully covered by carry
-    const isFuture   = m > currentMonth && credited === 0;    // future, nothing paid at all
-    const isFully    = credited >= due && !isAdvance;         // past/current fully paid
-    const isPartial  = credited > 0 && credited < due;       // partial — any month
-
-    return {
-      month,
-      monthNum: m,
-      due,
-      paid:     displayPaid,   // capped at due — shows actual amount applied
-      balance,
-      isFully,
-      isPartial,
-      isAdvance,
-      isFuture,
-    };
+    const isAdvance  = m > currentMonth && credited >= due;
+    const isFuture   = m > currentMonth && credited === 0;
+    const isFully    = credited >= due && !isAdvance;
+    const isPartial  = credited > 0 && credited < due;
+    return { month, monthNum: m, due, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture };
   });
 
   const printData = { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate: defaultRate };
@@ -219,23 +196,42 @@ const VendorStatement = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-6">
       <iframe ref={printRef} style={{ display: "none" }} title="print-soa" />
 
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
+      {/* Mobile mini-hero */}
+      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+        <div className="px-5 pt-5 pb-5">
+          <h1 className="text-2xl font-black text-white">Statement of Account</h1>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Official summary of your stall rental</p>
+          <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            {[
+              { label: "Total Paid",   value: fmt(totalPaid), green: true },
+              { label: "Months Paid",  value: `${monthsPaid}/${currentMonth}` },
+              { label: "Outstanding",  value: fmt(totalOutstanding), green: totalOutstanding === 0 },
+            ].map(s => (
+              <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
+                <p className="font-mono text-base font-black"
+                  style={{ color: s.green ? "#4ade80" : "white" }}>{s.value}</p>
+                <p className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
           <p className="text-sm text-muted-foreground">Official summary of your stall rental</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Year selector */}
           <div className="relative">
             <select
               className="h-10 appearance-none rounded-xl border bg-card pl-3 pr-8 text-sm font-medium text-foreground shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={selectedYear}
-              onChange={e => setSelectedYear(Number(e.target.value))}
-            >
+              value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
               {availableYears.map(y => (
                 <option key={y} value={y}>{y}{y === thisYear ? " (Current)" : ""}</option>
               ))}
@@ -251,13 +247,13 @@ const VendorStatement = () => {
         </div>
       </div>
 
-      {/* Summary stat cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Desktop summary cards */}
+      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "text-foreground",  icon: Calendar,     bg: "bg-secondary"   },
-          { label: "Total Paid",     value: fmt(totalPaid),          color: "text-success",     icon: TrendingUp,   bg: "bg-success/10"  },
-          { label: "Months Paid",    value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "text-success" : "text-primary", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "bg-success/10" : "bg-primary/10" },
-          { label: "Outstanding",    value: fmt(totalOutstanding),   color: totalOutstanding === 0 ? "text-success" : "text-accent", icon: AlertCircle, bg: totalOutstanding === 0 ? "bg-success/10" : "bg-accent/10" },
+          { label: "Total Paid",     value: fmt(totalPaid),          color: "text-green-600",   icon: TrendingUp,   bg: "bg-green-50"    },
+          { label: "Months Paid",    value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "text-green-600" : "text-blue-600", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "bg-green-50" : "bg-blue-50" },
+          { label: "Outstanding",    value: fmt(totalOutstanding),   color: totalOutstanding === 0 ? "text-green-600" : "text-accent", icon: AlertCircle, bg: totalOutstanding === 0 ? "bg-green-50" : "bg-accent/10" },
         ].map(c => (
           <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
             <div className="flex items-center justify-between mb-2">
@@ -271,21 +267,47 @@ const VendorStatement = () => {
         ))}
       </div>
 
+      {/* Mobile actions bar */}
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
+        <div className="relative">
+          <select
+            className="h-9 appearance-none rounded-xl border bg-white pl-3 pr-7 text-sm font-medium text-slate-900 cursor-pointer focus:outline-none"
+            value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
+            {availableYears.map(y => (
+              <option key={y} value={y}>{y}{y === thisYear ? " (Current)" : ""}</option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={doPrint}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100">
+            <Printer className="h-3.5 w-3.5" /> Print
+          </button>
+          <button onClick={doPrint}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white"
+            style={{ background: DS.blue600 }}>
+            <Download className="h-3.5 w-3.5" /> Save PDF
+          </button>
+        </div>
+      </div>
+
       {/* SOA Document */}
-      <div className="rounded-2xl border bg-card shadow-civic overflow-hidden max-w-3xl">
+      <div className="mx-3 lg:mx-0 my-3 lg:my-0 rounded-2xl border bg-card shadow-civic overflow-hidden lg:max-w-3xl">
 
         {/* Document header */}
-        <div className="bg-foreground text-background text-center px-6 py-5 space-y-0.5">
-          <p className="text-xs tracking-widest uppercase opacity-60">Republic of the Philippines</p>
-          <p className="text-sm font-bold">Municipality of San Juan, Batangas</p>
-          <p className="text-sm font-bold">Office of the Municipal Treasurer</p>
-          <p className="text-xl font-bold tracking-wide mt-2">STATEMENT OF ACCOUNT</p>
-          <p className="text-xs opacity-50 mt-1">Public Market Stall Rental — Fiscal Year {currentYear}</p>
+        <div style={{ background: DS.blue900 }} className="text-center px-6 py-5 space-y-0.5">
+          <p className="text-xs tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.5)" }}>Republic of the Philippines</p>
+          <p className="text-sm font-bold text-white">Municipality of San Juan, Batangas</p>
+          <p className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>Office of the Municipal Treasurer</p>
+          <p className="text-xl font-bold tracking-wide mt-2 text-white">STATEMENT OF ACCOUNT</p>
+          <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>Public Market Stall Rental — Fiscal Year {currentYear}</p>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 lg:p-6 space-y-5">
           {/* Vendor info */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm rounded-2xl bg-secondary/40 px-5 py-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm rounded-2xl px-4 py-4 sm:grid-cols-3"
+            style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
             {[
               { label: "Vendor Name",  value: `${profile?.first_name} ${profile?.last_name}` },
               { label: "Stall Number", value: stall?.stall_number || "—" },
@@ -301,36 +323,31 @@ const VendorStatement = () => {
             ))}
           </div>
 
-          {/* Payment table */}
+          {/* Payment table — ORIGINAL debit/credit format preserved */}
           <div className="rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-secondary/60 border-b">
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Period</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Amount Due</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Paid</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Balance</th>
-                  <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">Status</th>
+                <tr style={{ background: DS.blue900 }}>
+                  <th className="px-4 py-2.5 text-left font-medium text-white text-xs">Period</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Amount Due</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Paid</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Balance</th>
+                  <th className="px-4 py-2.5 text-center font-medium text-white text-xs">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {rows.map(r => (
-                  <tr key={r.monthNum} className={`transition-colors hover:bg-secondary/20 ${r.isFuture ? "opacity-40" : ""}`}>
+                  <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
                     <td className="px-4 py-2.5 font-medium text-foreground">{r.month} {currentYear}</td>
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
                     <td className="px-4 py-2.5 text-right font-mono">
                       {r.paid > 0
-                        ? (
-                          <span className="text-success font-semibold">
-                            {fmt(r.paid)}
-
-                          </span>
-                        )
+                        ? <span className="text-green-600 font-semibold">{fmt(r.paid)}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono font-semibold">
                       {(r.isFully || r.isAdvance)
-                        ? <span className="text-success font-mono">₱0.00</span>
+                        ? <span className="text-green-600 font-mono">₱0.00</span>
                         : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
                     </td>
                     <td className="px-4 py-2.5 text-center">
@@ -339,17 +356,17 @@ const VendorStatement = () => {
                           ✦ Advance
                         </span>
                       ) : r.isFully ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-success/10 border border-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-200 px-2.5 py-0.5 text-xs font-semibold text-green-700">
                           <CheckCircle2 className="h-3 w-3" /> Paid
                         </span>
                       ) : r.isPartial ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
                           Partial
                         </span>
                       ) : r.isFuture && !r.isPartial ? (
                         <span className="text-xs text-muted-foreground">Upcoming</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 border border-accent/20 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">
                           <AlertCircle className="h-3 w-3" /> Unpaid
                         </span>
                       )}
@@ -360,24 +377,26 @@ const VendorStatement = () => {
             </table>
           </div>
 
-          {/* Totals */}
-          <div className="rounded-xl border bg-secondary/30 px-5 py-4 space-y-2 text-sm">
+          {/* Totals — original format preserved */}
+          <div className="rounded-xl border px-5 py-4 space-y-2 text-sm"
+            style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Paid ({currentYear})</span>
-              <span className="font-mono font-bold text-success">{fmt(totalPaid)}</span>
+              <span className="font-mono font-bold text-green-600">{fmt(totalPaid)}</span>
             </div>
             <div className="flex justify-between border-t pt-2">
               <span className="font-semibold text-foreground">TOTAL OUTSTANDING BALANCE</span>
-              <span className={`font-mono text-xl font-bold ${totalOutstanding === 0 ? "text-success" : "text-accent"}`}>
+              <span className={`font-mono text-xl font-bold ${totalOutstanding === 0 ? "text-green-600" : "text-accent"}`}>
                 {fmt(totalOutstanding)}
               </span>
             </div>
           </div>
 
           {totalOutstanding === 0 && (
-            <div className="flex items-center gap-3 rounded-xl bg-success/5 border border-success/20 px-4 py-3">
-              <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-              <p className="text-sm font-medium text-success">All stall fees for {currentYear} are fully settled. 🎉</p>
+            <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
+              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+              <p className="text-sm font-medium text-green-800">All stall fees for {currentYear} are fully settled. 🎉</p>
             </div>
           )}
 
@@ -416,6 +435,8 @@ const VendorStatement = () => {
           </p>
         </div>
       </div>
+
+      <div className="h-4 lg:hidden" />
     </div>
   );
 };
