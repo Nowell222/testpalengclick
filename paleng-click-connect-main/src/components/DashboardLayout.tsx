@@ -465,13 +465,12 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           }
         `}</style>
 
-        {/* ── MOBILE HEADER — hidden: VendorMobileShell in each page handles this ── */}
+        {/* ── MOBILE HEADER ──────────────────────────────────────────────── */}
         <header className="v-mobile-only" style={{
           position: "sticky", top: 0, zIndex: 40,
           background: "#fff", borderBottom: `1px solid ${V.border}`,
           boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
-          display: "none",
-          alignItems: "center", justifyContent: "space-between",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 16px", height: 56,
         }}>
           <Link to="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
@@ -532,15 +531,16 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </main>
         </div>
 
-        {/* ── MOBILE CONTENT — no extra padding, VendorMobileShell wraps each page ── */}
-        <div className="v-mobile-only" style={{ paddingBottom: 0, background: V.bg }}>
-          <div style={{ padding: "0" }}>
+        {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
+        <div className="v-mobile-only" style={{ paddingBottom: 96, background: V.bg }}>
+          <div style={{ padding: "16px" }}>
+            <div style={{ marginBottom: 12 }}><PushNotificationBanner /></div>
             <Outlet />
           </div>
         </div>
 
-        {/* ── MOBILE BOTTOM TAB — hidden: VendorMobileShell handles this ── */}
-        <div className="v-mobile-only" style={{ display: "none" }}>
+        {/* ── MOBILE BOTTOM TAB ──────────────────────────────────────────── */}
+        <div className="v-mobile-only">
           <BottomNav />
         </div>
       </div>
