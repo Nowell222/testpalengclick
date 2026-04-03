@@ -468,6 +468,50 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         {/* Mobile drawer */}
         {open && <Drawer />}
 
+        {/* ── MOBILE HEADER ──────────────────────────────────────────────── */}
+        <header className="v-mobile-only" style={{
+          position: "sticky", top: 0, zIndex: 40,
+          background: "linear-gradient(135deg, #0d2240 0%, #1a3a5f 60%, #2563eb 100%)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0 16px", height: 52,
+          boxShadow: "0 2px 12px rgba(13,34,64,0.35)",
+        }}>
+          {/* Left: logo + wordmark */}
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 7, overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.2)", flexShrink: 0,
+              background: "rgba(255,255,255,0.1)",
+            }}>
+              <img src="/favicon.png" alt="PC" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            </div>
+            <div>
+              <div style={{ color: "#ffffff", fontWeight: 800, fontSize: 13, letterSpacing: 0.5, lineHeight: 1.2 }}>PALENG-CLICK</div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div>
+            </div>
+          </div>
+
+          {/* Right: username + role pill */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            borderRadius: 20, padding: "4px 10px 4px 6px",
+          }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg, #60a5fa, #3b82f6)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ color: "#fff", fontWeight: 700, fontSize: 9 }}>{initials}</span>
+            </div>
+            <div>
+              <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>{firstName}</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 7.5, letterSpacing: 1.5, textTransform: "uppercase" }}>Vendor</div>
+            </div>
+          </div>
+        </header>
+
         {/* ── DESKTOP ────────────────────────────────────────────────────── */}
         <div className="v-desktop-only" style={{ display: "flex", minHeight: "100vh" }}>
           <aside style={{
