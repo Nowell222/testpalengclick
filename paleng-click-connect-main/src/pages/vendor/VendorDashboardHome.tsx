@@ -2,9 +2,8 @@ import { motion } from "framer-motion";
 import {
   CreditCard, QrCode, CheckCircle2, AlertCircle, Loader2,
   ArrowRight, Clock, FileText, Bell, Newspaper, Store,
-  History, TrendingUp, Calendar, Home, ReceiptText, User,
+  History, TrendingUp, Calendar, LayoutDashboard, List, UserCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -202,7 +201,6 @@ const VendorDashboardHome = () => {
                 style={{
                   color: activeTab === t.key ? "#fff" : "rgba(255,255,255,0.55)",
                   fontWeight: activeTab === t.key ? 700 : 500,
-                  borderBottom: activeTab === t.key ? "2.5px solid #fff" : "2.5px solid transparent",
                   background: "none",
                   border: "none",
                   borderBottom: activeTab === t.key ? "2.5px solid #fff" : "2.5px solid transparent",
@@ -473,7 +471,7 @@ const VendorDashboardHome = () => {
         {/* ════════════════════════════════════════════════════════════════ */}
         <div className="bg-white border-t border-slate-100 flex items-center justify-around px-2 pb-3 pt-2 sticky bottom-0" style={{ zIndex: 10 }}>
           <Link to="/vendor" className="flex flex-col items-center gap-1 px-3 py-1">
-            <Home className="h-5 w-5 text-[#1a3a5f]" />
+            <LayoutDashboard className="h-5 w-5 text-[#1a3a5f]" />
             <span className="text-[10px] font-bold text-[#1a3a5f]">Home</span>
           </Link>
           <Link to="/vendor/notifications" className="flex flex-col items-center gap-1 px-3 py-1 relative">
@@ -495,11 +493,11 @@ const VendorDashboardHome = () => {
           </div>
 
           <Link to="/vendor/history" className="flex flex-col items-center gap-1 px-3 py-1">
-            <ReceiptText className="h-5 w-5 text-slate-400" />
+            <List className="h-5 w-5 text-slate-400" />
             <span className="text-[10px] font-medium text-slate-400">Payments</span>
           </Link>
           <Link to="/vendor/statement" className="flex flex-col items-center gap-1 px-3 py-1">
-            <User className="h-5 w-5 text-slate-400" />
+            <UserCircle className="h-5 w-5 text-slate-400" />
             <span className="text-[10px] font-medium text-slate-400">Profile</span>
           </Link>
         </div>
