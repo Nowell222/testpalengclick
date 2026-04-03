@@ -501,10 +501,13 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         </div>
 
         {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
-        {/* No wrapper/padding — vendor pages are full-bleed and own their layout */}
-        <div className="v-mobile-only">
-          <Outlet />
+        {/* Keep the 16px padding wrapper — vendor pages use -mx-4 -mt-4 to break out of it */}
+        <div className="v-mobile-only" style={{ paddingBottom: 96 }}>
+          <div style={{ padding: "16px" }}>
+            <Outlet />
+          </div>
         </div>
+        {/* No old BottomNav here — each vendor page renders VendorBottomNav itself */}
       </div>
     );
   }
