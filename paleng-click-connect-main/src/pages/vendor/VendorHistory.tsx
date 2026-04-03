@@ -4,7 +4,7 @@ import {
   CheckCircle2, AlertCircle, Clock, Loader2, Search,
   CreditCard, Smartphone, Building2, Banknote, Filter,
   TrendingUp, X, LayoutList, Table2, Printer, Calendar,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,10 +243,24 @@ const HistoryCard = ({ p }: { p: any }) => {
           </div>
 
           {p.status === "pending" && (
-            <div className="mx-4 mb-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-              {p.payment_method === "cash"
-                ? "Awaiting cashier confirmation. Bring your reference number to the cashier."
-                : "Payment processing. This will update automatically once confirmed."}
+            <div className="mx-4 mb-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 flex items-start gap-2">
+              <Clock className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                {p.is_submission
+                  ? "Receipt submitted — awaiting cashier verification. Your payment will appear as Completed once confirmed."
+                  : p.payment_method === "cash"
+                    ? "Awaiting cashier confirmation. Bring your reference number to the cashier."
+                    : "Payment processing. This will update automatically once confirmed."}
+              </span>
+            </div>
+          )}
+          {p.is_submission && p.receipt_url && (
+            <div className="mx-4 mb-3">
+              <a href={p.receipt_url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5"
+                style={{ background: DS.blue50, color: DS.blue600, border: `1px solid ${DS.blue100}` }}>
+                <Eye className="h-3.5 w-3.5" /> View Uploaded Receipt
+              </a>
             </div>
           )}
         </>
@@ -282,11 +296,41 @@ const VendorHistory = () => {
         .from("profiles").select("first_name, last_name")
         .eq("user_id", user!.id).single();
       if (!vendor) return { payments: [], vendor: null, profile: null };
-      const { data } = await supabase
+
+      // Fetch confirmed payments
+      const { data: confirmedPayments } = await supabase
         .from("payments").select("*")
         .eq("vendor_id", vendor.id)
         .order("created_at", { ascending: false });
-      return { payments: data || [], vendor, profile, stall: vendor.stalls as any };
+
+      // Fetch pending online submissions (not yet accepted by cashier)
+      const { data: submissions } = await (supabase
+        .from("payment_submissions" as any) as any)
+        .select("*")
+        .eq("vendor_id", vendor.id)
+        .in("status", ["pending", "rejected"])
+        .order("created_at", { ascending: false });
+
+      // Normalise submissions to look like payment rows
+      const pendingRows = (submissions || []).map((s: any) => ({
+        id:             `sub_${s.id}`,
+        vendor_id:      s.vendor_id,
+        amount:         s.amount,
+        status:         s.status === "rejected" ? "failed" : "pending",
+        payment_method: s.payment_method || "instapay",
+        payment_type:   s.payment_type   || "due",
+        period_month:   s.period_month,
+        period_year:    s.period_year,
+        reference_number: s.ocr_reference || null,
+        receipt_url:    s.receipt_url     || null,
+        created_at:     s.created_at,
+        is_submission:  true,   // flag so UI can show "Awaiting verification"
+      }));
+
+      // Merge: submissions first (pending on top), then confirmed
+      const merged = [...pendingRows, ...(confirmedPayments || [])];
+
+      return { payments: merged, vendor, profile, stall: vendor.stalls as any };
     },
   });
 

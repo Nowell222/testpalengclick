@@ -81,7 +81,29 @@ const VendorDashboardHome = () => {
     queryFn: async () => {
       const { data: vendor }   = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
       const { data: profile }  = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
-      const { data: payments } = await supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").order("created_at", { ascending: false });
+      const { data: confirmedPayments } = await supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").order("created_at", { ascending: false });
+
+      // Also fetch pending online submissions not yet confirmed by cashier
+      const { data: submissions } = await (supabase
+        .from("payment_submissions" as any) as any)
+        .select("*")
+        .eq("vendor_id", vendor?.id || "")
+        .in("status", ["pending", "rejected"])
+        .order("created_at", { ascending: false });
+
+      const pendingRows = (submissions || []).map((s: any) => ({
+        id:             `sub_${s.id}`,
+        amount:         s.amount,
+        status:         s.status === "rejected" ? "failed" : "pending",
+        payment_method: s.payment_method || "instapay",
+        payment_type:   s.payment_type   || "due",
+        period_month:   s.period_month,
+        period_year:    s.period_year,
+        created_at:     s.created_at,
+        is_submission:  true,
+      }));
+
+      const payments = [...pendingRows, ...(confirmedPayments || [])];
       const { data: notifications } = await supabase.from("notifications").select("*").eq("user_id", user!.id).eq("read_status", false).order("created_at", { ascending: false }).limit(5);
 
       const stall        = vendor?.stalls as any;
