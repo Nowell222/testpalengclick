@@ -197,22 +197,22 @@ const VendorStatement = () => {
   };
 
   return (
-    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-6">
+    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-4">
       <iframe ref={printRef} style={{ display: "none" }} title="print-soa" />
 
-      {/* Mobile mini-hero */}
-      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+      {/* Hero header — unified */}
+      <div className="lg:rounded-2xl" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-5">
           <h1 className="text-2xl font-black text-white">Statement of Account</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Official summary of your stall rental</p>
-          <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="grid grid-cols-3 gap-2.5 mt-4">
             {[
               { label: "Total Paid",   value: fmt(totalPaid), green: true },
               { label: "Months Paid",  value: `${monthsPaid}/${currentMonth}` },
               { label: "Outstanding",  value: fmt(totalOutstanding), green: totalOutstanding === 0 },
             ].map(s => (
-              <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
-                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
+              <div key={s.label} className="rounded-xl px-3 py-2.5"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
                 <p className="font-mono text-base font-black"
                   style={{ color: s.green ? "#4ade80" : "white" }}>{s.value}</p>
                 <p className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{s.label}</p>
@@ -222,54 +222,8 @@ const VendorStatement = () => {
         </div>
       </div>
 
-      {/* Desktop header */}
-      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
-          <p className="text-sm text-muted-foreground">Official summary of your stall rental</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <select
-              className="h-10 appearance-none rounded-xl border bg-card pl-3 pr-8 text-sm font-medium text-foreground shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
-              value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
-              {availableYears.map(y => (
-                <option key={y} value={y}>{y}{y === thisYear ? " (Current)" : ""}</option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
-          <Button variant="outline" className="gap-2 rounded-xl" onClick={doPrint}>
-            <Printer className="h-4 w-4" /> Print
-          </Button>
-          <Button variant="hero" className="gap-2 rounded-xl" onClick={doPrint}>
-            <Download className="h-4 w-4" /> Save PDF
-          </Button>
-        </div>
-      </div>
-
-      {/* Desktop summary cards */}
-      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "text-foreground",  icon: Calendar,     bg: "bg-secondary"   },
-          { label: "Total Paid",     value: fmt(totalPaid),          color: "text-green-600",   icon: TrendingUp,   bg: "bg-green-50"    },
-          { label: "Months Paid",    value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "text-green-600" : "text-blue-600", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "bg-green-50" : "bg-blue-50" },
-          { label: "Outstanding",    value: fmt(totalOutstanding),   color: totalOutstanding === 0 ? "text-green-600" : "text-accent", icon: AlertCircle, bg: totalOutstanding === 0 ? "bg-green-50" : "bg-accent/10" },
-        ].map(c => (
-          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${c.bg}`}>
-                <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
-              </div>
-            </div>
-            <p className={`font-mono text-lg font-bold ${c.color}`}>{c.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile actions bar */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-100 gap-3">
+      {/* Actions bar — unified */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-100 lg:rounded-2xl lg:border lg:border-slate-100 lg:shadow-sm gap-3">
         <div className="relative flex-1 min-w-0">
           <select
             className="h-9 w-full appearance-none rounded-xl border bg-white pl-3 pr-7 text-sm font-medium text-slate-900 cursor-pointer focus:outline-none"
@@ -437,7 +391,7 @@ const VendorStatement = () => {
         </div>
       </div>
 
-      <div className="h-4 lg:hidden" />
+      <div className="h-4" />
 
       {/* Unified bottom nav — mobile only */}
       <VendorBottomNav />

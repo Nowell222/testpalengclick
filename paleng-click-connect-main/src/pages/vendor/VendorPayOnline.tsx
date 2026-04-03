@@ -320,9 +320,10 @@ const VendorPayOnline = () => {
 
   if (step === 4) return (
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
-      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+      <div style={{ background: DS.gradientHeader }} className="lg:rounded-2xl lg:mb-4">
         <div className="px-5 pt-5 pb-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-3">
+          <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-3"
+            style={{ boxShadow: "0 4px 20px rgba(34,197,94,0.4)" }}>
             <CheckCircle2 className="h-9 w-9 text-white" />
           </div>
           <h2 className="text-2xl font-black text-white">Receipt Submitted!</h2>
@@ -332,19 +333,7 @@ const VendorPayOnline = () => {
         </div>
       </div>
 
-      <div className="hidden lg:flex flex-col items-center justify-center py-12 text-center max-w-sm mx-auto space-y-5">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
-          <CheckCircle2 className="h-10 w-10 text-success" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Receipt Submitted!</h2>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Your receipt is now pending cashier verification.
-          </p>
-        </div>
-      </div>
-
-      <div className="px-4 py-4 lg:px-0 lg:max-w-sm lg:mx-auto space-y-4">
+      <div className="px-4 py-4 lg:px-0 lg:max-w-lg lg:mx-auto space-y-4">
         <div className="rounded-2xl border bg-card p-5 space-y-2.5 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Submission Summary</p>
           {[
@@ -378,17 +367,12 @@ const VendorPayOnline = () => {
 
   return (
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
-      {/* Header */}
-      <div className="lg:hidden" style={{ background: DS.gradientHeader, paddingBottom: 0 }}>
+      {/* Header — unified */}
+      <div style={{ background: DS.gradientHeader, paddingBottom: 0 }} className="lg:rounded-2xl lg:mb-4">
         <div className="px-5 pt-5 pb-3">
           <h1 className="text-2xl font-black text-white">Pay Online</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Pay via bank transfer or e-wallet and upload your receipt</p>
         </div>
-      </div>
-
-      <div className="hidden lg:block mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Pay Online</h1>
-        <p className="text-sm text-muted-foreground">Pay via bank transfer or e-wallet and upload your receipt</p>
       </div>
 
       {/* Step bar */}

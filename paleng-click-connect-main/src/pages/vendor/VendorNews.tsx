@@ -139,22 +139,16 @@ const VendorNews = () => {
 
   return (
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
-      {/* Mobile mini-hero */}
-      <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
+      {/* Hero — unified */}
+      <div className="lg:rounded-2xl lg:mb-4" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-3">
           <h1 className="text-2xl font-black text-white">News & Messages</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Announcements from the Treasurer's Office</p>
         </div>
       </div>
 
-      {/* Desktop header */}
-      <div className="hidden lg:block mb-5">
-        <h1 className="text-2xl font-bold text-foreground">News & Messages</h1>
-        <p className="text-sm text-muted-foreground">Announcements from the Municipal Treasurer's Office</p>
-      </div>
-
-      {/* Tab bar */}
-      <div className="px-4 py-3 bg-white border-b border-slate-100 lg:px-0 lg:bg-transparent lg:border-none lg:mb-4">
+      {/* Tab bar — unified */}
+      <div className="px-4 py-3 bg-white border-b border-slate-100 lg:bg-transparent lg:border-none lg:px-0 lg:mb-4">
         <div className="flex gap-1 rounded-xl p-1"
           style={{ background: "#f1f5f9" }}>
           <button onClick={() => setTab("news")}
