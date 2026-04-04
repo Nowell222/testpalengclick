@@ -438,9 +438,6 @@ const VendorStatement = () => {
       </div>
 
       <div className="h-4 lg:hidden" />
-
-      {/* Unified bottom nav — mobile only */}
-      <VendorBottomNav />
     </div>
   );
 };

@@ -68,7 +68,6 @@ const SlidePanel = ({
           <div className="flex-1 min-h-0 p-4" style={{ paddingBottom: 80 }}>
             {children}
           </div>
-          <VendorBottomNav unreadNotifs={unreadNotifs} />
         </motion.div>
       </>
     )}
@@ -761,7 +760,6 @@ const VendorDashboardHome = () => {
             )}
           </div>
         </div>
-        <VendorBottomNav unreadNotifs={d.unreadNotifs.length} />
       </div>
     );
   };

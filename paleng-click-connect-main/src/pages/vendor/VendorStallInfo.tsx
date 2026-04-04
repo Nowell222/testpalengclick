@@ -803,9 +803,6 @@ const VendorStallInfo = () => {
         </button>
 
       </div>
-
-      {/* Unified bottom nav — mobile only */}
-      <VendorBottomNav />
     </div>
   );
 };
