@@ -466,7 +466,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
             </header>
 
             <main style={{ flex: 1, overflowY: "auto", background: "#f1f5f9" }}>
-              <div style={{ marginBottom: 16, padding: "0 0" }}><PushNotificationBanner /></div>
+              <PushNotificationBanner />
               <Outlet />
             </main>
           </div>

@@ -398,13 +398,13 @@ const VendorHistory = () => {
   };
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#2563eb" }} />
     </div>
   );
 
   return (
-    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-6">
+    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0" style={{ "--page-pad": "32px" } as any}>
       <iframe ref={printRef} style={{ display: "none" }} title="print-month-soa" />
 
       {/* Mobile mini-hero header */}
@@ -431,7 +431,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Desktop header */}
-      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3" style={{ padding: "28px 32px 0" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Payment History</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Complete record of all your stall payments</p>
@@ -445,7 +445,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Desktop summary cards */}
-      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ padding: "16px 32px 0" }}>
         {[
           { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "#16a34a",  icon: TrendingUp,   bg: "#dcfce7" },
           { label: "Transactions", value: String(stats.total),     color: "#0f172a",  icon: CreditCard,   bg: "#f1f5f9" },
@@ -465,7 +465,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Search + filters */}
-      <div className="bg-white border-b border-slate-100 px-4 py-3 lg:bg-transparent lg:border-none lg:px-0 lg:py-0">
+      <div className="bg-white border-b border-slate-100 px-4 py-3 lg:bg-transparent lg:border-none lg:py-0" style={{ paddingLeft: "32px" } as any}>
         <div className="space-y-3">
           {/* Mobile: 2-row layout. Desktop: single flex row */}
           <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap">
@@ -602,7 +602,7 @@ const VendorHistory = () => {
       </div>
 
       {/* Results count */}
-      <p className="hidden lg:block text-sm text-muted-foreground">
+      <p className="hidden lg:block text-sm text-muted-foreground" style={{ padding: "4px 32px 0" }}>
         Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
         <strong className="text-foreground">{payments.length}</strong> transactions
       </p>
@@ -631,8 +631,8 @@ const VendorHistory = () => {
 
       {/* ── CARD VIEW ─────────────────────────────────────────────────────── */}
       {filtered.length > 0 && viewMode === "card" && (
-        <div className="space-y-2.5 px-4 pb-4 lg:px-0 lg:pb-0 lg:space-y-3"
-          style={{ background: filtered.length > 0 ? "#f0f4f8" : "transparent" }}
+        <div className="space-y-2.5 px-4 pb-4 lg:pb-8 lg:space-y-3"
+          style={{ background: filtered.length > 0 ? "#f0f4f8" : "transparent", padding: "16px 32px 32px" }}
         >
           <div className="pt-2 lg:pt-0" />
           {filtered.map((p: any) => (
@@ -644,7 +644,7 @@ const VendorHistory = () => {
 
       {/* ── TABLE VIEW ────────────────────────────────────────────────────── */}
       {filtered.length > 0 && viewMode === "table" && (
-        <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto mx-4 lg:mx-0">
+        <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto mx-4 lg:mx-8 lg:mb-8">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b" style={{ background: "#0d2240" }}>

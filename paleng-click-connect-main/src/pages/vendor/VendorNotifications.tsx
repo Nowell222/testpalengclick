@@ -251,8 +251,8 @@ const VendorNotifications = () => {
   const unreadCount = notifications.filter((n: any) => !n.read_status).length;
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#2563eb" }} />
     </div>
   );
 
@@ -283,7 +283,7 @@ const VendorNotifications = () => {
       </div>
 
       {/* Desktop header */}
-      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-5">
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3" style={{ padding: "28px 32px 0" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Notifications</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Payment confirmations, reminders, and announcements</p>
@@ -300,7 +300,7 @@ const VendorNotifications = () => {
         )}
       </div>
 
-      <div className="px-4 py-4 lg:px-0 space-y-3">
+      <div className="px-4 py-4 lg:px-8 lg:py-5 lg:pb-8 space-y-3">
         {/* Push notification settings */}
         <PushSettingsPanel />
 

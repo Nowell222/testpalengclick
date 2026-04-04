@@ -16,6 +16,7 @@ import { useState } from "react";
 import VendorHistory   from "./VendorHistory";
 import VendorStatement from "./VendorStatement";
 import VendorBottomNav from "../../components/VendorBottomNav";
+import { M } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 
 const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -167,8 +168,14 @@ const VendorDashboardHome = () => {
 
   const handleTabClick = (tab: "balance" | "history" | "statement") => {
     setActiveTab(tab);
-    if (tab === "history")   setShowHistoryPanel(true);
-    if (tab === "statement") setShowStatementPanel(true);
+    // On mobile, open slide panels. On desktop, navigate to pages.
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      if (tab === "history")   window.location.href = "/vendor/history";
+      if (tab === "statement") window.location.href = "/vendor/statement";
+    } else {
+      if (tab === "history")   setShowHistoryPanel(true);
+      if (tab === "statement") setShowStatementPanel(true);
+    }
   };
 
   const mobileActions = [
@@ -199,7 +206,7 @@ const VendorDashboardHome = () => {
 
   /* ─── DESKTOP VIEW ──────────────────────────────────────────────────────────── */
   const DesktopView = () => (
-    <div className="hidden lg:block" style={{ padding: "0 0" }}>
+    <div className="hidden lg:block">
       {/* ── HERO HEADER ── */}
       <div style={{ background: DS.gradientHeader, borderRadius: "0 0 0 0", padding: "28px 32px 0", marginBottom: 0 }}>
         {/* Top row */}
@@ -284,106 +291,108 @@ const VendorDashboardHome = () => {
       </div>
 
       {/* ── BODY GRID ── */}
-      <div style={{ padding: "24px 32px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
+      <div style={{ padding: "24px 32px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignContent: "start" }}>
         {/* LEFT */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Status banner */}
           {d.isCurrentMonthPaid ? (
             <div style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
-              background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 12,
+              display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+              background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 14,
             }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <CheckCircle2 size={18} color="#16a34a" strokeWidth={2.5} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#15803d" }}>
                   {MONTHS[currentMonth - 1]} {d.currentYear} — Paid ✓
                 </div>
-                <div style={{ fontSize: 11, color: "#16a34a" }}>Your stall fee for this month is fully settled</div>
+                <div style={{ fontSize: 11, color: "#16a34a", marginTop: 2 }}>Your stall fee for this month is fully settled</div>
               </div>
               {!d.allPaid && d.nextUnpaidMonth <= 12 && (
-                <Link to="/vendor/pay" style={{ marginLeft: "auto", flexShrink: 0 }}>
+                <Link to="/vendor/pay" style={{ flexShrink: 0 }}>
                   <button style={{
-                    padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                    padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer",
                     background: "linear-gradient(135deg,#15803d,#16a34a)",
-                    fontSize: 12, fontWeight: 700, color: "#fff",
+                    fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit",
                   }}>Pay {MONTHS[d.nextUnpaidMonth - 1]} Early →</button>
                 </Link>
               )}
             </div>
           ) : (
             <div style={{
-              display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
-              background: DS.amber100, border: "1px solid #fcd34d", borderRadius: 12,
+              display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+              background: DS.amber100, border: "1px solid #fcd34d", borderRadius: 14,
             }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#fde68a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <AlertCircle size={18} color={DS.amber600} strokeWidth={2.5} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>
                   {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} {d.currentYear} — Payment Due
                 </div>
-                <div style={{ fontSize: 11, color: DS.amber600 }}>{fmt(d.remainingThisMonth || monthlyRate)} outstanding balance</div>
+                <div style={{ fontSize: 11, color: DS.amber600, marginTop: 2 }}>{fmt(d.remainingThisMonth || monthlyRate)} outstanding balance</div>
               </div>
-              <Link to="/vendor/pay" style={{ marginLeft: "auto", flexShrink: 0 }}>
+              <Link to="/vendor/pay" style={{ flexShrink: 0 }}>
                 <button style={{
-                  padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
-                  background: DS.gradientHeader, fontSize: 12, fontWeight: 700, color: "#fff",
+                  padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer",
+                  background: DS.gradientHeader, fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit",
                 }}>Pay Now →</button>
               </Link>
             </div>
           )}
 
-          {/* Stats grid */}
+          {/* Stats grid — styled like image 7 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {[
-              { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",         valueColor: DS.slate900, icon: <Calendar size={10} />, },
-              { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, valueColor: DS.green600, icon: <TrendingUp size={10} color={DS.green600} />, },
-              { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, sub: "paid in full", valueColor: d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600, icon: <CheckCircle2 size={10} color={d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600} />, },
-              { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",        valueColor: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, icon: <AlertCircle size={10} color={d.totalOutstanding === 0 ? DS.green600 : DS.amber600} />, },
+              { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",              color: DS.slate900,  iconColor: "#64748b", bg: DS.slate100, icon: Calendar    },
+              { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, color: DS.green600,  iconColor: DS.green600, bg: "#dcfce7",  icon: TrendingUp  },
+              { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, sub: "paid in full", color: d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600, iconColor: d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600, bg: d.monthsPaid === d.currentMonth ? "#dcfce7" : DS.blue100, icon: CheckCircle2 },
+              { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",             color: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, iconColor: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, bg: d.totalOutstanding === 0 ? "#dcfce7" : DS.amber100, icon: AlertCircle },
             ].map(c => (
               <div key={c.label} style={{
                 background: "#fff", border: `1px solid ${DS.slate200}`,
-                borderRadius: 12, padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                borderRadius: 14, padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
               }}>
-                <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#94a3b8", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  {c.label}{c.icon}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#94a3b8", fontWeight: 700 }}>{c.label}</div>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <c.icon size={13} color={c.iconColor} />
+                  </div>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: c.valueColor, fontFamily: "'JetBrains Mono', monospace", letterSpacing: -0.5 }}>{c.value}</div>
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{c.sub}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: c.color, fontFamily: "'JetBrains Mono',monospace", letterSpacing: -0.5 }}>{c.value}</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{c.sub}</div>
               </div>
             ))}
           </div>
 
-          {/* Payment Progress */}
-          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 0", marginBottom: 16 }}>
+          {/* Payment Progress card — styled like image 7 */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 14px" }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Payment Progress</div>
               <Link to="/vendor/statement" style={{ fontSize: 12, fontWeight: 700, color: DS.blue600, display: "flex", alignItems: "center", gap: 3, textDecoration: "none" }}>
                 Full SOA →
               </Link>
             </div>
             <div style={{ padding: "0 20px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
-                {[["#2563eb","Paid"],["#22c55e","Current"],["#cbd5e1","Due"]].map(([bg, label]) => (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#64748b" }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: bg }} />{label}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+                {[{ bg: DS.blue600, label: "Paid" }, { bg: DS.green500, label: "Current" }, { bg: DS.slate200, label: "Due" }].map(l => (
+                  <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#64748b" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: l.bg }} />{l.label}
                   </div>
                 ))}
               </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "nowrap" }}>
+              <div style={{ display: "flex", gap: 4 }}>
                 {MONTH_LABELS.map((m, i) => {
-                  const monthNum = i + 1;
-                  const isCurrentMo = monthNum === currentMonth;
-                  const isPaid = !isCurrentMo && d.chartData.find((c: any) => c.month === m)?.paid >= (d.chartData.find((c: any) => c.month === m)?.due || 0);
+                  const mn = i + 1;
+                  const isPaid = mn < currentMonth && d.chartData.find((c: any) => c.month === m) && (d.chartData.find((c: any) => c.month === m)?.paid || 0) >= (d.chartData.find((c: any) => c.month === m)?.due || 1);
+                  const isCurrent = mn === currentMonth;
                   return (
                     <div key={m} style={{
-                      flex: 1, minWidth: 0, padding: "6px 4px", borderRadius: 6,
-                      fontSize: 9, fontWeight: 700, textAlign: "center",
-                      textTransform: "uppercase", letterSpacing: 0.5,
-                      background: isPaid ? DS.blue600 : isCurrentMo ? DS.green500 : DS.slate200,
-                      color: (isPaid || isCurrentMo) ? "#fff" : "#64748b",
+                      flex: 1, padding: "7px 4px", borderRadius: 6,
+                      fontSize: 9, fontWeight: 700, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.5,
+                      background: isPaid ? DS.blue600 : isCurrent ? DS.green500 : DS.slate200,
+                      color: (isPaid || isCurrent) ? "#fff" : "#64748b",
                     }}>{m}</div>
                   );
                 })}
@@ -391,44 +400,41 @@ const VendorDashboardHome = () => {
             </div>
           </div>
 
-          {/* Recent Activity */}
-          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 0", marginBottom: 0 }}>
+          {/* Recent Activity card — styled like image 7 */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 0", marginBottom: 4 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Recent Activity</div>
               <Link to="/vendor/history" style={{ fontSize: 12, fontWeight: 700, color: DS.blue600, textDecoration: "none" }}>View All →</Link>
             </div>
             <div>
-              {(paymentsExpanded ? d.payments : d.payments.slice(0, 3)).map((p: any) => (
+              {(paymentsExpanded ? d.payments : d.payments.slice(0, 3)).map((p: any, idx: number) => (
                 <div key={p.id} style={{
                   display: "flex", alignItems: "center", gap: 12, padding: "13px 20px",
-                  borderBottom: "1px solid #f1f5f9", cursor: "pointer",
+                  borderBottom: "1px solid #f1f5f9", transition: "background 0.12s",
                 }}>
                   <div style={{
-                    width: 38, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    width: 38, height: 38, borderRadius: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                     background: p.status === "completed" ? DS.green100 : p.status === "pending" ? DS.amber100 : "#fee2e2",
                   }}>
-                    {p.status === "completed"
-                      ? <CheckCircle2 size={16} color={DS.green600} />
-                      : p.status === "pending"
-                        ? <Clock size={16} color={DS.amber600} />
-                        : <AlertCircle size={16} color="#dc2626" />}
+                    {p.status === "completed" ? <CheckCircle2 size={16} color={DS.green600} /> : p.status === "pending" ? <Clock size={16} color={DS.amber600} /> : <AlertCircle size={16} color="#dc2626" />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>
                       {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : new Date(p.created_at).toLocaleDateString("en-PH")} — {p.status === "completed" ? "Confirmed" : p.status === "pending" ? "Pending Review" : "Failed"}
                     </div>
-                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>
-                      {p.payment_method === "gcash" ? "GCash" : p.payment_method === "instapay" ? "InstaPay" : p.payment_method} · {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+                      {p.payment_method === "gcash" ? "GCash" : p.payment_method === "instapay" ? "InstaPay" : p.payment_method} · {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} · {new Date(p.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{
-                      fontSize: 14, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 14, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace",
                       color: p.status === "completed" ? DS.green600 : p.status === "pending" ? DS.amber600 : "#dc2626",
                     }}>{fmt(Number(p.amount))}</div>
                     <span style={{
-                      display: "inline-flex", alignItems: "center", gap: 4,
-                      padding: "3px 9px", borderRadius: 999, fontSize: 10, fontWeight: 700, marginTop: 2,
+                      display: "inline-flex", alignItems: "center", gap: 4, marginTop: 4,
+                      padding: "3px 10px", borderRadius: 999, fontSize: 10, fontWeight: 700,
                       background: p.status === "completed" ? DS.green100 : p.status === "pending" ? DS.amber100 : "#fee2e2",
                       color: p.status === "completed" ? DS.green600 : p.status === "pending" ? DS.amber600 : "#dc2626",
                     }}>{p.status === "completed" ? "✓ Completed" : p.status === "pending" ? "⏳ Pending" : "✗ Failed"}</span>
@@ -449,24 +455,24 @@ const VendorDashboardHome = () => {
                 background: "none", border: "none", borderTop: `1px solid ${DS.slate100}`,
                 cursor: "pointer", fontFamily: "inherit",
               }}>
-                {paymentsExpanded ? <><ChevronUp size={14} />Show less</> : <><ChevronDown size={14} />Show {d.payments.length - 3} more</>}
+                {paymentsExpanded ? <><ChevronUp size={14} />Show less</> : <><ChevronDown size={14} />Show {d.payments.length - 3} more payments</>}
               </button>
             )}
           </div>
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT column */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Next Bill card */}
           <div style={{
-            background: DS.gradientHeader, borderRadius: 16, padding: "22px 24px",
-            color: "#fff", boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            background: DS.gradientHeader, borderRadius: 14, padding: "22px 24px",
+            color: "#fff", boxShadow: "0 4px 16px rgba(13,34,64,0.2)",
           }}>
             <div style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>Next Bill Amount</div>
-            <div style={{ fontSize: 36, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1.5, lineHeight: 1 }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono',monospace", letterSpacing: -1.5, lineHeight: 1 }}>
               {fmt(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate))}
             </div>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 4, marginBottom: 18 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 6, marginBottom: 20 }}>
               {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1] || "All paid"} {d.currentYear}
             </div>
             <Link to="/vendor/pay">
@@ -481,37 +487,35 @@ const VendorDashboardHome = () => {
             </Link>
           </div>
 
-          {/* QR Code */}
-          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-            <div style={{ padding: "18px 20px 0", marginBottom: 16, fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Your Stall QR Code</div>
+          {/* QR Code card */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px 12px", fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Your Stall QR Code</div>
             <div style={{ textAlign: "center", padding: "0 20px 20px" }}>
               <div style={{
-                width: 120, height: 120, background: DS.slate100, border: `2px dashed ${DS.slate200}`,
-                borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto 12px",
+                width: 128, height: 128, background: DS.slate100, border: `2px dashed ${DS.slate200}`,
+                borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px",
               }}>
-                {vendor?.qr_code
-                  ? <QRCodeSVG value={vendor.qr_code} size={100} level="H" />
-                  : <QrCode size={36} color="#94a3b8" />}
+                {vendor?.qr_code ? <QRCodeSVG value={vendor.qr_code} size={108} level="H" /> : <QrCode size={40} color="#94a3b8" />}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>Stall {stall?.stall_number}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", marginBottom: 3 }}>Stall {stall?.stall_number}</div>
               <div style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", marginBottom: 14, wordBreak: "break-all" }}>
-                {vendor?.qr_code?.slice(0, 30)}...
+                {vendor?.qr_code ? `${vendor.qr_code.slice(0, 32)}...` : "No QR assigned"}
               </div>
               <button style={{
-                width: "100%", padding: 9, borderRadius: 8,
+                width: "100%", padding: "9px 0", borderRadius: 8,
                 background: DS.blue50, border: `1px solid ${DS.blue100}`,
                 fontSize: 12, fontWeight: 700, color: DS.blue700, cursor: "pointer", fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               }}>
                 ↓ Download QR Code
               </button>
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", padding: "18px 20px" }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900, marginBottom: 12 }}>Quick Links</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {/* Quick Links card — 3 grid like image 7 */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", padding: "16px 20px" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900, marginBottom: 14 }}>Quick Links</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
               {[
                 { label: "Pay Online", to: "/vendor/pay",       icon: CreditCard },
                 { label: "History",    to: "/vendor/history",   icon: History    },
@@ -520,14 +524,16 @@ const VendorDashboardHome = () => {
                 <Link key={l.to} to={l.to} style={{ textDecoration: "none" }}>
                   <div style={{
                     display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                    padding: "16px 8px", borderRadius: 12,
+                    padding: "14px 8px", borderRadius: 12,
                     background: DS.blue50, border: `1px solid ${DS.blue100}`, cursor: "pointer",
+                    transition: "all 0.15s",
                   }}>
                     <div style={{
-                      width: 40, height: 40, borderRadius: 12, background: "#fff",
+                      width: 42, height: 42, borderRadius: 12, background: "#fff",
                       border: `1px solid ${DS.blue100}`, display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
                     }}>
-                      <l.icon size={16} color={DS.blue800} />
+                      <l.icon size={17} color={DS.blue800} />
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, color: DS.blue900, textAlign: "center", lineHeight: 1.3 }}>{l.label}</span>
                   </div>

@@ -166,8 +166,8 @@ const VendorStallInfo = () => {
     setForm(f => ({ ...f, [key]: e.target.value }));
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#2563eb" }} />
     </div>
   );
 
@@ -201,7 +201,7 @@ const VendorStallInfo = () => {
       </div>
 
       {/* Desktop header */}
-      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-6">
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3" style={{ padding: "28px 32px 0" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Stall Information</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Your stall details and account settings</p>
@@ -226,7 +226,279 @@ const VendorStallInfo = () => {
       </div>
 
       {/* ── Cards — overlap the hero on mobile ─────────────────────────── */}
-      <div className="px-3 -mt-6 lg:mt-0 lg:px-0 space-y-3 pb-24 lg:pb-0">
+      <div className="px-3 -mt-6 lg:mt-5 lg:px-8 space-y-3 pb-24 lg:pb-10">
+
+        {/* ── DESKTOP: Two-column professional layout ── */}
+        <div className="hidden lg:grid lg:grid-cols-[1fr_340px] gap-5">
+
+          {/* LEFT: Stall Details + Personal + Contact + Account */}
+          <div className="space-y-4">
+
+            {/* Stall Details */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <MapPin size={15} color={DS.blue600} />
+                </div>
+                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Stall Details</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+                {[
+                  { label: "Stall #", value: stall?.stall_number || "—", mono: true, large: true },
+                  { label: "Section", value: stall?.section || "General" },
+                  { label: "Location", value: stall?.location || "—" },
+                ].map((f, i) => (
+                  <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", borderBottom: "1px solid #f1f5f9" }}>
+                    <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
+                    <p style={{ fontSize: f.large ? 28 : 15, fontWeight: 800, color: "#0f172a", fontFamily: f.mono ? "'JetBrains Mono', monospace" : "inherit" }}>{f.value}</p>
+                  </div>
+                ))}
+                {[
+                  { label: "Monthly Rate", value: stall?.monthly_rate ? `₱${Number(stall.monthly_rate).toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—", color: "#16a34a", mono: true },
+                  { label: "Status", value: isActive ? "Active" : "Suspended", color: isActive ? "#16a34a" : "#dc2626", dot: true },
+                  { label: "Award Date", value: vendor?.award_date ? new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—" },
+                ].map((f, i) => (
+                  <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none" }}>
+                    <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {f.dot && <div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color, flexShrink: 0 }} />}
+                      <p style={{ fontSize: 15, fontWeight: 700, color: f.color || "#0f172a", fontFamily: (f as any).mono ? "'JetBrains Mono', monospace" : "inherit" }}>{f.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Personal Information */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <User size={15} color={DS.blue600} />
+                  </div>
+                  <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Personal Information</span>
+                </div>
+                {!editing && (
+                  <button onClick={() => setEditing(true)} style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8,
+                    background: DS.blue50, border: `1px solid ${DS.blue100}`, color: DS.blue600,
+                    fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  }}>
+                    <Edit3 size={13} /> Edit
+                  </button>
+                )}
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                {editing ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Label className="text-xs text-slate-500">First Name <span className="text-red-500">*</span></Label>
+                      <Input className="h-10 rounded-xl" value={form.first_name} onChange={set("first_name")} placeholder="First name" />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Label className="text-xs text-slate-500">Last Name <span className="text-red-500">*</span></Label>
+                      <Input className="h-10 rounded-xl" value={form.last_name} onChange={set("last_name")} placeholder="Last name" />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Label className="text-xs text-slate-500">Middle Name</Label>
+                      <Input className="h-10 rounded-xl" value={form.middle_name} onChange={set("middle_name")} placeholder="Middle name (optional)" />
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                    {[
+                      { label: "First Name",  value: profile?.first_name  || "—" },
+                      { label: "Middle Name", value: profile?.middle_name || "—" },
+                      { label: "Last Name",   value: profile?.last_name   || "—" },
+                    ].map(f => (
+                      <div key={f.label}>
+                        <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 4 }}>{f.label}</p>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{f.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Phone size={15} color={DS.blue600} />
+                </div>
+                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Contact Information</span>
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                {editing ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Label className="text-xs text-slate-500">Contact Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input className="h-10 pl-9 rounded-xl" value={form.contact_number} onChange={set("contact_number")} placeholder="e.g. 09xx-xxx-xxxx" />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Label className="text-xs text-slate-500">Address</Label>
+                      <div className="relative">
+                        <Home className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <textarea className="w-full min-h-[72px] pl-9 pr-3 pt-2.5 pb-2 rounded-xl border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          placeholder="Home address" value={form.address} onChange={set("address")} />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    {[
+                      { label: "Contact Number", value: profile?.contact_number || "—", icon: Phone },
+                      { label: "Address",         value: profile?.address        || "—", icon: Home  },
+                    ].map(f => (
+                      <div key={f.label} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                          <f.icon size={13} color="#64748b" />
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 4 }}>{f.label}</p>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{f.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Account / Login */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Mail size={15} color={DS.blue600} />
+                </div>
+                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Account & Login</span>
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                {editing ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <Label className="text-xs text-slate-500">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input type="email" className="h-10 pl-9 rounded-xl" value={form.email} onChange={set("email")} placeholder="your@email.com" />
+                      </div>
+                      {form.email !== data?.email && form.email && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />A confirmation link will be sent to the new email.</p>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+                      <span style={{ fontSize: 11, color: "#94a3b8" }}>Change Password (optional)</span>
+                      <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                      {[
+                        { key: "current_password" as const, label: "Current Password", show: showPwd, setShow: setShowPwd, placeholder: "Required to change" },
+                        { key: "new_password"     as const, label: "New Password",     show: showNewPwd,  setShow: setShowNewPwd,  placeholder: "Min 6 characters" },
+                        { key: "confirm_password" as const, label: "Confirm Password", show: showConfPwd, setShow: setShowConfPwd, placeholder: "Re-enter new password" },
+                      ].map(f => (
+                        <div key={f.key} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <Label className="text-xs text-slate-500">{f.label}</Label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input type={f.show ? "text" : "password"} className="h-10 pl-9 pr-10 rounded-xl" value={form[f.key]} onChange={set(f.key)} placeholder={f.placeholder} />
+                            <button type="button" onClick={() => f.setShow((v: boolean) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                              {f.show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {form.new_password && form.confirm_password && form.new_password !== form.confirm_password && (
+                      <p className="text-xs text-red-500 flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5" />Passwords do not match.</p>
+                    )}
+                    {form.new_password && form.confirm_password && form.new_password === form.confirm_password && (
+                      <p className="text-xs text-green-600 flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" />Passwords match.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    {[
+                      { label: "Email Address", value: data?.email || "—", icon: Mail },
+                      { label: "Password",       value: "••••••••",         icon: Lock },
+                    ].map(f => (
+                      <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <f.icon size={13} color="#64748b" />
+                        </div>
+                        <div>
+                          <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 4 }}>{f.label}</p>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{f.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: QR Code + vendor profile card */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Profile summary card */}
+            <div style={{ background: DS.gradientHeader, borderRadius: 16, padding: "24px 20px", textAlign: "center", color: "#fff" }}>
+              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <span style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>
+                  {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
+                </span>
+              </div>
+              <p style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{profile?.first_name} {profile?.last_name}</p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 3 }}>Stall #{stall?.stall_number} · {stall?.section || "General"} Section</p>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, padding: "5px 12px", borderRadius: 999, background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.35)" }}>
+                <CheckCircle2 size={12} color="#4ade80" />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#4ade80" }}>{isActive ? "Active Vendor" : "Suspended"}</span>
+              </div>
+            </div>
+
+            {/* QR Code */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <QrCode size={15} color={DS.blue600} />
+                </div>
+                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Your QR Code</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px", gap: 12 }}>
+                {vendor?.qr_code ? (
+                  <>
+                    <div style={{ borderRadius: 16, padding: 12, background: "#fff", border: `2px solid ${DS.blue100}`, boxShadow: "0 2px 8px rgba(37,99,235,0.1)" }}>
+                      <QRCodeSVG value={vendor.qr_code} size={168} level="H" />
+                    </div>
+                    <div id="vendor-qr-canvas" style={{ display: "none" }}>
+                      <QRCodeCanvas value={vendor.qr_code} size={400} />
+                    </div>
+                    <p style={{ fontSize: 9, fontFamily: "monospace", color: "#94a3b8", wordBreak: "break-all", textAlign: "center", maxWidth: 240 }}>{vendor.qr_code}</p>
+                    <button onClick={handleDownloadQR} style={{
+                      display: "flex", alignItems: "center", gap: 8, padding: "10px 20px",
+                      borderRadius: 10, background: DS.blue50, border: `1.5px solid ${DS.blue100}`,
+                      fontSize: 13, fontWeight: 700, color: DS.blue900, cursor: "pointer", fontFamily: "inherit", width: "100%", justifyContent: "center",
+                    }}>
+                      <Download size={15} /> Download QR Code
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "24px 0", color: "#94a3b8" }}>
+                    <QrCode size={48} style={{ opacity: 0.2 }} />
+                    <p style={{ fontSize: 13 }}>No QR code assigned yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── MOBILE: Original card layout ── */}
+        <div className="lg:hidden space-y-3">
 
         {/* Stall Details Card */}
         <div className="rounded-2xl bg-white overflow-hidden"
@@ -517,6 +789,8 @@ const VendorStallInfo = () => {
             )}
           </div>
         </div>
+
+        </div>{/* end lg:hidden mobile cards */}
 
         {/* Logout — mobile only */}
         <button

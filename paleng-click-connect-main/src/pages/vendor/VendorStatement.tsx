@@ -123,8 +123,8 @@ const VendorStatement = () => {
   });
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#2563eb" }} />
     </div>
   );
 
@@ -223,7 +223,7 @@ const VendorStatement = () => {
       </div>
 
       {/* Desktop header */}
-      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
+      <div className="hidden lg:flex items-start justify-between flex-wrap gap-3" style={{ padding: "28px 32px 0" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Statement of Account</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Official summary of your stall rental</p>
@@ -249,7 +249,7 @@ const VendorStatement = () => {
       </div>
 
       {/* Desktop summary cards */}
-      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ padding: "16px 32px 0" }}>
         {[
           { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "#0f172a",  icon: Calendar,     bg: "#f1f5f9"   },
           { label: "Total Paid",     value: fmt(totalPaid),          color: "#16a34a",  icon: TrendingUp,   bg: "#dcfce7"   },
@@ -294,7 +294,7 @@ const VendorStatement = () => {
       </div>
 
       {/* SOA Document */}
-      <div className="mx-3 lg:mx-0 my-3 lg:my-0 rounded-2xl border bg-card shadow-civic overflow-hidden lg:max-w-3xl">
+      <div className="mx-3 lg:mx-8 my-3 lg:my-5 rounded-2xl border bg-card shadow-civic overflow-hidden lg:max-w-3xl">
 
         {/* Document header */}
         <div style={{ background: DS.blue900 }} className="text-center px-6 py-5 space-y-0.5">

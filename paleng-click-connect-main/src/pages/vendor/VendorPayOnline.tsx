@@ -303,8 +303,8 @@ const VendorPayOnline = () => {
   });
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#2563eb" }} />
     </div>
   );
 
@@ -344,7 +344,7 @@ const VendorPayOnline = () => {
         </div>
       </div>
 
-      <div className="px-4 py-4 lg:px-0 lg:max-w-sm lg:mx-auto space-y-4">
+      <div className="px-4 py-4 lg:px-8 lg:max-w-sm lg:mx-auto space-y-4">
         <div className="rounded-2xl border bg-card p-5 space-y-2.5 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Submission Summary</p>
           {[
@@ -378,7 +378,7 @@ const VendorPayOnline = () => {
 
   return (
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
-      {/* Header */}
+      {/* Mobile header */}
       <div className="lg:hidden" style={{ background: DS.gradientHeader, paddingBottom: 0 }}>
         <div className="px-5 pt-5 pb-3">
           <h1 className="text-2xl font-black text-white">Pay Online</h1>
@@ -386,15 +386,16 @@ const VendorPayOnline = () => {
         </div>
       </div>
 
-      <div className="hidden lg:block mb-6">
+      {/* Desktop page header */}
+      <div className="hidden lg:block" style={{ padding: "28px 32px 0" }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Pay Online</h1>
         <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Pay via bank transfer or e-wallet and upload your receipt</p>
       </div>
 
       {/* Step bar */}
-      <Steps current={step} />
+      <div className="lg:px-8 lg:pt-5"><Steps current={step} /></div>
 
-      <div className="px-4 py-4 lg:px-0 lg:max-w-2xl space-y-4">
+      <div className="px-4 py-4 lg:px-8 lg:pb-8 lg:max-w-2xl space-y-4">
 
         {/* ── STEP 1: Review ─────────────────────────────────────────────── */}
         {step === 1 && (
