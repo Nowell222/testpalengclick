@@ -15,8 +15,7 @@ import { useState } from "react";
 
 import VendorHistory   from "./VendorHistory";
 import VendorStatement from "./VendorStatement";
-import VendorBottomNav from "../../components/VendorBottomNav";
-import { M } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
+
 
 const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -68,7 +67,6 @@ const SlidePanel = ({
           <div className="flex-1 min-h-0 p-4" style={{ paddingBottom: 80 }}>
             {children}
           </div>
-          <VendorBottomNav unreadNotifs={unreadNotifs} />
         </motion.div>
       </>
     )}
@@ -761,7 +759,6 @@ const VendorDashboardHome = () => {
             )}
           </div>
         </div>
-        <VendorBottomNav unreadNotifs={d.unreadNotifs.length} />
       </div>
     );
   };

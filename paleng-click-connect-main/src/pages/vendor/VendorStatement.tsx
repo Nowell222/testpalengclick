@@ -1,4 +1,3 @@
-import VendorBottomNav from "@/components/VendorBottomNav";
 import { useRef, useState } from "react";
 import { Loader2, Printer, Download, CheckCircle2, AlertCircle, TrendingUp, Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -440,7 +439,6 @@ const VendorStatement = () => {
       <div className="h-4 lg:hidden" />
 
       {/* Unified bottom nav — mobile only */}
-      <VendorBottomNav />
     </div>
   );
 };

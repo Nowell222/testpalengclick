@@ -1,4 +1,3 @@
-import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState, useMemo, useRef } from "react";
 import {
   CheckCircle2, AlertCircle, Clock, Loader2, Search,
@@ -725,7 +724,6 @@ const VendorHistory = () => {
       )}
 
       {/* Unified bottom nav — mobile only */}
-      <VendorBottomNav />
     </div>
   );
 };
