@@ -674,6 +674,9 @@ const VendorPayOnline = () => {
           </div>
         )}
       </div>
+
+      {/* Unified bottom nav — mobile only */}
+      <VendorBottomNav />
     </div>
   );
 };
