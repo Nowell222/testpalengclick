@@ -433,8 +433,8 @@ const VendorHistory = () => {
       {/* Desktop header */}
       <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Payment History</h1>
-          <p className="text-sm text-muted-foreground">Complete record of all your stall payments</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Payment History</h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Complete record of all your stall payments</p>
         </div>
         {filterMonth !== "all" && (
           <Button variant="hero" className="gap-2 rounded-xl" onClick={handlePrintMonthSOA}>
@@ -447,17 +447,19 @@ const VendorHistory = () => {
       {/* Desktop summary cards */}
       <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "text-green-600",  icon: TrendingUp    },
-          { label: "Transactions", value: String(stats.total),     color: "text-foreground", icon: CreditCard    },
-          { label: "Completed",    value: String(stats.completed), color: "text-green-600",  icon: CheckCircle2  },
-          { label: "Pending",      value: String(stats.pending),   color: stats.pending > 0 ? "text-amber-600" : "text-muted-foreground", icon: Clock },
+          { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "#16a34a",  icon: TrendingUp,   bg: "#dcfce7" },
+          { label: "Transactions", value: String(stats.total),     color: "#0f172a",  icon: CreditCard,   bg: "#f1f5f9" },
+          { label: "Completed",    value: String(stats.completed), color: "#16a34a",  icon: CheckCircle2, bg: "#dcfce7" },
+          { label: "Pending",      value: String(stats.pending),   color: stats.pending > 0 ? "#d97706" : "#64748b", icon: Clock, bg: stats.pending > 0 ? "#fef3c7" : "#f1f5f9" },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-              <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+          <div key={c.label} style={{ borderRadius: 16, border: "1px solid #e2e8f0", background: "#fff", padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <p style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#94a3b8" }}>{c.label}</p>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <c.icon size={13} color={c.color} />
+              </div>
             </div>
-            <p className={`font-mono text-lg font-bold ${c.color}`}>{c.value}</p>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 800, color: c.color }}>{c.value}</p>
           </div>
         ))}
       </div>
@@ -645,9 +647,9 @@ const VendorHistory = () => {
         <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto mx-4 lg:mx-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b" style={{ background: DS.blue900 }}>
+              <tr className="border-b" style={{ background: "#0d2240" }}>
                 {["Date","Period","Amount","Method","Type","Status","Reference","Receipt"].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap text-white text-xs">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap text-white" style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
             </thead>

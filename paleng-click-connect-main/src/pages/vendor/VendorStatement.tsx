@@ -225,8 +225,8 @@ const VendorStatement = () => {
       {/* Desktop header */}
       <div className="hidden lg:flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
-          <p className="text-sm text-muted-foreground">Official summary of your stall rental</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Statement of Account</h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Official summary of your stall rental</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
@@ -251,19 +251,19 @@ const VendorStatement = () => {
       {/* Desktop summary cards */}
       <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "text-foreground",  icon: Calendar,     bg: "bg-secondary"   },
-          { label: "Total Paid",     value: fmt(totalPaid),          color: "text-green-600",   icon: TrendingUp,   bg: "bg-green-50"    },
-          { label: "Months Paid",    value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "text-green-600" : "text-blue-600", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "bg-green-50" : "bg-blue-50" },
-          { label: "Outstanding",    value: fmt(totalOutstanding),   color: totalOutstanding === 0 ? "text-green-600" : "text-accent", icon: AlertCircle, bg: totalOutstanding === 0 ? "bg-green-50" : "bg-accent/10" },
+          { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "#0f172a",  icon: Calendar,     bg: "#f1f5f9"   },
+          { label: "Total Paid",     value: fmt(totalPaid),          color: "#16a34a",  icon: TrendingUp,   bg: "#dcfce7"   },
+          { label: "Months Paid",    value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "#16a34a" : "#2563eb", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "#dcfce7" : "#dbeafe" },
+          { label: "Outstanding",    value: fmt(totalOutstanding),   color: totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle, bg: totalOutstanding === 0 ? "#dcfce7" : "#fef3c7" },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${c.bg}`}>
-                <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+          <div key={c.label} style={{ borderRadius: 16, border: "1px solid #e2e8f0", background: "#fff", padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <p style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#94a3b8" }}>{c.label}</p>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <c.icon size={13} color={c.color} />
               </div>
             </div>
-            <p className={`font-mono text-lg font-bold ${c.color}`}>{c.value}</p>
+            <p style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: c.color }}>{c.value}</p>
           </div>
         ))}
       </div>

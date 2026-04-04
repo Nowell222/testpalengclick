@@ -285,8 +285,8 @@ const VendorNotifications = () => {
       {/* Desktop header */}
       <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
-          <p className="text-sm text-muted-foreground">Payment confirmations, reminders, and announcements</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Notifications</h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Payment confirmations, reminders, and announcements</p>
         </div>
         {unreadCount > 0 && (
           <Button

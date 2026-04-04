@@ -387,14 +387,14 @@ const VendorPayOnline = () => {
       </div>
 
       <div className="hidden lg:block mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Pay Online</h1>
-        <p className="text-sm text-muted-foreground">Pay via bank transfer or e-wallet and upload your receipt</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Pay Online</h1>
+        <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Pay via bank transfer or e-wallet and upload your receipt</p>
       </div>
 
       {/* Step bar */}
       <Steps current={step} />
 
-      <div className="px-4 py-4 lg:px-0 lg:max-w-lg space-y-4">
+      <div className="px-4 py-4 lg:px-0 lg:max-w-2xl space-y-4">
 
         {/* ── STEP 1: Review ─────────────────────────────────────────────── */}
         {step === 1 && (

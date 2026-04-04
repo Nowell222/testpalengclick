@@ -203,8 +203,8 @@ const VendorStallInfo = () => {
       {/* Desktop header */}
       <div className="hidden lg:flex items-start justify-between flex-wrap gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Stall Information</h1>
-          <p className="text-sm text-muted-foreground">Your stall details and account settings</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Stall Information</h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Your stall details and account settings</p>
         </div>
         {!editing ? (
           <Button variant="outline" className="gap-2 rounded-xl" onClick={() => setEditing(true)}>

@@ -28,8 +28,18 @@ const DS = {
   blue800: "#1a3a5f",
   blue700: "#1d4ed8",
   blue600: "#2563eb",
+  blue400: "#60a5fa",
   blue50:  "#eff6ff",
   blue100: "#dbeafe",
+  slate50: "#f8fafc",
+  slate100:"#f1f5f9",
+  slate200:"#e2e8f0",
+  slate900:"#0f172a",
+  green600:"#16a34a",
+  green500:"#22c55e",
+  green100:"#dcfce7",
+  amber600:"#d97706",
+  amber100:"#fef3c7",
 };
 
 // ── Slide Panel ────────────────────────────────────────────────────────────────
@@ -45,7 +55,6 @@ const SlidePanel = ({
         <motion.div key="pn" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
           className="fixed inset-0 z-50 lg:hidden flex flex-col bg-white" style={{ overflowY: "auto" }}>
-          {/* Panel top bar */}
           <div className="flex items-center justify-between px-5 pt-5 pb-4 sticky top-0 z-10"
             style={{ background: DS.gradientHeader }}>
             <h2 className="text-xl font-black text-white">{title}</h2>
@@ -82,105 +91,79 @@ const VendorDashboardHome = () => {
       const { data: vendor }   = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
       const { data: profile }  = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
       const { data: confirmedPayments } = await supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").order("created_at", { ascending: false });
-
-      // Also fetch pending online submissions not yet confirmed by cashier
-      const { data: submissions } = await (supabase
-        .from("payment_submissions" as any) as any)
-        .select("*")
-        .eq("vendor_id", vendor?.id || "")
-        .in("status", ["pending", "rejected"])
-        .order("created_at", { ascending: false });
-
+      const { data: submissions } = await (supabase.from("payment_submissions" as any) as any)
+        .select("*").eq("vendor_id", vendor?.id || "").in("status", ["pending", "rejected"]).order("created_at", { ascending: false });
       const pendingRows = (submissions || []).map((s: any) => ({
-        id:             `sub_${s.id}`,
-        amount:         s.amount,
-        status:         s.status === "rejected" ? "failed" : "pending",
-        payment_method: s.payment_method || "instapay",
-        payment_type:   s.payment_type   || "due",
-        period_month:   s.period_month,
-        period_year:    s.period_year,
-        created_at:     s.created_at,
-        is_submission:  true,
+        id: `sub_${s.id}`, amount: s.amount, status: s.status === "rejected" ? "failed" : "pending",
+        payment_method: s.payment_method || "instapay", payment_type: s.payment_type || "due",
+        period_month: s.period_month, period_year: s.period_year, created_at: s.created_at, is_submission: true,
       }));
-
       const payments = [...pendingRows, ...(confirmedPayments || [])];
-      const { data: notifications } = await supabase.from("notifications").select("*").eq("user_id", user!.id).eq("read_status", false).order("created_at", { ascending: false }).limit(5);
-
-      const stall        = vendor?.stalls as any;
-      const defaultRate  = stall?.monthly_rate || 1450;
-      const currentYear  = new Date().getFullYear();
+      const { data: notifications } = await supabase.from("notifications").select("*")
+        .eq("user_id", user!.id).eq("read_status", false).order("created_at", { ascending: false }).limit(5);
+      const stall = vendor?.stalls as any;
+      const defaultRate = stall?.monthly_rate || 1450;
+      const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
-
       const { data: schedules } = stall?.id
         ? await (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", stall.id).eq("year", currentYear)
         : { data: [] };
-
       const getMonthFee = (m: number): number => {
         const s = (schedules || []).find((s: any) => s.month === m);
         return s ? Number(s.amount) : defaultRate;
       };
-
       const rawPaidMap: Record<number, number> = {};
       (payments || []).filter(p => p.status === "completed" && p.period_year === currentYear).forEach(p => {
         if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
       });
-
       const effMap: Record<number, number> = {};
       let carry = 0;
       for (let m = 1; m <= 12; m++) {
-        const due_m    = getMonthFee(m);
+        const due_m = getMonthFee(m);
         const credited = (rawPaidMap[m] || 0) + carry;
-        effMap[m]      = credited;
-        carry          = credited >= due_m ? (credited - due_m) : 0;
+        effMap[m] = credited;
+        carry = credited >= due_m ? (credited - due_m) : 0;
       }
-
-      const currentMonthFee    = getMonthFee(currentMonth);
-      const paidThisMonth      = effMap[currentMonth] || 0;
+      const currentMonthFee = getMonthFee(currentMonth);
+      const paidThisMonth = effMap[currentMonth] || 0;
       const isCurrentMonthPaid = paidThisMonth >= currentMonthFee;
       const remainingThisMonth = Math.max(0, currentMonthFee - paidThisMonth);
-      const monthlyRate        = currentMonthFee;
-
+      const monthlyRate = currentMonthFee;
       let nextUnpaidMonth = currentMonth;
       for (let m = 1; m <= 12; m++) {
         if ((effMap[m] || 0) < getMonthFee(m)) { nextUnpaidMonth = m; break; }
         if (m === 12) nextUnpaidMonth = 13;
       }
-
-      const totalPaidYear    = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
-      const monthsPaid       = Array.from({ length: currentMonth }, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
+      const totalPaidYear = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
+      const monthsPaid = Array.from({ length: currentMonth }, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
       const totalOutstanding = Array.from({ length: currentMonth }, (_, i) => i + 1).reduce((sum, m) => sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0)), 0);
-
       const chartData = MONTHS_SHORT.slice(0, currentMonth).map((m, i) => ({
         month: m,
         paid:  Math.min(effMap[i + 1] || 0, getMonthFee(i + 1)),
         due:   getMonthFee(i + 1),
       }));
-
       return {
-        vendor, profile, stall, monthlyRate,
-        payments: (payments || []).slice(0, 8),
-        isCurrentMonthPaid, paidThisMonth, remainingThisMonth,
-        nextUnpaidMonth, allPaid: nextUnpaidMonth > 12,
-        totalPaidYear, monthsPaid, totalOutstanding,
-        chartData, currentMonth, currentYear,
-        unreadNotifs: notifications || [],
+        vendor, profile, stall, monthlyRate, payments: (payments || []).slice(0, 8),
+        isCurrentMonthPaid, paidThisMonth, remainingThisMonth, nextUnpaidMonth,
+        allPaid: nextUnpaidMonth > 12, totalPaidYear, monthsPaid, totalOutstanding,
+        chartData, currentMonth, currentYear, unreadNotifs: notifications || [],
       };
     },
   });
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Loader2 className="h-8 w-8 animate-spin" style={{ color: DS.blue600 }} />
     </div>
   );
 
-  const d            = data!;
-  const stall        = d.stall;
-  const vendor       = d.vendor;
-  const profile      = d.profile;
-  const monthlyRate  = d.monthlyRate;
+  const d = data!;
+  const stall = d.stall;
+  const vendor = d.vendor;
+  const profile = d.profile;
+  const monthlyRate = d.monthlyRate;
   const currentMonth = new Date().getMonth() + 1;
-  const paidPct      = monthlyRate > 0 ? Math.min(100, (d.paidThisMonth / monthlyRate) * 100) : 0;
+  const paidPct = monthlyRate > 0 ? Math.min(100, (d.paidThisMonth / monthlyRate) * 100) : 0;
 
   const handleTabClick = (tab: "balance" | "history" | "statement") => {
     setActiveTab(tab);
@@ -198,11 +181,12 @@ const VendorDashboardHome = () => {
   ];
 
   const quickLinks = [
-    { label: "Payment History",      to: "/vendor/history",       icon: History   },
-    { label: "Statement of Account", to: "/vendor/statement",     icon: FileText  },
-    { label: "Stall Information",    to: "/vendor/stall",         icon: Store     },
-    { label: "Notifications",        to: "/vendor/notifications", icon: Bell,     badge: d.unreadNotifs.length },
-    { label: "News & Updates",       to: "/vendor/news",          icon: Newspaper },
+    { label: "Pay Online",            to: "/vendor/pay",           icon: CreditCard },
+    { label: "Payment History",       to: "/vendor/history",       icon: History   },
+    { label: "Statement of Account",  to: "/vendor/statement",     icon: FileText  },
+    { label: "Stall Information",     to: "/vendor/stall",         icon: Store     },
+    { label: "Notifications",         to: "/vendor/notifications", icon: Bell,     badge: d.unreadNotifs.length },
+    { label: "News & Updates",        to: "/vendor/news",          icon: Newspaper },
   ];
 
   const tabs = [
@@ -211,216 +195,345 @@ const VendorDashboardHome = () => {
     { key: "statement", label: "Statement" },
   ] as const;
 
+  const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
   /* ─── DESKTOP VIEW ──────────────────────────────────────────────────────────── */
   const DesktopView = () => (
-    <div className="hidden lg:block space-y-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Hello, {profile?.first_name}! 👋</h1>
-          <p className="text-sm text-muted-foreground">
-            Stall {stall?.stall_number || "—"} · {stall?.section || "General"} Section ·{" "}
-            {new Date().toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-          </p>
+    <div className="hidden lg:block" style={{ padding: "0 0" }}>
+      {/* ── HERO HEADER ── */}
+      <div style={{ background: DS.gradientHeader, borderRadius: "0 0 0 0", padding: "28px 32px 0", marginBottom: 0 }}>
+        {/* Top row */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 4 }}>
+              {new Date().toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
+              Hello, {profile?.first_name}! 👋
+            </div>
+          </div>
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "flex-end",
+            padding: "10px 16px", background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.18)", borderRadius: 16,
+          }}>
+            <div style={{ fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>Your Stall</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginTop: 2 }}>
+              {stall?.stall_number || "—"} · {stall?.section || "General"} Section
+            </div>
+          </div>
         </div>
-        {d.unreadNotifs.length > 0 && (
-          <Link to="/vendor/notifications">
-            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors">
-              <Bell className="h-4 w-4" />
-              <span>{d.unreadNotifs.length} unread notification{d.unreadNotifs.length > 1 ? "s" : ""}</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </Link>
-        )}
-      </div>
 
-      {/* Status Banner */}
-      {d.isCurrentMonthPaid ? (
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between rounded-2xl border border-success/20 bg-success/5 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-success/15 shrink-0">
-              <CheckCircle2 className="h-5 w-5 text-success" />
+        {/* Hero stat cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+          {[
+            {
+              icon: <Clock size={10} />, label: "NEXT BILL AMOUNT",
+              value: fmt(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate)),
+              sub: d.isCurrentMonthPaid
+                ? `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth + 1) - 1] || "All paid"} ${d.currentYear}`
+                : `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} ${d.currentYear}`,
+            },
+            {
+              icon: <TrendingUp size={10} />, label: "TOTAL PAID (2026)",
+              value: fmt(d.totalPaidYear),
+              badge: `↑ ${d.monthsPaid}/${d.currentMonth} months`, badgeColor: "green",
+            },
+            {
+              icon: <CheckCircle2 size={10} />, label: "OUTSTANDING",
+              value: fmt(d.totalOutstanding),
+              badge: d.totalOutstanding === 0 ? "✓ Fully Settled" : `${fmt(d.totalOutstanding)} due`,
+              badgeColor: d.totalOutstanding === 0 ? "green" : "amber",
+            },
+          ].map((c, i) => (
+            <div key={i} style={{
+              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 16, padding: "18px 20px", position: "relative", overflow: "hidden",
+            }}>
+              <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
+                {c.icon}{c.label}
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1, lineHeight: 1, marginBottom: 6 }}>
+                {c.value}
+              </div>
+              {c.sub && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{c.sub}</div>}
+              {c.badge && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  padding: "3px 9px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+                  background: c.badgeColor === "green" ? "rgba(74,222,128,0.2)" : "rgba(251,191,36,0.2)",
+                  color: c.badgeColor === "green" ? "#4ade80" : "#fbbf24",
+                }}>{c.badge}</span>
+              )}
             </div>
-            <div>
-              <p className="font-semibold text-success">{MONTHS[currentMonth - 1]} {d.currentYear} — Paid ✓</p>
-              <p className="text-xs text-muted-foreground">Your stall fee for this month is fully settled</p>
-            </div>
-          </div>
-          {!d.allPaid && d.nextUnpaidMonth <= 12 && (
-            <Link to="/vendor/pay">
-              <Button size="sm" variant="outline" className="border-success/30 text-success hover:bg-success/10 shrink-0">
-                Pay {MONTHS[d.nextUnpaidMonth - 1]} early <ArrowRight className="ml-1 h-3 w-3" />
-              </Button>
-            </Link>
-          )}
-        </motion.div>
-      ) : (
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between rounded-2xl border border-accent/20 bg-accent/5 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 shrink-0">
-              <AlertCircle className="h-5 w-5 text-accent" />
-            </div>
-            <div>
-              <p className="font-semibold text-accent">
-                {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} {d.currentYear} — Payment Due
-              </p>
-              {d.paidThisMonth > 0
-                ? <p className="text-xs text-muted-foreground">{fmt(d.paidThisMonth)} paid · {fmt(d.remainingThisMonth)} remaining</p>
-                : <p className="text-xs text-muted-foreground">{fmt(monthlyRate)} due this month</p>}
-            </div>
-          </div>
-          <Link to="/vendor/pay">
-            <Button size="sm" variant="hero" className="shrink-0">Pay Now <ArrowRight className="ml-1.5 h-3 w-3" /></Button>
-          </Link>
-        </motion.div>
-      )}
+          ))}
+        </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-        <motion.div whileHover={{ y: -2 }} className="rounded-2xl border bg-card p-5 shadow-civic">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-            {d.isCurrentMonthPaid ? "Next Bill" : "Amount Due"}
-          </p>
-          <p className="font-mono text-3xl font-bold text-foreground leading-none">
-            {fmt(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate))}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {d.isCurrentMonthPaid
-              ? `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth + 1) - 1] || "All months paid"} ${d.currentYear}`
-              : `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} ${d.currentYear}`}
-          </p>
-          {d.paidThisMonth > 0 && !d.isCurrentMonthPaid && (
-            <div className="mt-3 space-y-1">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Paid so far</span><span>{fmt(d.paidThisMonth)}</span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
-                <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${paidPct}%` }} />
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Remaining</span><span className="text-accent font-medium">{fmt(d.remainingThisMonth)}</span>
-              </div>
-            </div>
-          )}
-          <Link to="/vendor/pay" className="block mt-4">
-            <Button variant="hero" size="lg" className="w-full">
-              <CreditCard className="mr-2 h-4 w-4" />
-              {d.isCurrentMonthPaid ? "Pay in Advance" : "Pay Now"}
-            </Button>
-          </Link>
-        </motion.div>
-        <div className="rounded-2xl border bg-card p-5 shadow-civic flex flex-col items-center text-center">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Your Stall QR Code</p>
-          <div className="rounded-xl border-2 border-dashed border-border p-3 bg-white">
-            {vendor?.qr_code ? <QRCodeSVG value={vendor.qr_code} size={120} level="H" /> : <QrCode className="h-16 w-16 text-muted-foreground/30" />}
-          </div>
-          <p className="mt-2.5 font-semibold text-foreground text-sm">Stall {stall?.stall_number}</p>
-          <p className="text-xs font-mono text-muted-foreground mt-0.5 break-all leading-relaxed">{vendor?.qr_code}</p>
+        {/* Tabs */}
+        <div style={{ display: "flex", marginTop: 20, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => handleTabClick(t.key)} style={{
+              padding: "12px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              background: "none", border: "none", fontFamily: "inherit",
+              color: activeTab === t.key ? "#fff" : "rgba(255,255,255,0.45)",
+              borderBottom: activeTab === t.key ? "2.5px solid #fff" : "2.5px solid transparent",
+              transition: "all 0.15s",
+            }}>{t.label}</button>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",       icon: Calendar,     color: "text-foreground",  bg: "bg-secondary"  },
-          { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, icon: TrendingUp, color: "text-green-600",   bg: "bg-green-50"   },
-          { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, sub: "paid in full", icon: CheckCircle2, color: d.monthsPaid === d.currentMonth ? "text-green-600" : "text-blue-600", bg: d.monthsPaid === d.currentMonth ? "bg-green-50" : "bg-blue-50" },
-          { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",     icon: AlertCircle,  color: d.totalOutstanding === 0 ? "text-green-600" : "text-accent", bg: d.totalOutstanding === 0 ? "bg-green-50" : "bg-accent/10" },
-        ].map(c => (
-          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${c.bg}`}>
-                <c.icon className={`h-3.5 w-3.5 ${c.color}`} />
+      {/* ── BODY GRID ── */}
+      <div style={{ padding: "24px 32px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 20 }}>
+        {/* LEFT */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Status banner */}
+          {d.isCurrentMonthPaid ? (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+              background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 12,
+            }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <CheckCircle2 size={18} color="#16a34a" strokeWidth={2.5} />
               </div>
-            </div>
-            <p className={`font-mono text-xl font-bold ${c.color}`}>{c.value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{c.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
-        <div className="space-y-5">
-          {/* Chart */}
-          <div className="rounded-2xl border bg-card p-5 shadow-civic">
-            <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-foreground">Payment Progress</h3>
-                <p className="text-xs text-muted-foreground">Blue = paid · Gray = due</p>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#15803d" }}>
+                  {MONTHS[currentMonth - 1]} {d.currentYear} — Paid ✓
+                </div>
+                <div style={{ fontSize: 11, color: "#16a34a" }}>Your stall fee for this month is fully settled</div>
               </div>
-              <Link to="/vendor/statement"><Button variant="ghost" size="sm" className="text-primary h-7 text-xs gap-1">Full SOA <ArrowRight className="h-3 w-3" /></Button></Link>
+              {!d.allPaid && d.nextUnpaidMonth <= 12 && (
+                <Link to="/vendor/pay" style={{ marginLeft: "auto", flexShrink: 0 }}>
+                  <button style={{
+                    padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                    background: "linear-gradient(135deg,#15803d,#16a34a)",
+                    fontSize: 12, fontWeight: 700, color: "#fff",
+                  }}>Pay {MONTHS[d.nextUnpaidMonth - 1]} Early →</button>
+                </Link>
+              )}
             </div>
-            {d.chartData.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-10">No payment data yet</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={d.chartData} barGap={3} barSize={14}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,91%)" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(220,10%,55%)" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "hsl(220,10%,55%)" }} tickFormatter={v => v >= 1000 ? `₱${v/1000}k` : `₱${v}`} axisLine={false} tickLine={false} width={45} />
-                  <Tooltip formatter={(v: number, name: string) => [fmt(v), name === "paid" ? "Paid" : "Due"]} contentStyle={{ borderRadius: "10px", border: "1px solid hsl(220,13%,88%)", fontSize: "12px" }} />
-                  <Bar dataKey="due"  fill="#e2e8f0" radius={[4,4,0,0]} name="due" />
-                  <Bar dataKey="paid" fill="#2563eb" radius={[4,4,0,0]} name="paid" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+          ) : (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
+              background: DS.amber100, border: "1px solid #fcd34d", borderRadius: 12,
+            }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#fde68a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <AlertCircle size={18} color={DS.amber600} strokeWidth={2.5} />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>
+                  {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} {d.currentYear} — Payment Due
+                </div>
+                <div style={{ fontSize: 11, color: DS.amber600 }}>{fmt(d.remainingThisMonth || monthlyRate)} outstanding balance</div>
+              </div>
+              <Link to="/vendor/pay" style={{ marginLeft: "auto", flexShrink: 0 }}>
+                <button style={{
+                  padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                  background: DS.gradientHeader, fontSize: 12, fontWeight: 700, color: "#fff",
+                }}>Pay Now →</button>
+              </Link>
+            </div>
+          )}
+
+          {/* Stats grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            {[
+              { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",         valueColor: DS.slate900, icon: <Calendar size={10} />, },
+              { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, valueColor: DS.green600, icon: <TrendingUp size={10} color={DS.green600} />, },
+              { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, sub: "paid in full", valueColor: d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600, icon: <CheckCircle2 size={10} color={d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600} />, },
+              { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",        valueColor: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, icon: <AlertCircle size={10} color={d.totalOutstanding === 0 ? DS.green600 : DS.amber600} />, },
+            ].map(c => (
+              <div key={c.label} style={{
+                background: "#fff", border: `1px solid ${DS.slate200}`,
+                borderRadius: 12, padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#94a3b8", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  {c.label}{c.icon}
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: c.valueColor, fontFamily: "'JetBrains Mono', monospace", letterSpacing: -0.5 }}>{c.value}</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{c.sub}</div>
+              </div>
+            ))}
           </div>
 
-          {/* Recent Payments — desktop collapsible */}
-          <div className="rounded-2xl border bg-card shadow-civic">
-            <div className="flex items-center justify-between border-b px-5 py-3.5">
-              <h3 className="font-semibold text-foreground">Recent Payments</h3>
-              <Link to="/vendor/history"><Button variant="ghost" size="sm" className="text-primary h-7 text-xs gap-1">View All <ArrowRight className="h-3 w-3" /></Button></Link>
+          {/* Payment Progress */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 0", marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Payment Progress</div>
+              <Link to="/vendor/statement" style={{ fontSize: 12, fontWeight: 700, color: DS.blue600, display: "flex", alignItems: "center", gap: 3, textDecoration: "none" }}>
+                Full SOA →
+              </Link>
             </div>
-            <div className="divide-y">
+            <div style={{ padding: "0 20px 20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
+                {[["#2563eb","Paid"],["#22c55e","Current"],["#cbd5e1","Due"]].map(([bg, label]) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#64748b" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: bg }} />{label}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "nowrap" }}>
+                {MONTH_LABELS.map((m, i) => {
+                  const monthNum = i + 1;
+                  const isCurrentMo = monthNum === currentMonth;
+                  const isPaid = !isCurrentMo && d.chartData.find((c: any) => c.month === m)?.paid >= (d.chartData.find((c: any) => c.month === m)?.due || 0);
+                  return (
+                    <div key={m} style={{
+                      flex: 1, minWidth: 0, padding: "6px 4px", borderRadius: 6,
+                      fontSize: 9, fontWeight: 700, textAlign: "center",
+                      textTransform: "uppercase", letterSpacing: 0.5,
+                      background: isPaid ? DS.blue600 : isCurrentMo ? DS.green500 : DS.slate200,
+                      color: (isPaid || isCurrentMo) ? "#fff" : "#64748b",
+                    }}>{m}</div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 0", marginBottom: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Recent Activity</div>
+              <Link to="/vendor/history" style={{ fontSize: 12, fontWeight: 700, color: DS.blue600, textDecoration: "none" }}>View All →</Link>
+            </div>
+            <div>
               {(paymentsExpanded ? d.payments : d.payments.slice(0, 3)).map((p: any) => (
-                <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/30 transition-colors">
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${p.status === "completed" ? "bg-green-100" : p.status === "pending" ? "bg-amber-100" : "bg-red-100"}`}>
-                    {p.status === "completed" ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : p.status === "pending" ? <Clock className="h-4 w-4 text-amber-600" /> : <AlertCircle className="h-4 w-4 text-red-500" />}
+                <div key={p.id} style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "13px 20px",
+                  borderBottom: "1px solid #f1f5f9", cursor: "pointer",
+                }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    background: p.status === "completed" ? DS.green100 : p.status === "pending" ? DS.amber100 : "#fee2e2",
+                  }}>
+                    {p.status === "completed"
+                      ? <CheckCircle2 size={16} color={DS.green600} />
+                      : p.status === "pending"
+                        ? <Clock size={16} color={DS.amber600} />
+                        : <AlertCircle size={16} color="#dc2626" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : new Date(p.created_at).toLocaleDateString("en-PH")}
-                    </p>
-                    <p className="text-xs text-muted-foreground capitalize">{p.payment_method} · {p.payment_type === "staggered" ? "Partial" : "Full payment"}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>
+                      {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : new Date(p.created_at).toLocaleDateString("en-PH")} — {p.status === "completed" ? "Confirmed" : p.status === "pending" ? "Pending Review" : "Failed"}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>
+                      {p.payment_method === "gcash" ? "GCash" : p.payment_method === "instapay" ? "InstaPay" : p.payment_method} · {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-mono text-sm font-bold text-foreground">{fmt(Number(p.amount))}</p>
-                    <p className={`text-xs font-medium capitalize ${p.status === "completed" ? "text-green-600" : p.status === "pending" ? "text-amber-600" : "text-red-500"}`}>{p.status}</p>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{
+                      fontSize: 14, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                      color: p.status === "completed" ? DS.green600 : p.status === "pending" ? DS.amber600 : "#dc2626",
+                    }}>{fmt(Number(p.amount))}</div>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      padding: "3px 9px", borderRadius: 999, fontSize: 10, fontWeight: 700, marginTop: 2,
+                      background: p.status === "completed" ? DS.green100 : p.status === "pending" ? DS.amber100 : "#fee2e2",
+                      color: p.status === "completed" ? DS.green600 : p.status === "pending" ? DS.amber600 : "#dc2626",
+                    }}>{p.status === "completed" ? "✓ Completed" : p.status === "pending" ? "⏳ Pending" : "✗ Failed"}</span>
                   </div>
                 </div>
               ))}
               {d.payments.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
-                  <CreditCard className="h-8 w-8 opacity-30" /><p className="text-sm">No payments recorded yet</p>
-                  <Link to="/vendor/pay"><Button size="sm" variant="outline" className="mt-1">Make your first payment</Button></Link>
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
+                  <CreditCard size={32} style={{ opacity: 0.3, margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13 }}>No payments recorded yet</p>
                 </div>
               )}
             </div>
             {d.payments.length > 3 && (
-              <button onClick={() => setPaymentsExpanded(v => !v)}
-                className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-t hover:bg-slate-50 transition-colors"
-                style={{ color: DS.blue600 }}>
-                {paymentsExpanded
-                  ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
-                  : <><ChevronDown className="h-3.5 w-3.5" /> Show {d.payments.length - 3} more payments</>}
+              <button onClick={() => setPaymentsExpanded(v => !v)} style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                padding: "12px", fontSize: 12, fontWeight: 700, color: DS.blue600,
+                background: "none", border: "none", borderTop: `1px solid ${DS.slate100}`,
+                cursor: "pointer", fontFamily: "inherit",
+              }}>
+                {paymentsExpanded ? <><ChevronUp size={14} />Show less</> : <><ChevronDown size={14} />Show {d.payments.length - 3} more</>}
               </button>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl border bg-card p-4 shadow-civic h-fit">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Links</p>
-          <div className="space-y-0.5">
-            {quickLinks.map(l => (
-              <Link key={l.to} to={l.to} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                <div className="flex items-center gap-2.5"><l.icon className="h-4 w-4" />{l.label}</div>
-                <div className="flex items-center gap-1.5">
-                  {(l as any).badge ? (<span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">{(l as any).badge}</span>) : null}
-                  <ArrowRight className="h-3.5 w-3.5 opacity-40" />
-                </div>
-              </Link>
-            ))}
+        {/* RIGHT */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Next Bill card */}
+          <div style={{
+            background: DS.gradientHeader, borderRadius: 16, padding: "22px 24px",
+            color: "#fff", boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+          }}>
+            <div style={{ fontSize: 9, letterSpacing: 2.5, textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>Next Bill Amount</div>
+            <div style={{ fontSize: 36, fontWeight: 900, color: "#fff", fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1.5, lineHeight: 1 }}>
+              {fmt(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate))}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 4, marginBottom: 18 }}>
+              {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1] || "All paid"} {d.currentYear}
+            </div>
+            <Link to="/vendor/pay">
+              <button style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                width: "100%", padding: 13, background: "#fff", borderRadius: 10, border: "none",
+                fontSize: 14, fontWeight: 700, color: DS.blue900, cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.15)", fontFamily: "inherit",
+              }}>
+                <CreditCard size={16} /> Pay in Advance
+              </button>
+            </Link>
+          </div>
+
+          {/* QR Code */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 20px 0", marginBottom: 16, fontSize: 14, fontWeight: 800, color: DS.slate900 }}>Your Stall QR Code</div>
+            <div style={{ textAlign: "center", padding: "0 20px 20px" }}>
+              <div style={{
+                width: 120, height: 120, background: DS.slate100, border: `2px dashed ${DS.slate200}`,
+                borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 12px",
+              }}>
+                {vendor?.qr_code
+                  ? <QRCodeSVG value={vendor.qr_code} size={100} level="H" />
+                  : <QrCode size={36} color="#94a3b8" />}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e293b", marginBottom: 4 }}>Stall {stall?.stall_number}</div>
+              <div style={{ fontSize: 9, color: "#94a3b8", fontFamily: "monospace", marginBottom: 14, wordBreak: "break-all" }}>
+                {vendor?.qr_code?.slice(0, 30)}...
+              </div>
+              <button style={{
+                width: "100%", padding: 9, borderRadius: 8,
+                background: DS.blue50, border: `1px solid ${DS.blue100}`,
+                fontSize: 12, fontWeight: 700, color: DS.blue700, cursor: "pointer", fontFamily: "inherit",
+              }}>
+                ↓ Download QR Code
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div style={{ background: "#fff", border: `1px solid ${DS.slate200}`, borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", padding: "18px 20px" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900, marginBottom: 12 }}>Quick Links</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[
+                { label: "Pay Online", to: "/vendor/pay",       icon: CreditCard },
+                { label: "History",    to: "/vendor/history",   icon: History    },
+                { label: "Statement",  to: "/vendor/statement", icon: FileText   },
+              ].map(l => (
+                <Link key={l.to} to={l.to} style={{ textDecoration: "none" }}>
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                    padding: "16px 8px", borderRadius: 12,
+                    background: DS.blue50, border: `1px solid ${DS.blue100}`, cursor: "pointer",
+                  }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12, background: "#fff",
+                      border: `1px solid ${DS.blue100}`, display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <l.icon size={16} color={DS.blue800} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: DS.blue900, textAlign: "center", lineHeight: 1.3 }}>{l.label}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -430,24 +543,15 @@ const VendorDashboardHome = () => {
   /* ─── MOBILE VIEW ───────────────────────────────────────────────────────────── */
   const MobileView = () => {
     const shownPayments = paymentsExpanded ? d.payments : d.payments.slice(0, 3);
-
     return (
       <div className="block lg:hidden -mx-4 -mt-4">
-
-        {/* Slide panels */}
         <SlidePanel open={showHistoryPanel} onClose={() => { setShowHistoryPanel(false); setActiveTab("balance"); }}
-          title="Payment History" unreadNotifs={d.unreadNotifs.length}>
-          <VendorHistory />
-        </SlidePanel>
+          title="Payment History" unreadNotifs={d.unreadNotifs.length}><VendorHistory /></SlidePanel>
         <SlidePanel open={showStatementPanel} onClose={() => { setShowStatementPanel(false); setActiveTab("balance"); }}
-          title="Statement of Account" unreadNotifs={d.unreadNotifs.length}>
-          <VendorStatement />
-        </SlidePanel>
+          title="Statement of Account" unreadNotifs={d.unreadNotifs.length}><VendorStatement /></SlidePanel>
 
-        {/* ── Gradient hero ── */}
+        {/* Gradient hero */}
         <div style={{ background: DS.gradientHeader }}>
-
-          {/* Clean header row — NO hamburger */}
           <div className="flex items-center justify-between px-5 pt-5 pb-4">
             <div>
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
@@ -461,78 +565,46 @@ const VendorDashboardHome = () => {
               <p className="text-white text-sm font-bold">{stall?.stall_number || "—"} · {stall?.section || "General"}</p>
             </div>
           </div>
-
-          {/* 3-tab strip: Balance | History | Statement */}
           <div className="flex px-2">
             {tabs.map(t => (
-              <button key={t.key} onClick={() => handleTabClick(t.key)}
-                className="flex-1 py-2.5 text-xs transition-all"
+              <button key={t.key} onClick={() => handleTabClick(t.key)} className="flex-1 py-2.5 text-xs transition-all"
                 style={{
-                  color: activeTab === t.key ? "#fff" : "rgba(255,255,255,0.55)",
-                  fontWeight: activeTab === t.key ? 700 : 500,
-                  background: "none", border: "none",
-                  borderBottom: activeTab === t.key ? "2.5px solid #fff" : "2.5px solid transparent",
-                  cursor: "pointer",
-                }}>
-                {t.label}
-              </button>
+                  color: activeTab === t.key ? "#fff" : "rgba(255,255,255,0.55)", fontWeight: activeTab === t.key ? 700 : 500,
+                  background: "none", border: "none", borderBottom: activeTab === t.key ? "2.5px solid #fff" : "2.5px solid transparent", cursor: "pointer",
+                }}>{t.label}</button>
             ))}
           </div>
-
-          {/* Balance zone */}
           <div className="px-5 py-4" style={{ background: "rgba(0,0,0,0.14)", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-            <p className="text-[10px] uppercase tracking-[2px] flex items-center gap-1.5 mb-2"
-              style={{ color: "rgba(255,255,255,0.65)" }}>
-              <Clock className="h-3 w-3" />
-              {d.isCurrentMonthPaid ? "Next Bill Amount" : "Amount Due This Month"}
+            <p className="text-[10px] uppercase tracking-[2px] flex items-center gap-1.5 mb-2" style={{ color: "rgba(255,255,255,0.65)" }}>
+              <Clock className="h-3 w-3" />{d.isCurrentMonthPaid ? "Next Bill Amount" : "Amount Due This Month"}
             </p>
             <div className="flex items-center justify-between">
               <p className="text-white font-black" style={{ fontSize: 32, letterSpacing: -1, fontVariantNumeric: "tabular-nums" }}>
                 <span style={{ fontSize: 20, fontWeight: 700 }}>₱</span>
-                {(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate))
-                  .toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                {(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate)).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
               </p>
               <Link to="/vendor/pay">
-                <button className="flex items-center gap-1.5 bg-white font-bold text-sm rounded-full px-4 py-2"
-                  style={{ color: DS.blue900 }}>
-                  <CreditCard className="h-3.5 w-3.5" />
-                  {d.isCurrentMonthPaid ? "Pay Advance" : "Pay Now"}
+                <button className="flex items-center gap-1.5 bg-white font-bold text-sm rounded-full px-4 py-2" style={{ color: DS.blue900 }}>
+                  <CreditCard className="h-3.5 w-3.5" />{d.isCurrentMonthPaid ? "Pay Advance" : "Pay Now"}
                 </button>
               </Link>
             </div>
-            {d.paidThisMonth > 0 && !d.isCurrentMonthPaid && (
-              <div className="mt-3">
-                <div className="flex justify-between mb-1">
-                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.65)" }}>Paid: <strong className="text-white">{fmt(d.paidThisMonth)}</strong></span>
-                  <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.65)" }}>Remaining: <strong className="text-white">{fmt(d.remainingThisMonth)}</strong></span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.2)" }}>
-                  <div className="h-full rounded-full bg-green-400 transition-all" style={{ width: `${paidPct}%` }} />
-                </div>
-              </div>
-            )}
             {d.isCurrentMonthPaid && (
               <div className="mt-2 flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-300" />
-                <span className="text-[11px] text-green-300 font-semibold">
-                  {MONTHS[currentMonth - 1]} {d.currentYear} fully settled ✓
-                </span>
+                <span className="text-[11px] text-green-300 font-semibold">{MONTHS[currentMonth - 1]} {d.currentYear} fully settled ✓</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* ── White body ── */}
+        {/* White body */}
         <div style={{ background: "#f0f4f8" }}>
-
-          {/* Action grid */}
           <div className="bg-white px-4 pt-4 pb-3 mb-2">
             <div className="grid grid-cols-3 gap-1">
               {mobileActions.map(a => (
-                <Link key={a.to} to={a.to}
-                  className="flex flex-col items-center gap-1.5 py-2 rounded-xl transition-colors active:bg-slate-50">
-                  <div className="relative w-14 h-14 rounded-2xl flex items-center justify-center"
-                    style={{ background: DS.blue50, border: `1px solid ${DS.blue100}` }}>
+                <Link key={a.to} to={a.to} className="flex flex-col items-center gap-1.5 py-2 rounded-xl transition-colors active:bg-slate-50">
+                  <div className="relative w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: DS.blue50, border: `1px solid ${DS.blue100}` }}>
                     <a.icon className="h-6 w-6" style={{ color: DS.blue800 }} />
                     {(a as any).badge ? (
                       <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border border-white">
@@ -546,11 +618,9 @@ const VendorDashboardHome = () => {
             </div>
           </div>
 
-          {/* Payment status banner */}
           <div className="mx-3 mb-2">
             {d.isCurrentMonthPaid ? (
-              <div className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
                 <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="h-4 w-4 text-green-700" />
                 </div>
@@ -567,16 +637,13 @@ const VendorDashboardHome = () => {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                style={{ background: "#fef3c7", border: "1px solid #fcd34d" }}>
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: "#fef3c7", border: "1px solid #fcd34d" }}>
                 <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center shrink-0">
                   <AlertCircle className="h-4 w-4 text-amber-700" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-amber-900">
-                    {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} — Payment Due
-                  </p>
-                  <p className="text-[11px] text-amber-800 mt-0.5 truncate">{fmt(d.remainingThisMonth || monthlyRate)} outstanding balance</p>
+                  <p className="text-sm font-bold text-amber-900">{MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} — Payment Due</p>
+                  <p className="text-[11px] text-amber-800 mt-0.5 truncate">{fmt(d.remainingThisMonth || monthlyRate)} outstanding</p>
                 </div>
                 <Link to="/vendor/pay">
                   <button className="text-[11px] font-bold text-white bg-amber-600 rounded-xl px-3 py-1.5 shrink-0">Pay Now</button>
@@ -585,7 +652,6 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          {/* Stats scroll */}
           <div>
             <div className="flex items-center justify-between px-4 pt-2 pb-2">
               <p className="text-sm font-bold" style={{ color: DS.blue900 }}>Your Summary</p>
@@ -611,28 +677,21 @@ const VendorDashboardHome = () => {
             </div>
           </div>
 
-          {/* QR Banner */}
           <div className="mx-3 mb-2 rounded-2xl overflow-hidden" style={{ background: DS.gradientCard }}>
             <div className="flex items-center gap-4 p-4">
               <div className="flex-1">
                 <p className="text-white font-bold text-sm mb-1">Your Stall QR Code</p>
-                <p className="text-[11px] mb-3 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
-                  Show this to the cashier for payment processing at the market office.
-                </p>
-                <div className="inline-block rounded-xl px-3 py-1 text-[11px] font-semibold text-white"
-                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                <p className="text-[11px] mb-3 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>Show this to the cashier for payment processing.</p>
+                <div className="inline-block rounded-xl px-3 py-1 text-[11px] font-semibold text-white" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
                   Stall {stall?.stall_number || "—"} · {stall?.section || "General"} Section
                 </div>
               </div>
               <div className="bg-white rounded-xl p-2 shrink-0">
-                {vendor?.qr_code
-                  ? <QRCodeSVG value={vendor.qr_code} size={90} level="H" />
-                  : <div className="w-[90px] h-[90px] flex items-center justify-center"><QrCode className="h-12 w-12 text-slate-300" /></div>}
+                {vendor?.qr_code ? <QRCodeSVG value={vendor.qr_code} size={90} level="H" /> : <div className="w-[90px] h-[90px] flex items-center justify-center"><QrCode className="h-12 w-12 text-slate-300" /></div>}
               </div>
             </div>
           </div>
 
-          {/* Payment chart */}
           <div className="bg-white mb-2 px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -657,22 +716,17 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          {/* Recent payments — collapsible, show 3 by default */}
           <div className="bg-white mb-2">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50">
               <p className="text-sm font-bold" style={{ color: DS.blue900 }}>Recent Payments</p>
-              <button onClick={() => setShowHistoryPanel(true)} className="text-xs font-semibold flex items-center gap-1" style={{ color: DS.blue600 }}>
-                View All ›
-              </button>
+              <button onClick={() => setShowHistoryPanel(true)} className="text-xs font-semibold flex items-center gap-1" style={{ color: DS.blue600 }}>View All ›</button>
             </div>
             <div>
               {shownPayments.map((p: any, i: number) => (
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3"
                   style={{ borderBottom: i < shownPayments.length - 1 ? "0.5px solid #f8fafc" : "none" }}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${p.status === "completed" ? "bg-green-50" : p.status === "pending" ? "bg-amber-50" : "bg-red-50"}`}>
-                    {p.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      : p.status === "pending" ? <Clock className="h-5 w-5 text-amber-500" />
-                      : <AlertCircle className="h-5 w-5 text-red-500" />}
+                    {p.status === "completed" ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : p.status === "pending" ? <Clock className="h-5 w-5 text-amber-500" /> : <AlertCircle className="h-5 w-5 text-red-500" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900">
@@ -690,27 +744,17 @@ const VendorDashboardHome = () => {
                 <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-400">
                   <CreditCard className="h-8 w-8 opacity-30" />
                   <p className="text-sm">No payments recorded yet</p>
-                  <Link to="/vendor/pay">
-                    <button className="mt-1 text-xs font-semibold text-white rounded-full px-4 py-2" style={{ background: DS.blue800 }}>Make your first payment</button>
-                  </Link>
+                  <Link to="/vendor/pay"><button className="mt-1 text-xs font-semibold text-white rounded-full px-4 py-2" style={{ background: DS.blue800 }}>Make your first payment</button></Link>
                 </div>
               )}
             </div>
-            {/* Expand / collapse toggle */}
             {d.payments.length > 3 && (
-              <button onClick={() => setPaymentsExpanded(v => !v)}
-                className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-t border-slate-50 hover:bg-slate-50 transition-colors"
-                style={{ color: DS.blue600 }}>
-                {paymentsExpanded
-                  ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
-                  : <><ChevronDown className="h-3.5 w-3.5" /> Show {d.payments.length - 3} more</>}
+              <button onClick={() => setPaymentsExpanded(v => !v)} className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-t border-slate-50 hover:bg-slate-50 transition-colors" style={{ color: DS.blue600 }}>
+                {paymentsExpanded ? <><ChevronUp className="h-3.5 w-3.5" />Show less</> : <><ChevronDown className="h-3.5 w-3.5" />Show {d.payments.length - 3} more</>}
               </button>
             )}
           </div>
-
         </div>
-
-        {/* Unified bottom nav */}
         <VendorBottomNav unreadNotifs={d.unreadNotifs.length} />
       </div>
     );
