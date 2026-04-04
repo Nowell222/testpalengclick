@@ -86,7 +86,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   // This prevents the nav from flashing on screen during the loading spinner phase.
   useEffect(() => {
     setNavReady(false);
-    const t = setTimeout(() => setNavReady(true), 300);
+    const t = setTimeout(() => setNavReady(true), 500);
     return () => clearTimeout(t);
   }, [location.pathname]);
   const { signOut, profile } = useAuth();
@@ -482,11 +482,19 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
         </div>
 
         {/* ── MOBILE CONTENT ─────────────────────────────────────────────── */}
-        <div className="v-mobile-only" style={{ paddingBottom: 96 }}>
-          <div style={{ padding: "16px" }}>
-            <Outlet />
+        {navReady ? (
+          <div className="v-mobile-only" style={{ paddingBottom: 96 }}>
+            <div style={{ padding: "16px" }}>
+              <Outlet />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="v-mobile-only">
+            <div style={{ padding: "16px" }}>
+              <Outlet />
+            </div>
+          </div>
+        )}
 
         {/* ── MOBILE BOTTOM NAV — only render after content has mounted ── */}
         {navReady && (
@@ -714,10 +722,9 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </button>
         </div>
       </header>
-      <div className="ac-mobile-only" style={{ paddingBottom: 96, background: rc.bg }}>
+      <div className="ac-mobile-only" style={{ background: rc.bg }}>
         <div style={{ padding: "16px" }}><Outlet /></div>
       </div>
-
     </div>
   );
 };
