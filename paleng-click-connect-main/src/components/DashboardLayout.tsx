@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -72,14 +72,23 @@ const ROLE_COLORS = {
 /* ─────────────────────────────────────────────────────────────
    VENDOR SIDEBAR DESIGN (new mockup design)
 ───────────────────────────────────────────────────────────── */
-const VENDOR_SIDEBAR_BG = "#0f172a"; // slate-900
-const VENDOR_TOPNAV_BG  = "linear-gradient(160deg,#0d2240 0%,#1a3a5f 45%,#1d4ed8 80%,#2563eb 100%)";
-const VENDOR_ACTIVE_BG  = "#1d4ed8"; // blue-700
+const VENDOR_SIDEBAR_BG  = "#0f172a"; // slate-900
+const VENDOR_TOPNAV_BG   = "linear-gradient(160deg,#0d2240 0%,#1a3a5f 45%,#1d4ed8 80%,#2563eb 100%)";
+const VENDOR_ACTIVE_BG   = "#1d4ed8"; // blue-700
 
 const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [navReady, setNavReady] = useState(false);
+
+  // Only show the bottom nav after the page content has had time to mount.
+  // This prevents the nav from flashing on screen during the loading spinner phase.
+  useEffect(() => {
+    setNavReady(false);
+    const t = setTimeout(() => setNavReady(true), 300);
+    return () => clearTimeout(t);
+  }, [location.pathname]);
   const { signOut, profile } = useAuth();
 
   const isVendor    = role === "vendor";
@@ -479,10 +488,12 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
           </div>
         </div>
 
-        {/* ── MOBILE BOTTOM NAV — only the layout's own dark pill nav ──── */}
-        <div className="v-mobile-only">
-          <VendorBottomNav />
-        </div>
+        {/* ── MOBILE BOTTOM NAV — only render after content has mounted ── */}
+        {navReady && (
+          <div className="v-mobile-only">
+            <VendorBottomNav />
+          </div>
+        )}
       </div>
     );
   }
@@ -706,7 +717,6 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     </>
   );
 
-  /* ── Admin / Cashier mobile + desktop layout ─────────────────────────────── */
   return (
     <div style={{ minHeight: "100vh", background: rc.bg, fontFamily }}>
       <style>{`
@@ -787,7 +797,6 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
       <div className="ac-mobile-only" style={{ paddingBottom: 96, background: rc.bg }}>
         <div style={{ padding: "16px" }}><Outlet /></div>
       </div>
-      {/* Admin/Cashier bottom nav only — vendor never reaches this block */}
       <div className="ac-mobile-only"><BottomNav /></div>
     </div>
   );

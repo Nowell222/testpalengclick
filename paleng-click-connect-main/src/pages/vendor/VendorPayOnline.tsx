@@ -1,3 +1,4 @@
+import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -675,6 +676,7 @@ const VendorPayOnline = () => {
       </div>
 
       {/* Unified bottom nav — mobile only */}
+      <VendorBottomNav />
     </div>
   );
 };

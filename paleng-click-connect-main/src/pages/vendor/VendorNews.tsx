@@ -1,3 +1,4 @@
+import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState, useRef, useEffect } from "react";
 import { Loader2, Megaphone, MessageSquare, Send, X, CheckCheck, FileText, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -428,6 +429,7 @@ const VendorNews = () => {
       )}
 
       {/* Unified bottom nav — mobile only */}
+      <VendorBottomNav />
     </div>
   );
 };

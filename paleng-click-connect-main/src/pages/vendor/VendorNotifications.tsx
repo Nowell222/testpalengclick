@@ -1,3 +1,4 @@
+import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState } from "react";
 import { Bell, BellOff, CreditCard, Megaphone, AlertTriangle, Loader2, X, Printer, CheckCircle2, Info, CheckCheck, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -380,6 +381,7 @@ const VendorNotifications = () => {
       </div>
 
       {/* Unified bottom nav — mobile only */}
+      <VendorBottomNav />
     </div>
   );
 };

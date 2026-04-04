@@ -1,3 +1,4 @@
+import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState, useEffect } from "react";
 import {
   QrCode, MapPin, User, Calendar, Loader2, Edit3, Save, X,
@@ -804,6 +805,7 @@ const VendorStallInfo = () => {
       </div>
 
       {/* Unified bottom nav — mobile only */}
+      <VendorBottomNav />
     </div>
   );
 };
