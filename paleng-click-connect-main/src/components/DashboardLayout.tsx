@@ -574,87 +574,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     </div>
   );
 
-  const BottomNav = () => {
-    const [moreOpen, setMoreOpen] = useState(false);
-    const primaryItems = bottomItems.slice(0, 4);
-    const moreItems = navItems.filter(n => !primaryItems.find(p => p.path === n.path));
-    return (
-      <>
-        {moreOpen && <div onClick={() => setMoreOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 45, background: "rgba(0,0,0,0.25)" }} />}
-        {moreOpen && (
-          <div style={{
-            position: "fixed", bottom: 90, left: 12, right: 12, zIndex: 46,
-            background: "#fff", borderRadius: 18, border: `1px solid ${rc.border}`,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.14)", overflow: "hidden",
-          }}>
-            {moreItems.map(item => {
-              const active = isActive(item.path);
-              return (
-                <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)} style={{ textDecoration: "none" }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
-                    background: active ? rc.pale : "transparent", borderBottom: "1px solid #f5f5f5",
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-                      background: active ? rc.solid : rc.pale,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      <item.icon size={14} color={active ? "#fff" : rc.text} />
-                    </div>
-                    <span style={{ color: active ? rc.text : "#374151", fontSize: 13, fontWeight: active ? 700 : 400 }}>{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-        <div style={{
-          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
-          padding: "8px 12px calc(8px + env(safe-area-inset-bottom,0px))",
-          background: "linear-gradient(to top,rgba(248,250,252,0.98) 65%,transparent)", pointerEvents: "none",
-        }}>
-          <nav style={{
-            display: "flex", alignItems: "center", justifyContent: "space-around",
-            background: "#fff", borderRadius: 100, border: `1px solid ${rc.border}`,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.09)", padding: "5px 6px", pointerEvents: "all",
-          }}>
-            {primaryItems.map(item => {
-              const active = isActive(item.path);
-              return (
-                <Link key={item.path} to={item.path} style={{ textDecoration: "none", flex: 1 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "5px 4px", gap: 3 }}>
-                    <div style={{
-                      width: active ? 36 : 28, height: active ? 36 : 28, borderRadius: "50%",
-                      background: active ? rc.solid : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
-                    }}>
-                      <item.icon size={active ? 16 : 15} color={active ? "#fff" : rc.muted} />
-                    </div>
-                    <span style={{ color: active ? rc.light : rc.muted, fontSize: 8.5, fontWeight: active ? 700 : 400 }}>{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-            {moreItems.length > 0 && (
-              <button onClick={() => setMoreOpen(v => !v)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "5px 4px", gap: 3 }}>
-                  <div style={{
-                    width: moreOpen ? 36 : 28, height: moreOpen ? 36 : 28, borderRadius: "50%",
-                    background: moreOpen ? rc.solid : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Menu size={moreOpen ? 16 : 15} color={moreOpen ? "#fff" : rc.muted} />
-                  </div>
-                  <span style={{ color: moreOpen ? rc.light : rc.muted, fontSize: 8.5, fontWeight: moreOpen ? 700 : 400 }}>More</span>
-                </div>
-              </button>
-            )}
-          </nav>
-        </div>
-      </>
-    );
-  };
+
 
   const Drawer = () => (
     <>
@@ -797,7 +717,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
       <div className="ac-mobile-only" style={{ paddingBottom: 96, background: rc.bg }}>
         <div style={{ padding: "16px" }}><Outlet /></div>
       </div>
-      <div className="ac-mobile-only"><BottomNav /></div>
+
     </div>
   );
 };
