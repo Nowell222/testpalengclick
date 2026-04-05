@@ -7,6 +7,7 @@ import {
   Search, Receipt, Send, DollarSign, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import PushNotificationBanner from "@/components/PushNotificationBanner";
+import VendorBottomNav from "@/components/VendorBottomNav";
 
 interface NavItem { label: string; path: string; icon: LucideIcon; badge?: number }
 
@@ -80,15 +81,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [navReady, setNavReady] = useState(false);
-
-  // Only show the bottom nav after the page content has had time to mount.
-  // This prevents the nav from flashing on screen during the loading spinner phase.
-  useEffect(() => {
-    setNavReady(false);
-    const t = setTimeout(() => setNavReady(true), 500);
-    return () => clearTimeout(t);
-  }, [location.pathname]);
+  const navReady = true;
   const { signOut, profile } = useAuth();
 
   const isVendor    = role === "vendor";
@@ -152,117 +145,7 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     </nav>
   );
 
-  /* ── Vendor Bottom Mobile Nav ────────────────────────────────────────────── */
-  const VendorBottomNav = () => {
-    const [moreOpen, setMoreOpen] = useState(false);
-    const primaryItems = bottomItems.slice(0, 4);
-    const moreItems = navItems.filter(n => !primaryItems.find(p => p.path === n.path));
-
-    return (
-      <>
-        {moreOpen && (
-          <div onClick={() => setMoreOpen(false)} style={{
-            position: "fixed", inset: 0, zIndex: 45,
-            background: "rgba(0,0,0,0.25)", backdropFilter: "blur(2px)",
-          }} />
-        )}
-        {moreOpen && (
-          <div style={{
-            position: "fixed", bottom: 90, left: 12, right: 12, zIndex: 46,
-            background: VENDOR_SIDEBAR_BG, borderRadius: 18,
-            border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)", overflow: "hidden",
-          }}>
-            <div style={{
-              padding: "10px 16px 8px",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.3)", fontSize: 9, letterSpacing: 2, textTransform: "uppercase",
-            }}>More Navigation</div>
-            {moreItems.map(item => {
-              const active = isActive(item.path);
-              return (
-                <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)} style={{ textDecoration: "none" }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 12,
-                    padding: "12px 16px",
-                    background: active ? VENDOR_ACTIVE_BG : "transparent",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    color: active ? "#fff" : "rgba(255,255,255,0.7)",
-                  }}>
-                    <item.icon size={15} />
-                    <span style={{ fontSize: 13, fontWeight: active ? 700 : 400 }}>{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-        <div style={{
-          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 40,
-          padding: "8px 12px calc(8px + env(safe-area-inset-bottom,0px))",
-          background: "linear-gradient(to top,rgba(15,23,42,0.98) 65%,transparent)",
-          pointerEvents: "none",
-        }}>
-          <nav style={{
-            display: "flex", alignItems: "center", justifyContent: "space-around",
-            background: VENDOR_SIDEBAR_BG,
-            borderRadius: 100, border: "1px solid rgba(255,255,255,0.1)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-            padding: "5px 6px", pointerEvents: "all",
-          }}>
-            {primaryItems.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <Link key={item.path} to={item.path} style={{ textDecoration: "none", flex: 1 }}>
-                  <div style={{
-                    display: "flex", flexDirection: "column", alignItems: "center",
-                    padding: "5px 4px", borderRadius: 100, gap: 3,
-                  }}>
-                    <div style={{
-                      width: active ? 36 : 28, height: active ? 36 : 28,
-                      borderRadius: "50%",
-                      background: active ? VENDOR_ACTIVE_BG : "transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      transition: "all 0.2s",
-                      boxShadow: active ? "0 2px 10px rgba(29,78,216,0.4)" : "none",
-                    }}>
-                      <item.icon size={active ? 16 : 15} color={active ? "#fff" : "rgba(255,255,255,0.45)"} />
-                    </div>
-                    <span style={{
-                      color: active ? "#60a5fa" : "rgba(255,255,255,0.4)",
-                      fontSize: 8.5, fontWeight: active ? 700 : 400, letterSpacing: 0.3,
-                    }}>{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-            {moreItems.length > 0 && (
-              <button onClick={() => setMoreOpen(v => !v)} style={{
-                flex: 1, background: "none", border: "none", cursor: "pointer", padding: 0,
-              }}>
-                <div style={{
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  padding: "5px 4px", gap: 3,
-                }}>
-                  <div style={{
-                    width: moreOpen ? 36 : 28, height: moreOpen ? 36 : 28,
-                    borderRadius: "50%",
-                    background: moreOpen ? VENDOR_ACTIVE_BG : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.2s",
-                  }}>
-                    <Menu size={moreOpen ? 16 : 15} color={moreOpen ? "#fff" : "rgba(255,255,255,0.45)"} />
-                  </div>
-                  <span style={{ color: moreOpen ? "#60a5fa" : "rgba(255,255,255,0.4)", fontSize: 8.5, fontWeight: moreOpen ? 700 : 400 }}>More</span>
-                </div>
-              </button>
-            )}
-          </nav>
-        </div>
-      </>
-    );
-  };
-
+ 
   /* ── Vendor Logout Footer ────────────────────────────────────────────────── */
   const VendorLogoutFooter = () => (
     <div style={{ padding: "12px 12px 16px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
