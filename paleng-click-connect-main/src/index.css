@@ -6,155 +6,207 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 30% 12%;
+    /* ── Base surfaces ──────────────────────────────────────────────────── */
+    --background:        210 22% 96%;
+    --foreground:        220 30% 12%;
+    --card:              0 0% 100%;
+    --card-foreground:   220 30% 12%;
+    --popover:           0 0% 100%;
+    --popover-foreground:220 30% 12%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 12%;
+    /* ── Brand: Deep Emerald (cashier) ──────────────────────────────────── */
+    --primary:           158 65% 30%;
+    --primary-foreground:0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 12%;
+    /* ── Surfaces ───────────────────────────────────────────────────────── */
+    --secondary:         215 18% 93%;
+    --secondary-foreground:220 30% 12%;
+    --muted:             220 12% 90%;
+    --muted-foreground:  220 10% 46%;
 
-    --primary: 185 60% 35%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 15% 94%;
-    --secondary-foreground: 220 30% 12%;
-
-    --muted: 220 10% 92%;
-    --muted-foreground: 220 10% 42%;
-
-    --accent: 22 85% 55%;
+    /* ── Accent: Amber ──────────────────────────────────────────────────── */
+    --accent:            25 90% 52%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive:       0 72% 51%;
+    --destructive-foreground:0 0% 100%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 185 60% 35%;
+    --border:            220 14% 87%;
+    --input:             220 14% 87%;
+    --ring:              158 65% 30%;
+    --radius:            0.875rem;
 
-    --radius: 0.75rem;
+    /* ── Semantic ───────────────────────────────────────────────────────── */
+    --success:           145 62% 38%;
+    --success-foreground:0 0% 100%;
+    --warning:           38 92% 50%;
+    --warning-foreground:0 0% 100%;
 
-    --success: 152 60% 40%;
-    --success-foreground: 0 0% 100%;
+    /* ── Cashier hero gradient stops ────────────────────────────────────── */
+    --cashier-grad-from: #0d3320;
+    --cashier-grad-via:  #0f6e56;
+    --cashier-grad-to:   #10b981;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 220 10% 25%;
-    --sidebar-primary: 185 60% 35%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 10% 95%;
-    --sidebar-accent-foreground: 220 10% 25%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 185 60% 35%;
+    /* ── Sidebar ────────────────────────────────────────────────────────── */
+    --sidebar-background:0 0% 98%;
+    --sidebar-foreground:220 10% 25%;
+    --sidebar-primary:   158 65% 30%;
+    --sidebar-primary-foreground:0 0% 100%;
+    --sidebar-accent:    220 10% 95%;
+    --sidebar-accent-foreground:220 10% 25%;
+    --sidebar-border:    220 13% 91%;
+    --sidebar-ring:      158 65% 30%;
   }
 
   .dark {
-    --background: 220 25% 8%;
-    --foreground: 210 20% 95%;
-    --card: 220 25% 11%;
-    --card-foreground: 210 20% 95%;
-    --popover: 220 25% 11%;
-    --popover-foreground: 210 20% 95%;
-    --primary: 185 55% 45%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 210 20% 95%;
-    --muted: 220 15% 18%;
-    --muted-foreground: 220 10% 60%;
-    --accent: 22 85% 55%;
+    --background:        220 25% 8%;
+    --foreground:        210 20% 95%;
+    --card:              220 25% 11%;
+    --card-foreground:   210 20% 95%;
+    --popover:           220 25% 11%;
+    --popover-foreground:210 20% 95%;
+    --primary:           158 55% 45%;
+    --primary-foreground:0 0% 100%;
+    --secondary:         220 20% 18%;
+    --secondary-foreground:210 20% 95%;
+    --muted:             220 15% 18%;
+    --muted-foreground:  220 10% 60%;
+    --accent:            25 90% 52%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 185 55% 45%;
-    --sidebar-background: 220 25% 10%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 185 55% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 185 55% 45%;
+    --destructive:       0 62% 30%;
+    --destructive-foreground:0 0% 100%;
+    --border:            220 15% 20%;
+    --input:             220 15% 20%;
+    --ring:              158 55% 45%;
+    --sidebar-background:220 25% 10%;
+    --sidebar-foreground:210 20% 90%;
+    --sidebar-primary:   158 55% 45%;
+    --sidebar-primary-foreground:0 0% 100%;
+    --sidebar-accent:    220 15% 15%;
+    --sidebar-accent-foreground:210 20% 90%;
+    --sidebar-border:    220 15% 18%;
+    --sidebar-ring:      158 55% 45%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground font-body antialiased;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight;
-  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-body antialiased; }
+  h1, h2, h3, h4, h5, h6 { @apply font-display tracking-tight; }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-balance { text-wrap: balance; }
+
+  /* ── Premium card shadows ───────────────────────────────────────────────── */
+  .shadow-civic {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
   }
+  .shadow-civic-lg {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+  }
+  .shadow-hero {
+    box-shadow: 0 4px 24px rgba(15,110,86,0.25);
+  }
+
+  /* ── Gradient backgrounds ───────────────────────────────────────────────── */
+  .bg-cashier-hero {
+    background: linear-gradient(135deg, #0d3320 0%, #0f6e56 55%, #10b981 100%);
+  }
+  .bg-cashier-subtle {
+    background: linear-gradient(135deg, #f0fdf9 0%, #ecfdf5 100%);
+  }
+  .bg-slate-subtle {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  }
+
+  /* ── Stat card accent strips ────────────────────────────────────────────── */
+  .card-accent-green  { border-top: 3px solid #10b981; }
+  .card-accent-blue   { border-top: 3px solid #3b82f6; }
+  .card-accent-amber  { border-top: 3px solid #f59e0b; }
+  .card-accent-red    { border-top: 3px solid #ef4444; }
+  .card-accent-purple { border-top: 3px solid #8b5cf6; }
+
+  /* ── Zebra stripes for tables ───────────────────────────────────────────── */
+  .table-zebra tbody tr:nth-child(even) { background: hsl(220 15% 97%); }
+
+  /* ── Status pill presets ───────────────────────────────────────────────── */
+  .pill-success  { @apply inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700; }
+  .pill-warning  { @apply inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700; }
+  .pill-danger   { @apply inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-600; }
+  .pill-blue     { @apply inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700; }
+  .pill-slate    { @apply inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600; }
+
+  /* ── Action button animation ────────────────────────────────────────────── */
+  .btn-lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .btn-lift:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(15,110,86,0.28); }
+  .btn-lift:active { transform: translateY(0); }
+
+  /* ── Section divider accent ─────────────────────────────────────────────── */
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
+  }
+
+  /* ── Shimmer loading skeleton ────────────────────────────────────────────── */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%);
+    background-size: 800px 100%;
+    animation: shimmer 1.4s infinite linear;
+    border-radius: 8px;
+  }
+
+  /* ── Pulse badge ────────────────────────────────────────────────────────── */
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+  }
+  .pulse-green { animation: pulse-ring 2s ease-out infinite; }
 }
 
-/* ── Mobile responsive utilities ─────────────────────────────────────────────── */
+/* ── Mobile responsive overrides ──────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Typography scale down */
   h1 { font-size: 1.4rem !important; }
   h2 { font-size: 1.2rem !important; }
   h3 { font-size: 1rem !important; }
 
-  /* Grid overrides — force single column on small screens */
-  .grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-  .lg\:grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
-  .lg\:grid-cols-3 { grid-template-columns: 1fr !important; }
+  .grid-cols-2               { grid-template-columns: repeat(2, 1fr) !important; }
+  .lg\:grid-cols-4           { grid-template-columns: repeat(2, 1fr) !important; }
+  .lg\:grid-cols-3           { grid-template-columns: 1fr !important; }
   .lg\:grid-cols-\[1fr_300px\] { grid-template-columns: 1fr !important; }
-  .sm\:grid-cols-2 { grid-template-columns: 1fr !important; }
-  .md\:grid-cols-2 { grid-template-columns: 1fr !important; }
-  .md\:grid-cols-3 { grid-template-columns: 1fr !important; }
-  .md\:grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .sm\:grid-cols-2           { grid-template-columns: 1fr !important; }
+  .md\:grid-cols-2           { grid-template-columns: 1fr !important; }
+  .md\:grid-cols-3           { grid-template-columns: 1fr !important; }
+  .md\:grid-cols-4           { grid-template-columns: repeat(2, 1fr) !important; }
 
-  /* Table scroll on mobile */
   .overflow-x-auto table { min-width: 500px; }
 
-  /* Shrink paddings */
-  .p-6 { padding: 1rem !important; }
-  .p-5 { padding: 0.875rem !important; }
+  .p-6  { padding: 1rem !important; }
+  .p-5  { padding: 0.875rem !important; }
   .px-5 { padding-left: 0.875rem !important; padding-right: 0.875rem !important; }
   .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
 
-  /* Font mono sizes in cards */
   .font-mono.text-3xl { font-size: 1.5rem !important; }
   .font-mono.text-2xl { font-size: 1.25rem !important; }
   .font-mono.text-xl  { font-size: 1.1rem !important; }
-  .text-3xl { font-size: 1.5rem !important; }
-  .text-2xl { font-size: 1.25rem !important; }
+  .text-3xl           { font-size: 1.5rem !important; }
+  .text-2xl           { font-size: 1.25rem !important; }
 
-  /* Stat cards — compact */
   .rounded-2xl.border.bg-card.p-4 { padding: 0.75rem !important; }
 
-  /* Hide QR on very small screens if needed */
-  .hide-mobile { display: none !important; }
+  .hide-mobile  { display: none !important; }
+  .mobile-full  { width: 100% !important; }
 
-  /* Buttons full width on mobile */
-  .mobile-full { width: 100% !important; }
-
-  /* Table cells compact */
   td, th { padding: 6px 8px !important; font-size: 11px !important; }
-
-  /* Chart height reduce */
   .recharts-wrapper { height: 140px !important; }
 }
 
 @media (max-width: 390px) {
-  /* Very small phones (iPhone SE etc) */
-  .grid-cols-2 { grid-template-columns: 1fr !important; }
+  .grid-cols-2        { grid-template-columns: 1fr !important; }
   .font-mono.text-3xl { font-size: 1.3rem !important; }
-  h1 { font-size: 1.25rem !important; }
+  h1                  { font-size: 1.25rem !important; }
 }
