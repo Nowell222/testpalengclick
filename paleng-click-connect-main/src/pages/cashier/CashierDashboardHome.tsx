@@ -53,7 +53,6 @@ const METHOD_BADGE: Record<string, { bg: string; text: string }> = {
 };
 
 const CashierDashboardHome = () => {
-  const [showMonthly, setShowMonthly] = useState(true);
   const [showTransactions, setShowTransactions] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -452,74 +451,87 @@ const CashierDashboardHome = () => {
           </div>
         </div>
 
-        {/* Monthly chart (collapsible) */}
+        {/* Monthly chart */}
         <div className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
-          <button
-            onClick={() => setShowMonthly(v => !v)}
-            className="flex items-center justify-between w-full px-5 py-4 hover:bg-secondary/40 transition-colors border-b"
-          >
+          <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
             <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-blue-500 shadow-md" />
-              <span className="text-[13px] font-bold text-foreground">
-                Monthly Collections — {today.getFullYear()}
-              </span>
+              <div className="h-2 w-2 rounded-full bg-emerald-600 shadow-md" />
+              <p className="text-[13px] font-bold text-foreground">Collections — {today.getFullYear()} Monthly</p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-semibold text-foreground px-3 py-1.5 rounded-lg hidden sm:inline" style={{ background: "rgba(59, 130, 246, 0.1)", color: "#3b82f6" }}>
-                {fmt(d.totalMonth)} this month
-              </span>
-              {showMonthly
-                ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-            </div>
-          </button>
-          {showMonthly && (
-            <div className="space-y-0">
-              <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-                <defs>
-                  <linearGradient id="barGradientMonthly" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: "#3b82f6", stopOpacity: 1 }} />
-                    <stop offset="35%" style={{ stopColor: "#2563eb", stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: "#1d4ed8", stopOpacity: 0.8 }} />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <span className="text-[11px] font-semibold text-foreground px-3 py-1.5 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
+              {fmt(d.totalMonth)} this month
+            </span>
+          </div>
 
-              <div className="relative px-3 py-3" style={{
-                background: "linear-gradient(180deg, rgba(224, 242, 254, 0.4) 0%, rgba(224, 242, 254, 0.2) 50%, transparent 100%), repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(59, 130, 246, 0.03) 24px, rgba(59, 130, 246, 0.03) 25px)"
-              }}>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={d.monthlyData} barSize={16} margin={{ top:16, right:16, left:-8, bottom:20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize:10, fill:"hsl(220,10%,55%)", fontWeight: 500 }} axisLine={false} tickLine={false} />
-                    <YAxis
-                      tick={{ fontSize:10, fill:"hsl(220,10%,55%)", fontWeight: 500 }}
-                      tickFormatter={v => v >= 1000 ? `₱${(v/1000).toFixed(0)}k` : `₱${v}`}
-                      axisLine={false} tickLine={false} width={50}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill:"rgba(59,130,246,0.08)" }} />
-                    <Bar dataKey="amount" fill="url(#barGradientMonthly)" radius={[10,10,0,0]} isAnimationActive={true} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 px-4 pb-4">
-                {d.monthlyData.slice(0, 6).map((month: any, i: number) => {
-                  const prevMonth = i > 0 ? d.monthlyData[i - 1].amount : 0;
-                  const growth = prevMonth > 0 ? Math.round(((month.amount - prevMonth) / prevMonth) * 100) : 0;
-                  return (
-                    <div key={i} className="p-2.5 rounded-lg border border-border bg-gradient-to-br from-blue-50/50 to-transparent hover:shadow-sm transition-all">
-                      <p className="text-[10px] font-bold text-muted-foreground">{month.month}</p>
-                      <p className="font-mono text-[12px] font-bold text-foreground mt-1">{fmt(month.amount)}</p>
-                      <p className={`text-[9px] font-semibold mt-1 ${growth >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {growth > 0 ? "📈" : growth < 0 ? "📉" : "➡️"} {growth > 0 ? "+" : ""}{growth}%
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="grid grid-cols-2 gap-3 px-5 pt-4 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-sm" style={{ background: "#34d399" }} />
+              <span className="text-[11px] font-medium text-muted-foreground">Past months</span>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-sm" style={{ background: "#0f6e56" }} />
+              <span className="text-[11px] font-medium text-muted-foreground">Current month</span>
+            </div>
+          </div>
+
+          <div className="relative">
+            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+              <defs>
+                <linearGradient id="barGradientMonthlyPast" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style={{ stopColor: "#34d399", stopOpacity: 1 }} />
+                  <stop offset="50%" style={{ stopColor: "#1f9e74", stopOpacity: 1 }} />
+                  <stop offset="100%" style={{ stopColor: "#10b981", stopOpacity: 0.8 }} />
+                </linearGradient>
+                <linearGradient id="barGradientMonthlyCurrent" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style={{ stopColor: "#0f6e56", stopOpacity: 1 }} />
+                  <stop offset="50%" style={{ stopColor: "#065f46", stopOpacity: 1 }} />
+                  <stop offset="100%" style={{ stopColor: "#0d4a3d", stopOpacity: 0.9 }} />
+                </linearGradient>
+              </defs>
+            </svg>
+
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: "url('data:image/svg+xml,%3Csvg width=%2720%27 height=%2720%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%271%27 fill=%27%23d1fae5%27 opacity=%270.3%27/%3E%3C/svg%3E')",
+              backgroundSize: "20px 20px"
+            }} />
+
+            <div className="relative px-4 py-3" style={{ background: "rgba(240, 253, 250, 0.3)" }}>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={d.monthlyData} barSize={16} margin={{ top:16, right:16, left:-8, bottom:20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize:10, fill:"hsl(220,10%,55%)", fontWeight: 500 }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    tick={{ fontSize:10, fill:"hsl(220,10%,55%)", fontWeight: 500 }}
+                    tickFormatter={v => v >= 1000 ? `₱${(v/1000).toFixed(0)}k` : `₱${v}`}
+                    axisLine={false} tickLine={false} width={50}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill:"rgba(16,185,129,0.08)" }} />
+                  <Bar dataKey="amount" radius={[10,10,0,0]} isAnimationActive={true}>
+                    {d.monthlyData.map((entry: any, i: number) => (
+                      <Cell
+                        key={i}
+                        fill={i === today.getMonth() ? "url(#barGradientMonthlyCurrent)" : "url(#barGradientMonthlyPast)"}
+                        opacity={1}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 px-4 pb-4 border-t">
+            {[
+              { label: "Best Month", value: fmt(Math.max(...d.monthlyData.map((c: any) => c.amount))) },
+              { label: "Avg/Month",  value: fmt(Math.round(d.monthlyData.filter((c: any) => c.amount > 0).reduce((s: number, c: any) => s + c.amount, 0) / Math.max(1, d.monthlyData.filter((c: any) => c.amount > 0).length))) },
+              { label: "This Month", value: fmt(d.totalMonth) }
+            ].map((stat, i) => (
+              <div key={i} className="flex flex-col items-center pt-3 px-2 gap-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
+                <p className="font-mono text-[12px] font-bold text-foreground">{stat.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>

@@ -267,16 +267,19 @@ const CashierSOA = () => {
     },
   });
 
-  // Filtered vendor list
+  // Filtered vendor list — respects both section dropdown AND search text
   const filtered = useMemo(() => {
-    if (!search.trim()) return allVendors;
+    const bySection = bulkSection === "All"
+      ? allVendors
+      : allVendors.filter((v: any) => v.section === bulkSection);
+    if (!search.trim()) return bySection;
     const q = search.toLowerCase();
-    return allVendors.filter((v: any) =>
+    return bySection.filter((v: any) =>
       v.displayName.toLowerCase().includes(q) ||
       v.stallNumber.toLowerCase().includes(q) ||
       v.section.toLowerCase().includes(q)
     );
-  }, [allVendors, search]);
+  }, [allVendors, search, bulkSection]);
 
   // Load SOA for selected vendor (including per-month fee schedules)
   const loadSOA = async (vendor: any) => {

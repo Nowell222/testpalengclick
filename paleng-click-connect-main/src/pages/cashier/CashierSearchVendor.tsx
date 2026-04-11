@@ -101,18 +101,24 @@ const CashierSearchVendor = () => {
       {!isLoading && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Vendors", value: vendors.length, icon: Users, accent: "card-accent-blue", iconBg: "bg-blue-50", iconColor: "text-blue-600", valueColor: "text-blue-700" },
-            { label: "Paid This Month", value: paidCount, icon: CheckCircle2, accent: "card-accent-green", iconBg: "bg-emerald-50", iconColor: "text-emerald-600", valueColor: "text-emerald-700" },
-            { label: "Unpaid / Partial", value: unpaidCount, icon: AlertCircle, accent: unpaidCount > 0 ? "card-accent-amber" : "card-accent-green", iconBg: unpaidCount > 0 ? "bg-amber-50" : "bg-emerald-50", iconColor: unpaidCount > 0 ? "text-amber-600" : "text-emerald-600", valueColor: unpaidCount > 0 ? "text-amber-700" : "text-emerald-700" },
+            { label: "Total Vendors",   value: vendors.length, icon: Users,        iconBg: "bg-blue-100",    iconColor: "#0ea5e9",  glow: "#0ea5e9",  gradient: "from-blue-50 to-blue-50/40"    },
+            { label: "Paid This Month", value: paidCount,      icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981",  glow: "#10b981",  gradient: "from-emerald-50 to-emerald-50/40" },
+            { label: "Unpaid / Partial",value: unpaidCount,    icon: AlertCircle,  iconBg: unpaidCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: unpaidCount > 0 ? "#f59e0b" : "#10b981", glow: unpaidCount > 0 ? "#f59e0b" : "#10b981", gradient: unpaidCount > 0 ? "from-amber-50 to-amber-50/40" : "from-emerald-50 to-emerald-50/40" },
           ].map(c => (
-            <div key={c.label} className={`rounded-2xl border bg-card p-4 shadow-civic ${c.accent}`}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="section-label">{c.label}</p>
-                <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.iconBg}`}>
-                  <c.icon className={`h-4 w-4 ${c.iconColor}`} />
+            <div key={c.label}
+                 className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`}
+                 style={{ minHeight: 100 }}>
+              <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity`}
+                   style={{ background: c.glow }} />
+              <div className="flex items-center justify-between z-10">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
+                <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
+                  <c.icon className="h-4.5 w-4.5" style={{ color: c.iconColor }} />
                 </div>
               </div>
-              <p className={`font-mono text-2xl font-bold ${c.valueColor}`}>{c.value}</p>
+              <div className="z-10 mt-2">
+                <p className="font-mono text-[22px] font-bold text-foreground">{c.value}</p>
+              </div>
             </div>
           ))}
         </div>

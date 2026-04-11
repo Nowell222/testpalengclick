@@ -549,7 +549,7 @@ const CashierAcceptPayment = () => {
   const { user }    = useAuth();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const [tab, setTab]  = useState<"online"|"walkin"|"manual"|"submissions">("online");
+  const [tab, setTab]  = useState<"walkin"|"submissions">("submissions");
 
   // Cashier profile
   const { data: cashierProfile } = useQuery({
@@ -891,10 +891,8 @@ Please contact the cashier or try paying again through another method.`,
       {/* Tabs */}
       <div className="flex rounded-xl bg-secondary p-1 gap-0.5">
         {[
-          { id:"submissions", label:"Receipts",       badge: submissions.length },
-          { id:"online",      label:"Online Pending",  badge: pending.length },
-          { id:"walkin",      label:"Walk-in / Cash"  },
-          { id:"manual",      label:"Quick Manual"    },
+          { id:"submissions", label:"Receipts",      badge: submissions.length },
+          { id:"walkin",      label:"Walk-in / Cash" },
         ].map(t => (
           <button key={t.id} onClick={()=>setTab(t.id as any)}
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-medium transition-all ${tab===t.id?"bg-card text-foreground shadow-sm":"text-muted-foreground hover:text-foreground"}`}>
@@ -1036,53 +1034,87 @@ Please contact the cashier or try paying again through another method.`,
             {subsLoading ? (
               <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>
             ) : submissions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border bg-card py-16 gap-2 text-muted-foreground">
-                <CheckCircle2 className="h-8 w-8 opacity-20"/>
-                <p className="font-medium">No pending receipt submissions</p>
-                <p className="text-xs">Vendors' receipt uploads will appear here</p>
+              <div className="flex flex-col items-center justify-center rounded-2xl border bg-card py-16 gap-3 text-muted-foreground">
+                <div className="h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center">
+                  <CheckCircle2 className="h-7 w-7 text-emerald-400"/>
+                </div>
+                <div className="text-center">
+                  <p className="font-semibold text-foreground">All clear!</p>
+                  <p className="text-xs mt-0.5">No pending receipt submissions</p>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
                 {submissions.map((s: any) => (
-                  <div key={s.id} className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+                  <div key={s.id} className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                    {/* Card header strip */}
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-b" style={{ background: "linear-gradient(135deg, rgba(15,110,86,0.06) 0%, transparent 100%)" }}>
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Pending Verification</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {new Date(s.created_at).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}
+                      </span>
+                    </div>
+
                     <div className="flex items-start gap-4 p-4">
                       {/* Receipt thumbnail */}
-                      <img
-                        src={s.receipt_url}
-                        alt="Receipt"
-                        className="h-16 w-16 rounded-xl object-cover border bg-secondary/30 shrink-0 cursor-pointer"
-                        onClick={() => window.open(s.receipt_url, "_blank")}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-foreground text-sm">{s.vendor_name}</p>
-                            <p className="text-xs text-muted-foreground">Stall {s.stall} · {s.section}</p>
-                          </div>
-                          <span className="font-mono font-bold text-foreground text-sm shrink-0">{fmt(Number(s.amount))}</span>
+                      <div className="relative shrink-0 cursor-pointer group" onClick={() => window.open(s.receipt_url, "_blank")}>
+                        <img
+                          src={s.receipt_url}
+                          alt="Receipt"
+                          className="h-16 w-16 rounded-xl object-cover border bg-secondary/30"
+                        />
+                        <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <Eye className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="mt-1.5 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          <span>{MONTHS_FULL[(s.period_month||1)-1]} {s.period_year}</span>
-                          {s.ocr_reference && (
-                            <span className="font-mono bg-secondary rounded px-1.5 py-0.5">Ref: {s.ocr_reference}</span>
-                          )}
-                          <span className="flex items-center gap-0.5">
-                            <Clock className="h-3 w-3" />
-                            {new Date(s.created_at).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Vendor info */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <p className="font-bold text-foreground text-sm">{s.vendor_name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Stall <span className="font-mono font-semibold text-foreground">{s.stall}</span> · {s.section}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-mono font-bold text-foreground text-base">{fmt(Number(s.amount))}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{MONTHS_FULL[(s.period_month||1)-1]} {s.period_year}</p>
+                          </div>
+                        </div>
+
+                        {/* Tags row */}
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700">
+                            <Building2 className="h-3 w-3" /> InstaPay
                           </span>
+                          {s.payment_type === "staggered" && (
+                            <span className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-amber-50 text-amber-700">Partial</span>
+                          )}
+                          {s.ocr_reference && (
+                            <span className="font-mono text-[10px] px-2 py-1 rounded-lg bg-secondary text-muted-foreground">
+                              Ref: {s.ocr_reference}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="border-t flex gap-0">
+
+                    {/* Action buttons */}
+                    <div className="border-t grid grid-cols-2 gap-0">
                       <Button
-                        className="flex-1 gap-1.5 rounded-none rounded-bl-2xl text-xs h-9 bg-success hover:bg-success/90 text-white"
+                        className="gap-1.5 rounded-none rounded-bl-2xl text-xs h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                         disabled={acceptSubmission.isPending}
                         onClick={() => acceptSubmission.mutate(s)}>
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Accept
+                        {acceptSubmission.isPending
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Accept Payment
                       </Button>
-                      <div className="w-px bg-border" />
                       <Button variant="ghost"
-                        className="flex-1 gap-1.5 rounded-none rounded-br-2xl text-xs h-9 text-muted-foreground hover:text-foreground"
+                        className="gap-1.5 rounded-none rounded-br-2xl text-xs h-10 text-muted-foreground hover:text-foreground border-l font-semibold"
                         onClick={() => setViewSubmission(s)}>
                         <Eye className="h-3.5 w-3.5" /> View Receipt
                       </Button>
@@ -1095,216 +1127,8 @@ Please contact the cashier or try paying again through another method.`,
         )
       )}
 
-      {/* ── ONLINE PAYMENTS ──────────────────────────────────────────────────── */}
-      {tab==="online" && (
-        onlineReceipt ? (
-          <ReceiptCard data={onlineReceipt} onNew={() => setOnlineReceipt(null)} />
-        ) : viewPayment ? (
-          // ── Payment detail preview before confirm/reject ──────────────────
-          <div className="max-w-sm mx-auto space-y-4">
-            <button onClick={() => setViewPayment(null)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-4 w-4" /> Back to list
-            </button>
-            <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
-              <div className="bg-foreground text-background text-center px-5 py-4 space-y-0.5">
-                <p className="text-[9px] tracking-[3px] uppercase opacity-50">Republic of the Philippines</p>
-                <p className="text-xs font-bold">Municipality of San Juan, Batangas</p>
-                <p className="text-lg font-bold tracking-widest mt-1">PAYMENT REQUEST</p>
-                <p className="text-[9px] opacity-40">Public Market Stall Rental — Pending Confirmation</p>
-              </div>
-              <div className="divide-y">
-                {[
-                  { label: "Reference No.",  value: viewPayment.reference_number || "—", mono: true },
-                  { label: "Date & Time",    value: new Date(viewPayment.created_at).toLocaleString("en-PH",{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}) },
-                  { label: "Vendor",         value: viewPayment.vendor_name },
-                  { label: "Stall",          value: `${viewPayment.stall} — ${viewPayment.section}` },
-                  { label: "Billing Period", value: viewPayment.period_month ? `${MONTHS_FULL[viewPayment.period_month-1]} ${viewPayment.period_year}` : "—" },
-                  { label: "Payment Type",   value: viewPayment.payment_type === "staggered" ? "Partial Payment" : "Full Payment" },
-                  { label: "Method",         value: METHOD_CONFIG[viewPayment.payment_method]?.label || viewPayment.payment_method },
-                  { label: "Status",         value: "Pending Confirmation" },
-                ].map(r => (
-                  <div key={r.label} className="flex items-center justify-between px-5 py-2.5">
-                    <span className="text-xs text-muted-foreground shrink-0">{r.label}</span>
-                    <span className={`text-xs font-semibold text-foreground text-right ml-3 ${r.mono ? "font-mono" : ""}`}>{r.value}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mx-4 my-3 rounded-xl border-2 border-primary/30 bg-primary/5 py-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Amount</p>
-                <p className="font-mono text-3xl font-bold text-foreground">{fmt(Number(viewPayment.amount))}</p>
-              </div>
-              {viewPayment.payment_method === "cash" && (
-                <div className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Vendor will bring this reference number to complete cash payment. Verify before confirming.
-                </div>
-              )}
-              <p className="text-center text-[9px] text-muted-foreground/50 border-t px-4 py-2">
-                PALENG-CLICK · Payment Request Verification
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Button className="flex-1 gap-2 rounded-xl bg-success hover:bg-success/90 text-white"
-                disabled={confirmPayment.isPending}
-                onClick={() => { confirmPayment.mutate(viewPayment); setViewPayment(null); }}>
-                <CheckCircle2 className="h-4 w-4" /> Confirm Payment
-              </Button>
-              <Button variant="outline" className="flex-1 gap-2 rounded-xl text-accent border-accent/30 hover:bg-accent/10"
-                disabled={rejectPayment.isPending}
-                onClick={() => { rejectPayment.mutate(viewPayment); setViewPayment(null); }}>
-                <X className="h-4 w-4" /> Reject
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                <strong className="text-foreground">{pending.length}</strong> pending payment{pending.length!==1?"s":""} awaiting confirmation
-              </p>
-              <button onClick={()=>refetchPending()} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-                <RefreshCw className="h-3 w-3"/>Refresh
-              </button>
-            </div>
-
-            {pendingLoading ? (
-              <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>
-            ) : pending.length===0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl border bg-card py-16 gap-2 text-muted-foreground">
-                <CheckCircle2 className="h-8 w-8 opacity-20"/>
-                <p className="font-medium">No pending payments</p>
-                <p className="text-xs">All online payments are confirmed</p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-secondary/50">
-                      {["Vendor","Stall","Period","Amount","Method","Time","Action"].map(h=>(
-                        <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {pending.map((p:any) => {
-                      const mc = METHOD_CONFIG[p.payment_method]||{icon:CreditCard,color:"bg-muted",label:p.payment_method};
-                      const MI = mc.icon;
-                      return (
-                        <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">{p.vendor_name}</td>
-                          <td className="px-4 py-3 font-mono text-foreground">{p.stall}</td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                            {p.period_month?`${MONTHS_FULL[p.period_month-1]} ${p.period_year}`:"—"}
-                          </td>
-                          <td className="px-4 py-3 font-mono font-bold text-foreground whitespace-nowrap">{fmt(Number(p.amount))}</td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1.5">
-                              <span className={`flex h-5 w-5 items-center justify-center rounded ${mc.color}`}><MI className="h-3 w-3 text-white"/></span>
-                              <span className="text-xs text-muted-foreground">{mc.label}</span>
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                            <span className="flex items-center gap-1"><Clock className="h-3 w-3"/>{new Date(p.created_at).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-1.5">
-                              <Button size="sm" variant="outline"
-                                className="h-7 text-xs rounded-lg gap-1"
-                                onClick={() => setViewPayment(p)}>
-                                <Eye className="h-3 w-3"/>View
-                              </Button>
-                              <Button size="sm"
-                                className="h-7 text-xs bg-success hover:bg-success/90 text-white rounded-lg gap-1"
-                                disabled={confirmPayment.isPending}
-                                onClick={() => confirmPayment.mutate(p)}>
-                                <CheckCircle2 className="h-3 w-3"/>Confirm
-                              </Button>
-                              <Button size="sm" variant="outline"
-                                className="h-7 text-xs text-accent border-accent/30 hover:bg-accent/10 rounded-lg gap-1"
-                                disabled={rejectPayment.isPending}
-                                onClick={() => rejectPayment.mutate(p)}>
-                                <X className="h-3 w-3"/>Reject
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )
-      )}
-
       {/* ── WALK-IN CASH ─────────────────────────────────────────────────────── */}
       {tab==="walkin" && <WalkInPayment cashierProfile={cashierProfile} />}
-
-      {/* ── QUICK MANUAL ─────────────────────────────────────────────────────── */}
-      {tab==="manual" && (
-        manualReceipt ? (
-          <ReceiptCard data={manualReceipt} onNew={resetManual} />
-        ) : (
-          <div className="max-w-lg space-y-4">
-            <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-3">
-              <h3 className="font-semibold text-foreground">Search Vendor</h3>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
-                  <Input placeholder="Name or stall number…" className="h-11 pl-10 rounded-xl"
-                    value={manualSearch} onChange={e=>setManualSearch(e.target.value)}
-                    onKeyDown={e=>e.key==="Enter"&&searchManual()}/>
-                </div>
-                <Button onClick={searchManual} disabled={manualSearching} className="rounded-xl">
-                  {manualSearching?<Loader2 className="h-4 w-4 animate-spin"/>:"Search"}
-                </Button>
-              </div>
-            </div>
-
-            {manualSearching&&!manualVendor&&<div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-primary"/></div>}
-
-            {manualVendor && (
-              <>
-                <div className="rounded-2xl border bg-card p-5 shadow-civic">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10"><User className="h-4 w-4 text-primary"/></div>
-                    <div>
-                      <p className="font-semibold text-foreground">{manualVendor.profile?.first_name} {manualVendor.profile?.last_name}</p>
-                      <p className="text-xs text-muted-foreground">Stall <span className="font-mono">{(manualVendor.stall as any)?.stall_number}</span> · {(manualVendor.stall as any)?.section}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-                    <div><p>Contact</p><p className="font-medium text-foreground">{manualVendor.profile?.contact_number||"—"}</p></div>
-                    <div><p>Default Rate</p><p className="font-mono font-medium text-foreground">{fmt((manualVendor.stall as any)?.monthly_rate||1450)}</p></div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-4">
-                  <h3 className="font-semibold text-foreground">Payment Details</h3>
-                  <div className="space-y-1.5">
-                    <Label>Amount (₱)</Label>
-                    <Input value={manualAmount} onChange={e=>setManualAmount(e.target.value)} className="h-11 rounded-xl font-mono text-lg" placeholder="0.00"/>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Method</Label>
-                    <select className="h-11 w-full rounded-xl border bg-background px-3 text-sm" value={manualMethod} onChange={e=>setManualMethod(e.target.value)}>
-                      <option value="cash">Cash</option>
-                      <option value="gcash">GCash</option>
-                      <option value="paymaya">Maya</option>
-                      <option value="instapay">InstaPay</option>
-                    </select>
-                  </div>
-                  <Button variant="hero" size="lg" className="w-full gap-2 rounded-xl"
-                    onClick={()=>recordManual.mutate()} disabled={recordManual.isPending||!manualAmount}>
-                    {recordManual.isPending?<><Loader2 className="h-5 w-5 animate-spin"/>Recording…</>:<><CreditCard className="h-5 w-5"/>Record Payment — {manualAmount?fmt(Number(manualAmount)):"₱0.00"}</>}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        )
-      )}
     </div>
   );
 };
