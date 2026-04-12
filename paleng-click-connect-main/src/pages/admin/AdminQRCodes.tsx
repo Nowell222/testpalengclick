@@ -17,7 +17,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  gcash:    { icon: Smartphone, color: "bg-blue-500",  label: "GCash"    },
+  gcash:    { icon: Smartphone, color: "bg-green-500",  label: "GCash"    },
   paymaya:  { icon: Smartphone, color: "bg-green-600", label: "Maya"     },
   instapay: { icon: Building2,  color: "bg-primary",   label: "InstaPay" },
   cash:     { icon: Banknote,   color: "bg-slate-500", label: "Cash"     },
@@ -192,7 +192,7 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
         {/* Header */}
         <div className="flex items-center justify-between bg-black/80 px-4 py-3">
           <div className="flex items-center gap-2 text-white">
-            <ScanLine className="h-4 w-4 text-primary" />
+            <ScanLine className="h-4 w-4 text-green-700" />
             <span className="text-sm font-semibold">Scan Vendor QR Code</span>
           </div>
           <div className="flex items-center gap-2">
@@ -224,7 +224,7 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
                 <div className="absolute bottom-0 left-0 h-8 w-8 border-b-2 border-l-2 border-primary rounded-bl-md" />
                 <div className="absolute bottom-0 right-0 h-8 w-8 border-b-2 border-r-2 border-primary rounded-br-md" />
                 {/* Scan line animation */}
-                <div className="absolute inset-x-2 top-0 h-0.5 bg-primary/80 animate-[scanline_2s_linear_infinite]"
+                <div className="absolute inset-x-2 top-0 h-0.5 bg-green-700/80 animate-[scanline_2s_linear_infinite]"
                   style={{ boxShadow: "0 0 8px hsl(var(--primary))" }} />
               </div>
             </div>
@@ -244,7 +244,7 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
           {/* Loading */}
           {!scanning && !error && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 animate-spin text-green-700" />
             </div>
           )}
         </div>
@@ -281,10 +281,10 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
 
       {/* Vendor header card */}
       <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
-        <div className="bg-primary/5 border-b px-6 py-4 flex items-start justify-between gap-4">
+        <div className="bg-green-700/5 border-b px-6 py-4 flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shrink-0">
-              <User className="h-6 w-6 text-primary" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-700/10 shrink-0">
+              <User className="h-6 w-6 text-green-700" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-foreground">
@@ -327,7 +327,7 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Total Paid",     value: fmt(data.totalPaidYear),      color: "text-success",  icon: TrendingUp,   bg: "bg-success/10" },
-          { label: "Months Settled", value: `${data.monthsPaid}/${data.currentMonth}`, color: data.monthsPaid === data.currentMonth ? "text-success" : "text-primary", icon: CheckCircle2, bg: data.monthsPaid === data.currentMonth ? "bg-success/10" : "bg-primary/10" },
+          { label: "Months Settled", value: `${data.monthsPaid}/${data.currentMonth}`, color: data.monthsPaid === data.currentMonth ? "text-success" : "text-green-700", icon: CheckCircle2, bg: data.monthsPaid === data.currentMonth ? "bg-success/10" : "bg-green-700/10" },
           { label: "This Month",     value: data.isCurrentMonthPaid ? "Paid ✓" : fmt(data.remainingThisMonth)+" due", color: data.isCurrentMonthPaid ? "text-success" : "text-accent", icon: data.isCurrentMonthPaid ? CheckCircle2 : AlertCircle, bg: data.isCurrentMonthPaid ? "bg-success/10" : "bg-accent/10" },
           { label: "Outstanding",    value: fmt(data.totalOutstanding),   color: data.totalOutstanding === 0 ? "text-success" : "text-accent", icon: AlertCircle, bg: data.totalOutstanding === 0 ? "bg-success/10" : "bg-accent/10" },
         ].map(c => (
@@ -345,8 +345,8 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
 
       {/* Payment status per month */}
       <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
-        <div className="border-b bg-secondary/50 px-5 py-3">
-          <h3 className="font-semibold text-foreground">Payment Status — {data.currentYear}</h3>
+        <div className="border-b bg-secondary/40 px-5 py-3">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm mr-3 shrink-0" /><h3 className="text-[13px] font-bold text-foreground">Payment Status — {data.currentYear}</h3>
         </div>
         <div className="grid grid-cols-3 gap-px bg-border sm:grid-cols-4 lg:grid-cols-6">
           {MONTHS.map((m, i) => {
@@ -361,14 +361,14 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
               <div key={m} className={`bg-card p-3 text-center ${isFuture ? "opacity-40" : ""}`}>
                 <p className="text-xs font-medium text-muted-foreground">{m.slice(0, 3)}</p>
                 <div className="mt-1.5 flex justify-center">
-                  {isAdvance ? <CheckCircle2 className="h-4 w-4 text-blue-500" /> :
+                  {isAdvance ? <CheckCircle2 className="h-4 w-4 text-green-600" /> :
                    isFully   ? <CheckCircle2 className="h-4 w-4 text-success" /> :
-                   isPartial ? <Clock className="h-4 w-4 text-primary" /> :
+                   isPartial ? <Clock className="h-4 w-4 text-green-700" /> :
                    isFuture  ? <div className="h-4 w-4 rounded-full border-2 border-muted" /> :
                                <AlertCircle className="h-4 w-4 text-accent" />}
                 </div>
                 <p className={`text-[10px] font-medium mt-1 ${
-                  isAdvance ? "text-blue-500" : isFully ? "text-success" : isPartial ? "text-primary" : isFuture ? "text-muted-foreground" : "text-accent"
+                  isAdvance ? "text-green-600" : isFully ? "text-success" : isPartial ? "text-green-700" : isFuture ? "text-muted-foreground" : "text-accent"
                 }`}>
                   {isAdvance ? "Advance" : isFully ? "Paid" : isPartial ? "Partial" : isFuture ? "—" : "Unpaid"}
                 </p>
@@ -381,14 +381,14 @@ const VendorDetail = ({ data, onClose }: { data: any; onClose: () => void }) => 
       {/* Recent transactions */}
       <div className="rounded-2xl border bg-card shadow-civic">
         <div className="border-b px-5 py-3.5">
-          <h3 className="font-semibold text-foreground">Recent Transactions</h3>
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm mr-3 shrink-0" /><h3 className="text-[13px] font-bold text-foreground">Recent Transactions</h3>
         </div>
         <div className="divide-y">
           {payments.map((p: any) => {
             const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, color: "bg-muted", label: p.payment_method };
             const MethodIcon = methodCfg.icon;
             return (
-              <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/30 transition-colors">
+              <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-emerald-50/60 transition-colors">
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                   p.status === "completed" ? "bg-success/10" :
                   p.status === "pending"   ? "bg-amber-100"  : "bg-accent/10"
@@ -515,17 +515,18 @@ const AdminQRCodes = () => {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">QR Code Scanner</h1>
-          <p className="text-sm text-muted-foreground">
-            Scan a vendor's QR code to view their stall and payment information
-          </p>
+      <div className="rounded-2xl overflow-hidden shadow-civic">
+        <div className="bg-cashier-hero px-6 py-5 flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">QR Code Scanner</h1>
+            <p className="text-sm text-white/60">Scan a vendor's QR code to view their stall and payment information</p>
+          </div>
+          <Button onClick={() => setShowScanner(true)}
+            className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border" size="lg">
+            <Camera className="h-4 w-4" />
+            Open Scanner
+          </Button>
         </div>
-        <Button onClick={() => setShowScanner(true)} className="gap-2 rounded-xl" size="lg">
-          <Camera className="h-4 w-4" />
-          Open Scanner
-        </Button>
       </div>
 
       {/* Scanner card */}
@@ -533,21 +534,21 @@ const AdminQRCodes = () => {
 
         {/* Scan options */}
         <div className="rounded-2xl border bg-card p-6 shadow-civic space-y-5">
-          <h3 className="font-semibold text-foreground">Scan or Enter QR Code</h3>
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm mr-3 shrink-0" /><h3 className="text-[13px] font-bold text-foreground">Scan or Enter QR Code</h3>
 
           {/* Camera scan button */}
           <button
             onClick={() => setShowScanner(true)}
-            className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 py-10 hover:bg-primary/8 hover:border-primary/50 transition-all group"
+            className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-primary/30 bg-green-700/5 py-10 hover:bg-green-700/8 hover:border-primary/50 transition-all group"
           >
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
-              <Camera className="h-8 w-8 text-primary" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-700/10 group-hover:bg-green-700/15 transition-colors">
+              <Camera className="h-8 w-8 text-green-700" />
             </div>
             <div className="text-center">
               <p className="font-semibold text-foreground">Tap to Open Camera</p>
               <p className="text-xs text-muted-foreground mt-0.5">Point at a vendor's QR code to scan</p>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+            <div className="flex items-center gap-1.5 text-xs text-green-700 font-medium">
               <ScanLine className="h-3.5 w-3.5" />
               Admin-only scanner
             </div>
@@ -586,7 +587,7 @@ const AdminQRCodes = () => {
 
         {/* How it works */}
         <div className="rounded-2xl border bg-card p-6 shadow-civic space-y-4">
-          <h3 className="font-semibold text-foreground">How to Use</h3>
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm mr-3 shrink-0" /><h3 className="text-[13px] font-bold text-foreground">How to Use</h3>
           <div className="space-y-3">
             {[
               { step: "1", title: "Open the scanner", desc: "Tap the camera button or the 'Open Scanner' button above.", icon: Camera },
@@ -594,7 +595,7 @@ const AdminQRCodes = () => {
               { step: "3", title: "View details",      desc: "Instantly see the vendor's stall info, payment status, and history.", icon: Store },
             ].map(s => (
               <div key={s.step} className="flex items-start gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-700 text-xs font-bold text-white">
                   {s.step}
                 </div>
                 <div>
@@ -616,7 +617,7 @@ const AdminQRCodes = () => {
       {/* All vendors list */}
       <div className="rounded-2xl border bg-card shadow-civic">
         <div className="flex items-center justify-between border-b px-5 py-3.5 flex-wrap gap-3">
-          <h3 className="font-semibold text-foreground">All Vendor QR Codes</h3>
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm mr-3 shrink-0" /><h3 className="text-[13px] font-bold text-foreground">All Vendor QR Codes</h3>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search vendor or stall…" className="h-9 pl-9 rounded-xl w-52"
@@ -625,7 +626,7 @@ const AdminQRCodes = () => {
         </div>
 
         {listLoading ? (
-          <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-green-700" /></div>
         ) : (
           <div className="divide-y">
             {filteredVendors.map((v: any) => (

@@ -109,6 +109,17 @@
     box-shadow: 0 4px 24px rgba(15,110,86,0.25);
   }
 
+  /* ── Admin table header ─────────────────────────────────────────────────── */
+  .admin-th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap bg-secondary/40;
+  }
+  .admin-td {
+    @apply px-4 py-3;
+  }
+  .admin-tr {
+    @apply hover:bg-green-50/60 transition-colors border-b last:border-0;
+  }
+
   /* ── Gradient backgrounds ───────────────────────────────────────────────── */
   .bg-cashier-hero {
     background: linear-gradient(135deg, #0d3320 0%, #0f6e56 55%, #10b981 100%);
@@ -209,4 +220,45 @@
   .grid-cols-2        { grid-template-columns: 1fr !important; }
   .font-mono.text-3xl { font-size: 1.3rem !important; }
   h1                  { font-size: 1.25rem !important; }
+}
+/* ── Admin page fade-in animation ───────────────────────────────────────── */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.space-y-6 > * {
+  animation: page-in 0.18s ease-out both;
+}
+.space-y-6 > *:nth-child(1) { animation-delay: 0.00s; }
+.space-y-6 > *:nth-child(2) { animation-delay: 0.04s; }
+.space-y-6 > *:nth-child(3) { animation-delay: 0.08s; }
+.space-y-6 > *:nth-child(4) { animation-delay: 0.12s; }
+.space-y-6 > *:nth-child(5) { animation-delay: 0.16s; }
+
+/* ── Green focus ring on all inputs and selects ─────────────────────────── */
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(158 65% 30% / 0.2);
+  border-color: hsl(158 65% 30% / 0.6);
+}
+
+/* ── Smooth table row transition ────────────────────────────────────────── */
+tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+/* ── Green scrollbar for sidebar ────────────────────────────────────────── */
+aside::-webkit-scrollbar {
+  width: 4px;
+}
+aside::-webkit-scrollbar-track {
+  background: transparent;
+}
+aside::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.25);
+  border-radius: 4px;
+}
+aside::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.45);
 }

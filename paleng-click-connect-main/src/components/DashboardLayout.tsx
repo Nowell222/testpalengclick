@@ -71,7 +71,7 @@ const CASHIER_ACTIVE= "#10b981";
 const CASHIER_SIDEBAR_BG = "#0d1f15";
 
 const ROLE_COLORS = {
-  admin:   { solid:"#1e3a5f", light:"#2563eb", pale:"#eff6ff", border:"#bfdbfe", text:"#1e40af", bg:"#f8fafc", muted:"#64748b" },
+  admin:   { solid:"#0d3320", light:"#0f6e56", pale:"#ecfdf5", border:"#a7f3d0", text:"#065f46", bg:"#f4faf7", muted:"#6b7280" },
   cashier: { solid:"#0d3320", light:"#0f6e56", pale:"#ecfdf5", border:"#a7f3d0", text:"#065f46", bg:"#f4faf7", muted:"#6b7280" },
   vendor:  { solid:"#0d2240", light:"#2563eb", pale:"#eff6ff", border:"#bfdbfe", text:"#1d4ed8", bg:"#f1f5f9", muted:"#64748b" },
 };
@@ -353,25 +353,27 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
-     ADMIN LAYOUT (unchanged)
+     ADMIN LAYOUT — green cashier-style dark sidebar
   ══════════════════════════════════════════════════════════════════════════ */
-  const NavList = ({ onItemClick }: { onItemClick?: () => void }) => (
-    <nav style={{ flex:1, overflowY:"auto", padding:"10px 8px" }}>
-      <div style={{ color:"#9ca3af", fontSize:8.5, letterSpacing:2.5, textTransform:"uppercase", padding:"2px 8px 10px" }}>Navigation</div>
+  const ADMIN_SIDEBAR_BG = "#0d1f15";
+  const ADMIN_GRAD = "linear-gradient(160deg,#0d3320 0%,#0f6e56 70%,#10b981 100%)";
+
+  const AdminNavList = ({ onItemClick }: { onItemClick?: () => void }) => (
+    <nav style={{ flex:1, overflowY:"auto", padding:"10px 10px", display:"flex", flexDirection:"column", gap:2 }}>
+      <div style={{ color:"rgba(255,255,255,0.25)", fontSize:8, letterSpacing:2.5, textTransform:"uppercase", padding:"12px 10px 5px" }}>Navigation</div>
       {navItems.map((item) => {
         const active = isActive(item.path);
         return (
           <Link key={item.path} to={item.path} onClick={onItemClick} style={{ textDecoration:"none" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 10px", borderRadius:9, marginBottom:1, background:active?rc.pale:"transparent", border:active?`1px solid ${rc.border}`:"1px solid transparent", cursor:"pointer", transition:"background 0.12s" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-                <div style={{ width:28, height:28, borderRadius:7, flexShrink:0, background:active?rc.pale:"#f5f5f5", border:active?`1px solid ${rc.border}`:"1px solid transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <item.icon size={13} color={active?rc.text:"#6b7280"} />
-                </div>
-                <span style={{ color:active?rc.text:"#374151", fontSize:12.5, fontWeight:active?700:400 }}>{item.label}</span>
-              </div>
-              {active
-                ? <div style={{ width:5, height:5, borderRadius:"50%", background:rc.light, flexShrink:0 }} />
-                : <ChevronRight size={12} color="#d1d5db" />}
+            <div
+              style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 10px", borderRadius:10, background:active?"rgba(16,185,129,0.18)":"transparent", border:active?"1px solid rgba(16,185,129,0.25)":"1px solid transparent", color:active?"#6ee7b7":"rgba(255,255,255,0.5)", fontSize:13, fontWeight:active?600:400, cursor:"pointer", transition:"all 0.12s", position:"relative" }}
+              onMouseEnter={e => !active && ((e.currentTarget as HTMLDivElement).style.background="rgba(255,255,255,0.06)")}
+              onMouseLeave={e => !active && ((e.currentTarget as HTMLDivElement).style.background="transparent")}
+            >
+              {active && <div style={{ position:"absolute", left:0, top:"20%", bottom:"20%", width:3, borderRadius:"0 3px 3px 0", background:"#10b981" }} />}
+              <item.icon size={15} color={active?"#10b981":"rgba(255,255,255,0.4)"} style={{ flexShrink:0 }} />
+              <span style={{ flex:1 }}>{item.label}</span>
+              {active && <div style={{ width:5, height:5, borderRadius:"50%", background:"#10b981" }} />}
             </div>
           </Link>
         );
@@ -379,57 +381,40 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
     </nav>
   );
 
-  const UserPill = ({ size=30 }: { size?: number }) => (
-    <div style={{ display:"flex", alignItems:"center", gap:10, background:rc.pale, border:`1px solid ${rc.border}`, borderRadius:10, padding:"9px 11px" }}>
-      <div style={{ width:size, height:size, borderRadius:"50%", flexShrink:0, background:`linear-gradient(135deg,${rc.solid},${rc.light})`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <span style={{ color:"#fff", fontWeight:700, fontSize:size*0.37 }}>{initials}</span>
+  const AdminLogoutFooter = () => (
+    <div style={{ padding:"10px 10px 16px", borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ background:"rgba(16,185,129,0.08)", border:"1px solid rgba(16,185,129,0.15)", borderRadius:10, padding:"8px 10px", marginBottom:10, display:"flex", alignItems:"center", gap:9 }}>
+        <div style={{ width:28, height:28, borderRadius:8, background:ADMIN_GRAD, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <span style={{ color:"#fff", fontWeight:800, fontSize:10 }}>{initials}</span>
+        </div>
+        <div style={{ minWidth:0 }}>
+          <div style={{ color:"#d1fae5", fontWeight:600, fontSize:12, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{displayName}</div>
+          <div style={{ color:"rgba(110,231,183,0.5)", fontSize:8.5, letterSpacing:1.5, textTransform:"uppercase" }}>Admin</div>
+        </div>
       </div>
-      <div style={{ minWidth:0 }}>
-        <div style={{ color:"#111827", fontWeight:600, fontSize:12 }}>{displayName}</div>
-        <div style={{ color:rc.text, fontSize:8.5, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>{roleLabels[role]}</div>
-      </div>
-    </div>
-  );
-
-  const LogoutFooter = () => (
-    <div style={{ padding:"10px 10px 20px", borderTop:"1px solid #f0f2f5" }}>
-      <button onClick={handleLogout} style={{ width:"100%", display:"flex", alignItems:"center", gap:8, background:"#fff5f5", border:"1px solid #fecaca", borderRadius:10, padding:"10px 14px", cursor:"pointer", color:"#dc2626", fontSize:13, fontFamily }}>
-        <LogOut size={14} /> Logout
+      <button onClick={handleLogout} style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:9, color:"rgba(255,100,100,0.65)", fontSize:12, fontWeight:600, background:"none", border:"none", cursor:"pointer", fontFamily, transition:"all 0.12s" }}
+        onMouseEnter={e => (e.currentTarget.style.background="rgba(239,68,68,0.1)", e.currentTarget.style.color="#fca5a5")}
+        onMouseLeave={e => (e.currentTarget.style.background="transparent", e.currentTarget.style.color="rgba(255,100,100,0.65)")}>
+        <LogOut size={13} /> Sign Out
       </button>
-      <div style={{ color:"#d1d5db", fontSize:9, textAlign:"center", marginTop:10 }}>© 2026 Municipality of San Juan, Batangas</div>
+      <div style={{ color:"rgba(255,255,255,0.15)", fontSize:8.5, textAlign:"center", paddingTop:6 }}>Municipality of San Juan, Batangas</div>
     </div>
   );
 
-  const Drawer = () => (
+  const AdminDrawer = () => (
     <>
-      <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, zIndex:49, background:"rgba(0,0,0,0.3)", backdropFilter:"blur(3px)" }} />
-      <div style={{ position:"fixed", top:0, right:0, bottom:0, zIndex:50, width:288, background:"#fff", borderLeft:`1px solid ${rc.border}`, boxShadow:"-6px 0 24px rgba(0,0,0,0.08)", display:"flex", flexDirection:"column" }}>
-        <div style={{ height:4, background:`linear-gradient(90deg,${rc.solid},${rc.light})` }} />
-        <div style={{ padding:"14px 16px 12px", borderBottom:"1px solid #f0f2f5", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, zIndex:49, background:"rgba(0,0,0,0.55)", backdropFilter:"blur(4px)" }} />
+      <div style={{ position:"fixed", top:0, right:0, bottom:0, zIndex:50, width:280, background:ADMIN_SIDEBAR_BG, borderLeft:"1px solid rgba(16,185,129,0.12)", boxShadow:"-6px 0 32px rgba(0,0,0,0.5)", display:"flex", flexDirection:"column" }}>
+        <div style={{ height:4, background:ADMIN_GRAD, flexShrink:0 }} />
+        <div style={{ padding:"14px 14px 12px", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:9 }}>
-            <div style={{ width:28, height:28, borderRadius:7, overflow:"hidden", border:`1px solid ${rc.border}` }}><img src="/favicon.png" alt="PC" style={{ width:"100%", height:"100%", objectFit:"contain" }} /></div>
-            <div><div style={{ color:"#111827", fontWeight:700, fontSize:13 }}>PALENG-CLICK</div><div style={{ color:"#9ca3af", fontSize:8, letterSpacing:2, textTransform:"uppercase" }}>San Juan, Batangas</div></div>
+            <div style={{ width:32, height:32, borderRadius:9, background:ADMIN_GRAD, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:12, color:"#fff", flexShrink:0 }}>PC</div>
+            <div><div style={{ color:"#fff", fontWeight:800, fontSize:13 }}>PALENG-CLICK</div><div style={{ color:"rgba(255,255,255,0.3)", fontSize:8, letterSpacing:2, textTransform:"uppercase" }}>Admin Portal</div></div>
           </div>
-          <button onClick={() => setOpen(false)} style={{ background:rc.pale, border:`1px solid ${rc.border}`, borderRadius:7, padding:"5px 7px", cursor:"pointer", display:"flex", color:rc.text }}><X size={15} /></button>
+          <button onClick={() => setOpen(false)} style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, padding:"5px 7px", cursor:"pointer", display:"flex", color:"rgba(255,255,255,0.6)" }}><X size={15} /></button>
         </div>
-        <div style={{ padding:"10px 14px", borderBottom:"1px solid #f0f2f5" }}><UserPill size={34} /></div>
-        <div style={{ flex:1, overflowY:"auto", padding:"0 8px 8px" }}>
-          {navItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Link key={item.path} to={item.path} onClick={() => setOpen(false)} style={{ textDecoration:"none" }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 11px", borderRadius:10, marginBottom:2, background:active?rc.pale:"transparent", border:active?`1px solid ${rc.border}`:"1px solid transparent" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={{ width:30, height:30, borderRadius:8, flexShrink:0, background:active?rc.pale:"#f5f5f4", display:"flex", alignItems:"center", justifyContent:"center" }}><item.icon size={14} color={active?rc.text:"#6b7280"} /></div>
-                    <span style={{ color:active?rc.text:"#374151", fontSize:13, fontWeight:active?700:400 }}>{item.label}</span>
-                  </div>
-                  <ChevronRight size={12} color={active?rc.text:"#d1d5db"} />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-        <LogoutFooter />
+        <AdminNavList onItemClick={() => setOpen(false)} />
+        <AdminLogoutFooter />
       </div>
     </>
   );
@@ -437,43 +422,82 @@ const DashboardLayout = ({ role }: DashboardLayoutProps) => {
   return (
     <div style={{ minHeight:"100vh", background:rc.bg, fontFamily }}>
       <style>{`@media(min-width:1024px){.ac-mobile-only{display:none!important}}@media(max-width:1023px){.ac-desktop-only{display:none!important}}`}</style>
-      {open && <Drawer />}
+      {open && <AdminDrawer />}
+
+      {/* Desktop layout */}
       <div className="ac-desktop-only" style={{ display:"flex", minHeight:"100vh" }}>
-        <aside style={{ width:252, flexShrink:0, background:"#fff", borderRight:"1px solid #e8ecf0", display:"flex", flexDirection:"column", position:"sticky", top:0, height:"100vh" }}>
-          <div style={{ height:4, background:`linear-gradient(90deg,${rc.solid},${rc.light})`, flexShrink:0 }} />
-          <div style={{ padding:"16px 16px 13px", borderBottom:"1px solid #f0f2f5", flexShrink:0 }}>
-            <Link to="/" style={{ display:"flex", alignItems:"center", gap:9, textDecoration:"none", marginBottom:13 }}>
-              <div style={{ width:32, height:32, borderRadius:8, overflow:"hidden", border:"1px solid #e8ecf0", flexShrink:0 }}><img src="/favicon.png" alt="PC" style={{ width:"100%", height:"100%", objectFit:"contain" }} /></div>
-              <div><div style={{ color:"#111827", fontWeight:700, fontSize:13, letterSpacing:0.3 }}>PALENG-CLICK</div><div style={{ color:"#9ca3af", fontSize:8, letterSpacing:2, textTransform:"uppercase" }}>San Juan, Batangas</div></div>
+        <aside style={{ width:240, flexShrink:0, background:ADMIN_SIDEBAR_BG, display:"flex", flexDirection:"column", position:"sticky", top:0, height:"100vh" }}>
+          <div style={{ height:4, background:ADMIN_GRAD, flexShrink:0 }} />
+          <div style={{ padding:"14px 14px 12px", borderBottom:"1px solid rgba(255,255,255,0.06)", flexShrink:0 }}>
+            <Link to="/" style={{ display:"flex", alignItems:"center", gap:9, textDecoration:"none" }}>
+              <div style={{ width:32, height:32, borderRadius:9, background:ADMIN_GRAD, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:12, color:"#fff", flexShrink:0 }}>PC</div>
+              <div>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:13, letterSpacing:0.3 }}>PALENG-CLICK</div>
+                <div style={{ color:"rgba(255,255,255,0.3)", fontSize:8, letterSpacing:2, textTransform:"uppercase" }}>Admin Portal</div>
+              </div>
             </Link>
-            <UserPill />
           </div>
-          <NavList />
-          <LogoutFooter />
+          <AdminNavList />
+          <AdminLogoutFooter />
         </aside>
+
         <div style={{ display:"flex", flex:1, flexDirection:"column", minWidth:0 }}>
-          <header style={{ position:"sticky", top:0, zIndex:30, display:"flex", alignItems:"center", height:52, padding:"0 24px", background:"rgba(255,255,255,0.96)", borderBottom:"1px solid #e8ecf0", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", backdropFilter:"blur(8px)", flexShrink:0 }}>
+          <header style={{ position:"sticky", top:0, zIndex:30, display:"flex", alignItems:"center", height:56, padding:"0 24px", background:"rgba(255,255,255,0.96)", borderBottom:"1px solid #e8ecf0", boxShadow:"0 1px 8px rgba(15,110,86,0.06)", backdropFilter:"blur(8px)", flexShrink:0 }}>
             <div style={{ flex:1 }} />
-            <span style={{ background:rc.pale, border:`1px solid ${rc.border}`, color:rc.text, borderRadius:20, padding:"3px 14px", fontSize:11, fontWeight:600, letterSpacing:0.5, textTransform:"capitalize" }}>{role}</span>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ background:rc.pale, border:`1px solid ${rc.border}`, color:rc.text, borderRadius:20, padding:"3px 14px", fontSize:11, fontWeight:700, letterSpacing:0.5, textTransform:"uppercase" }}>
+                Admin
+              </span>
+            </div>
           </header>
-          <main style={{ flex:1, overflowY:"auto", padding:"28px", background:rc.bg }}>
-            <div style={{ maxWidth:1100, margin:"0 auto" }}><Outlet /></div>
+          <main style={{ flex:1, overflowY:"auto", padding:"24px", background:rc.bg }}>
+            <div style={{ maxWidth:1100, margin:"0 auto" }}>
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>
-      <header className="ac-mobile-only" style={{ position:"sticky", top:0, zIndex:40, background:"#fff", borderBottom:"1px solid #e8ecf0", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", height:56 }}>
-        <Link to="/" style={{ display:"flex", alignItems:"center", gap:9, textDecoration:"none" }}>
-          <div style={{ width:30, height:30, borderRadius:7, overflow:"hidden", border:"1px solid #e8ecf0", flexShrink:0 }}><img src="/favicon.png" alt="PC" style={{ width:"100%", height:"100%", objectFit:"contain" }} /></div>
-          <div><div style={{ color:"#111827", fontWeight:700, fontSize:13, letterSpacing:0.4 }}>PALENG-CLICK</div><div style={{ color:rc.muted, fontSize:8, letterSpacing:2.5, textTransform:"uppercase" }}>{role==="admin"?"Admin":"Cashier"}</div></div>
+
+      {/* Mobile header */}
+      <header className="ac-mobile-only" style={{ position:"sticky", top:0, zIndex:40, background:"#fff", borderBottom:"1px solid #e8ecf0", boxShadow:"0 2px 8px rgba(15,110,86,0.07)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", height:56 }}>
+        <Link to="/" style={{ display:"flex", alignItems:"center", gap:8, textDecoration:"none" }}>
+          <div style={{ width:30, height:30, borderRadius:8, background:ADMIN_GRAD, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:11, color:"#fff" }}>PC</div>
+          <div>
+            <div style={{ color:"#111827", fontWeight:700, fontSize:13, letterSpacing:0.3 }}>PALENG-CLICK</div>
+            <div style={{ color:rc.muted, fontSize:8, letterSpacing:2.5, textTransform:"uppercase" }}>Admin</div>
+          </div>
         </Link>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ textAlign:"right" }}><div style={{ color:"#111827", fontSize:12, fontWeight:600 }}>{firstName}</div><div style={{ color:rc.muted, fontSize:8, letterSpacing:1.5, textTransform:"uppercase" }}>{role}</div></div>
-          <button onClick={() => setOpen(true)} style={{ background:rc.pale, border:`1px solid ${rc.border}`, borderRadius:8, padding:"7px 9px", cursor:"pointer", display:"flex", color:rc.text }}><Menu size={17} /></button>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ color:"#111827", fontSize:12, fontWeight:600 }}>{firstName}</div>
+            <div style={{ color:rc.muted, fontSize:8, letterSpacing:1.5, textTransform:"uppercase" }}>Admin</div>
+          </div>
+          <button onClick={() => setOpen(true)} style={{ background:rc.pale, border:`1px solid ${rc.border}`, borderRadius:9, padding:"7px 9px", cursor:"pointer", display:"flex", color:rc.text }}>
+            <Menu size={17} />
+          </button>
         </div>
       </header>
+
       <div className="ac-mobile-only" style={{ background:rc.bg }}>
-        <div style={{ padding:"16px" }}><Outlet /></div>
+        <div style={{ padding:"16px", paddingBottom:80 }}><Outlet /></div>
       </div>
+
+      {/* Admin Mobile Bottom Nav */}
+      <nav className="ac-mobile-only" style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:40, background:"rgba(255,255,255,0.97)", borderTop:"1px solid #e8ecf0", boxShadow:"0 -4px 16px rgba(15,110,86,0.08)", backdropFilter:"blur(12px)", display:"flex", paddingBottom:"env(safe-area-inset-bottom, 0px)" }}>
+        {adminBottomNav.map((item) => {
+          const active = isActive(item.path);
+          return (
+            <Link key={item.path} to={item.path} style={{ flex:1, textDecoration:"none" }}>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"10px 4px 8px", gap:3 }}>
+                <div style={{ width:32, height:32, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", background:active?"linear-gradient(135deg,#0d3320,#0f6e56)":"transparent", transition:"all 0.15s" }}>
+                  <item.icon size={16} color={active?"#fff":"#9ca3af"} />
+                </div>
+                <span style={{ fontSize:9.5, fontWeight:active?700:500, color:active?"#0f6e56":"#9ca3af", letterSpacing:0.3 }}>{item.label}</span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 };

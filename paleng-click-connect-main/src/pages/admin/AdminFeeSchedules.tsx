@@ -107,7 +107,7 @@ const VendorFeeEditor = ({ vendor, year, onClose }: { vendor: any; year: number;
         <div className="flex items-start justify-between border-b bg-secondary/40 px-6 py-4 rounded-t-2xl">
           <div>
             <div className="flex items-center gap-2">
-              <Store className="h-5 w-5 text-primary" />
+              <Store className="h-5 w-5 text-green-700" />
               <h2 className="font-bold text-foreground">{vendor.vendor_name}</h2>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -123,7 +123,7 @@ const VendorFeeEditor = ({ vendor, year, onClose }: { vendor: any; year: number;
 
           {/* Quick set all */}
           <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 p-3">
-            <DollarSign className="h-4 w-4 text-primary shrink-0" />
+            <DollarSign className="h-4 w-4 text-green-700 shrink-0" />
             <p className="text-sm text-muted-foreground flex-1">Set same rate for all months:</p>
             <div className="flex gap-2">
               {[1450, 1500, 1600, 1800].map(v => (
@@ -144,7 +144,7 @@ const VendorFeeEditor = ({ vendor, year, onClose }: { vendor: any; year: number;
 
           {/* Month grid */}
           {isLoading ? (
-            <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-6"><Loader2 className="h-6 w-6 animate-spin text-green-700" /></div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {MONTHS.map((month, i) => {
@@ -155,11 +155,11 @@ const VendorFeeEditor = ({ vendor, year, onClose }: { vendor: any; year: number;
 
                 return (
                   <div key={m}
-                    className={`rounded-xl border p-3 space-y-2 ${isCurrent ? "border-primary/40 bg-primary/5" : isPast ? "bg-secondary/30" : "bg-card"}`}>
+                    className={`rounded-xl border p-3 space-y-2 ${isCurrent ? "border-primary/40 bg-green-700/5" : isPast ? "bg-secondary/30" : "bg-card"}`}>
                     <div className="flex items-center justify-between">
-                      <p className={`text-xs font-semibold ${isCurrent ? "text-primary" : "text-foreground"}`}>
+                      <p className={`text-xs font-semibold ${isCurrent ? "text-green-700" : "text-foreground"}`}>
                         {month}
-                        {isCurrent && <span className="ml-1 text-[10px] bg-primary/10 text-primary rounded-full px-1.5">Current</span>}
+                        {isCurrent && <span className="ml-1 text-[10px] bg-green-700/10 text-green-700 rounded-full px-1.5">Current</span>}
                       </p>
                       {hasSchedule && <CheckCircle2 className="h-3 w-3 text-success" />}
                     </div>
@@ -299,21 +299,21 @@ const AdminFeeSchedules = () => {
       {editVendor && <VendorFeeEditor vendor={editVendor} year={year} onClose={() => setEditVendor(null)} />}
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Fee Schedules</h1>
-          <p className="text-sm text-muted-foreground">
-            Set per-month stall fees per vendor. Changes update SOA for all roles in real time.
-          </p>
+      <div className="rounded-2xl overflow-hidden shadow-civic">
+        <div className="bg-cashier-hero px-6 py-5 flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Fee Schedules</h1>
+            <p className="text-sm text-white/60">Set per-month stall fees per vendor — updates SOA in real time</p>
+          </div>
+          <Button variant="outline" className="gap-2 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
         </div>
-        <Button variant="outline" className="gap-2 rounded-xl" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
       </div>
 
       {/* Info banner */}
-      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm flex items-start gap-2">
-        <AlertCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+      <div className="rounded-xl border border-primary/20 bg-green-700/5 px-4 py-3 text-sm flex items-start gap-2">
+        <AlertCircle className="h-4 w-4 text-green-700 mt-0.5 shrink-0" />
         <div className="text-muted-foreground">
           <strong className="text-foreground">How it works:</strong> Each vendor can have a different fee per month.
           If no schedule is set for a month, the stall's default monthly rate is used.
@@ -325,7 +325,7 @@ const AdminFeeSchedules = () => {
       {/* Bulk apply rate by section */}
       <div className='rounded-2xl border bg-card p-4 shadow-civic space-y-3'>
         <div className='flex items-center gap-2'>
-          <Zap className='h-4 w-4 text-primary' />
+          <Zap className='h-4 w-4 text-green-700' />
           <h3 className='font-semibold text-foreground text-sm'>Bulk Apply Rate by Section</h3>
         </div>
         <p className='text-xs text-muted-foreground'>Apply a single monthly rate to all vendors in a section for the selected year. Individual per-month edits can be done after.</p>
@@ -389,13 +389,13 @@ const AdminFeeSchedules = () => {
 
       {/* Vendor list */}
       {isLoading ? (
-        <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+        <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-green-700" /></div>
       ) : (
         <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-secondary/50">
+                <tr className="border-b bg-secondary/40">
                   {["Vendor","Stall","Section","Default Rate",...MONTHS.slice(0,6),"...","Action"].map(h => (
                     <th key={h} className="px-3 py-3 text-left font-medium text-muted-foreground whitespace-nowrap text-xs">{h}</th>
                   ))}
@@ -409,7 +409,7 @@ const AdminFeeSchedules = () => {
                   const hasAnySchedule  = vendorSchedules.length > 0;
 
                   return (
-                    <tr key={v.id} className="hover:bg-secondary/30 transition-colors">
+                    <tr key={v.id} className="hover:bg-green-50/50 transition-colors">
                       <td className="px-3 py-3">
                         <p className="font-semibold text-foreground">{v.vendor_name}</p>
                       </td>
@@ -423,7 +423,7 @@ const AdminFeeSchedules = () => {
                         const isCustom = !!sched && sched.amount !== defRate;
                         return (
                           <td key={m} className="px-3 py-3">
-                            <span className={`font-mono text-xs ${isCustom ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                            <span className={`font-mono text-xs ${isCustom ? "text-green-700 font-bold" : "text-muted-foreground"}`}>
                               ₱{amt.toLocaleString()}
                             </span>
                           </td>
@@ -431,7 +431,7 @@ const AdminFeeSchedules = () => {
                       })}
                       <td className="px-3 py-3">
                         {hasAnySchedule ? (
-                          <span className="text-xs text-primary font-medium">Custom</span>
+                          <span className="text-xs text-green-700 font-medium">Custom</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">Default</span>
                         )}

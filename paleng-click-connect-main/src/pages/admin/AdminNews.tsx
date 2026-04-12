@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 const MSG_TYPE_CONFIG = {
-  message:      { label: "Message",      icon: MessageSquare, color: "bg-primary/10 text-primary"   },
+  message:      { label: "Message",      icon: MessageSquare, color: "bg-green-700/10 text-green-700"   },
   penalty:      { label: "Penalty",      icon: AlertTriangle, color: "bg-accent/10 text-accent"     },
   reminder:     { label: "Reminder",     icon: Bell,          color: "bg-amber-100 text-amber-700"  },
   announcement: { label: "Announcement", icon: Megaphone,     color: "bg-secondary text-foreground" },
@@ -559,34 +559,40 @@ Thank you for your cooperation.`;
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">News & Messages</h1>
-          <p className="text-sm text-muted-foreground">Publish announcements and send direct messages to vendors</p>
+      <div className="rounded-2xl overflow-hidden shadow-civic">
+        <div className="bg-cashier-hero px-6 py-5 flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">News & Messages</h1>
+            <p className="text-sm text-white/60">Publish announcements and send direct messages to vendors</p>
+          </div>
+          <div>
+            {tab === "announcements" && (
+              <Button onClick={() => setShowCreate(true)}
+                className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
+                <Plus className="h-4 w-4" /> New Announcement
+              </Button>
+            )}
+            {tab === "messages" && (
+              <Button onClick={() => setShowNewMsg(true)}
+                className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
+                <MessageSquare className="h-4 w-4" /> New Message
+              </Button>
+            )}
+          </div>
         </div>
-        {tab === "announcements" && (
-          <Button onClick={() => setShowCreate(true)} className="gap-2 rounded-xl">
-            <Plus className="h-4 w-4" /> New Announcement
-          </Button>
-        )}
-        {tab === "messages" && (
-          <Button onClick={() => setShowNewMsg(true)} className="gap-2 rounded-xl">
-            <MessageSquare className="h-4 w-4" /> New Message
-          </Button>
-        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl bg-secondary p-1 max-w-xs">
+      <div className="flex gap-1 rounded-xl border bg-card p-1 shadow-civic w-fit">
         <button onClick={() => setTab("announcements")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${tab === "announcements" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === "announcements" ? "bg-green-700 text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"}`}>
           <Megaphone className="h-3.5 w-3.5" /> Announcements
         </button>
         <button onClick={() => setTab("messages")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${tab === "messages" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === "messages" ? "bg-green-700 text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"}`}>
           <MessageSquare className="h-3.5 w-3.5" /> Messages
           {threads.filter((t: any) => t.unread > 0).length > 0 && (
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-green-700 text-[10px] font-bold">
               {threads.filter((t: any) => t.unread > 0).length}
             </span>
           )}
@@ -631,15 +637,15 @@ Thank you for your cooperation.`;
           </AnimatePresence>
 
           {newsLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-green-700" /></div>
           ) : (
             <div className="space-y-4">
               {news.map((n: any) => (
                 <div key={n.id} className="rounded-2xl border bg-card p-5 shadow-civic hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <Megaphone className="h-4 w-4 text-primary" />
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-700/10">
+                        <Megaphone className="h-4 w-4 text-green-700" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-foreground">{n.title}</h3>
@@ -679,19 +685,19 @@ Thank you for your cooperation.`;
             </div>
             <div className="flex-1 overflow-y-auto divide-y">
               {threadsLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-green-700" /></div>
               ) : threads.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground text-sm">
                   <MessageSquare className="h-8 w-8 opacity-20" />
                   <p>No conversations yet</p>
-                  <button onClick={() => setShowNewMsg(true)} className="text-xs text-primary hover:underline">Start one</button>
+                  <button onClick={() => setShowNewMsg(true)} className="text-xs text-green-700 hover:underline">Start one</button>
                 </div>
               ) : (
                 threads.map((t: any) => (
                   <button key={t.id} onClick={() => setActiveThread(t)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${activeThread?.id === t.id ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}>
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Store className="h-4 w-4 text-primary" />
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${activeThread?.id === t.id ? "bg-green-700/5 border-l-2 border-l-primary" : ""}`}>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-700/10">
+                      <Store className="h-4 w-4 text-green-700" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
@@ -704,7 +710,7 @@ Thank you for your cooperation.`;
                       {t.last_message && <p className="text-xs text-muted-foreground truncate mt-0.5">{t.last_message}</p>}
                     </div>
                     {t.unread > 0 && (
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">{t.unread}</span>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-700 text-[10px] font-bold text-white">{t.unread}</span>
                     )}
                   </button>
                 ))
@@ -795,9 +801,9 @@ Thank you for your cooperation.`;
                                             : <span className={r.isFuture&&!r.isPartial?"text-muted-foreground":"text-accent"}>₱{r.balance.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>}
                                         </td>
                                         <td className="py-1 text-center">
-                                          {r.isAdvance  ? <span className="text-blue-600 font-semibold">★ Advance</span>
+                                          {r.isAdvance  ? <span className="text-green-700 font-semibold">★ Advance</span>
                                           :r.isFully    ? <span className="text-success font-semibold">✓ Paid</span>
-                                          :r.isPartial  ? <span className="text-primary font-semibold">Partial</span>
+                                          :r.isPartial  ? <span className="text-green-700 font-semibold">Partial</span>
                                           :(r.isFuture&&!r.isPartial) ? <span className="text-muted-foreground">Upcoming</span>
                                           :<span className="text-accent font-semibold">Unpaid</span>}
                                         </td>
@@ -832,7 +838,7 @@ Thank you for your cooperation.`;
                             /* ── Regular message bubble ── */
                             <div className={`rounded-2xl px-4 py-2.5 text-sm ${
                               isMe
-                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                ? "bg-green-700 text-white rounded-br-sm"
                                 : "bg-secondary text-foreground rounded-bl-sm"
                             }`}>
                               {!isMe && m.type !== "message" && (
@@ -846,7 +852,7 @@ Thank you for your cooperation.`;
                           )}
                           <p className={`text-[10px] text-muted-foreground ${isMe ? "text-right" : "text-left"}`}>
                             {new Date(m.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
-                            {isMe && m.read_at && <CheckCheck className="inline h-3 w-3 ml-1 text-primary" />}
+                            {isMe && m.read_at && <CheckCheck className="inline h-3 w-3 ml-1 text-green-700" />}
                           </p>
                         </div>
                       </div>

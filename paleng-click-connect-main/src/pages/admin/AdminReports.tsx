@@ -23,7 +23,7 @@ const fmtK   = (n: number) => n >= 1000 ? `₱${(n/1000).toFixed(1)}k` : `₱${n
 const PIE_COLORS = ["#0f6e56","#1d9e75","#185fa5","#ba7517","#993c1d","#534ab7"];
 
 const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  gcash:    { icon: Smartphone, color: "bg-blue-500",  label: "GCash"    },
+  gcash:    { icon: Smartphone, color: "bg-green-500",  label: "GCash"    },
   paymaya:  { icon: Smartphone, color: "bg-green-600", label: "Maya"     },
   instapay: { icon: Building2,  color: "bg-primary",   label: "InstaPay" },
   cash:     { icon: Banknote,   color: "bg-slate-500", label: "Cash"     },
@@ -384,32 +384,34 @@ const AdminReports = () => {
   ] as const;
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div>
+    <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-green-700"/></div>
   );
 
   return (
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Comprehensive collection reports, analytics, and vendor insights</p>
+      <div className="rounded-2xl overflow-hidden shadow-civic">
+        <div className="bg-cashier-hero px-6 py-5 flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white tracking-tight">Reports & Analytics</h1>
+            <p className="text-sm text-white/60">Comprehensive collection reports, analytics, and vendor insights</p>
+          </div>
+          <button onClick={()=>refetch()} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 transition-colors">
+            <RefreshCw className="h-3.5 w-3.5"/> Refresh
+          </button>
         </div>
-        <button onClick={()=>refetch()} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-          <RefreshCw className="h-3.5 w-3.5"/> Refresh
-        </button>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { label:"Total Collected",   value:fmt(stats.totalYear),      sub:`${allData?.currentYear} year-to-date`,       icon:DollarSign,   color:"text-success",   bg:"bg-success/10"  },
-          { label:"Active Vendors",    value:String(stats.vendors),      sub:`${stats.paidVendors} paid this month`,      icon:Users,        color:"text-primary",   bg:"bg-primary/10"  },
+          { label:"Active Vendors",    value:String(stats.vendors),      sub:`${stats.paidVendors} paid this month`,      icon:Users,        color:"text-green-700",   bg:"bg-green-700/10"  },
           { label:"Stall Occupancy",   value:`${stats.occupied}/${stats.stalls}`, sub:`${stats.stalls>0?Math.round(stats.occupied/stats.stalls*100):0}% occupied`, icon:Store, color:"text-foreground", bg:"bg-secondary" },
           { label:"Total Outstanding", value:fmt(stats.outstanding),     sub:"all vendors combined",                       icon:AlertCircle,  color:stats.outstanding>0?"text-accent":"text-success", bg:stats.outstanding>0?"bg-accent/10":"bg-success/10" },
         ].map(c=>(
-          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
+          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic overflow-hidden relative"><div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-green-600/40" />
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
               <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${c.bg}`}>
@@ -423,10 +425,10 @@ const AdminReports = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl bg-secondary p-1 flex-wrap">
+      <div className="flex gap-1 rounded-xl border bg-card p-1 shadow-civic flex-wrap w-fit">
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab===t.id?"bg-card text-foreground shadow-sm":"text-muted-foreground hover:text-foreground"}`}>
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab===t.id?"bg-green-700 text-white shadow-sm":"text-muted-foreground hover:text-foreground hover:bg-secondary/60"}`}>
             <t.icon className="h-3.5 w-3.5"/>{t.label}
           </button>
         ))}
@@ -488,7 +490,7 @@ const AdminReports = () => {
             <div className="flex gap-1">
               {(["daily","weekly","monthly"] as const).map(v=>(
                 <button key={v} onClick={()=>setChartView(v)}
-                  className={`rounded-lg px-3 py-1 text-xs font-medium capitalize transition-all ${chartView===v?"bg-primary text-primary-foreground":"bg-secondary text-muted-foreground"}`}>{v}</button>
+                  className={`rounded-lg px-3 py-1 text-xs font-medium capitalize transition-all ${chartView===v?"bg-green-700 text-white":"bg-secondary text-muted-foreground"}`}>{v}</button>
               ))}
             </div>
           </div>
@@ -571,10 +573,10 @@ const AdminReports = () => {
               <span className="text-sm text-muted-foreground">{stats.paidVendors}/{stats.vendors} paid ({stats.vendors>0?Math.round(stats.paidVendors/stats.vendors*100):0}%)</span>
             </div>
             <div className="h-3 w-full rounded-full bg-secondary overflow-hidden flex">
-              {(()=>{const t=stats.vendors||1,paid=(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="paid").length,partial=(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="partial").length;return(<><div className="h-full bg-success" style={{width:`${paid/t*100}%`}}/><div className="h-full bg-primary" style={{width:`${partial/t*100}%`}}/><div className="h-full bg-accent" style={{width:`${(t-paid-partial)/t*100}%`}}/></>);})()}
+              {(()=>{const t=stats.vendors||1,paid=(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="paid").length,partial=(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="partial").length;return(<><div className="h-full bg-success" style={{width:`${paid/t*100}%`}}/><div className="h-full bg-green-500" style={{width:`${partial/t*100}%`}}/><div className="h-full bg-accent" style={{width:`${(t-paid-partial)/t*100}%`}}/></>);})()}
             </div>
             <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-              {[["bg-success","Paid",(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="paid").length],["bg-primary","Partial",(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="partial").length],["bg-accent","Unpaid",(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="unpaid").length]].map(([c,l,n])=>(
+              {[["bg-success","Paid",(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="paid").length],["bg-green-500","Partial",(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="partial").length],["bg-accent","Unpaid",(allData?.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="unpaid").length]].map(([c,l,n])=>(
                 <span key={l as string} className="flex items-center gap-1"><span className={`h-2 w-2 rounded-full ${c}`}/>{l}: <strong className="text-foreground">{n as number}</strong></span>
               ))}
             </div>
@@ -594,7 +596,7 @@ const AdminReports = () => {
           </div>
           <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b bg-secondary/50">
+              <thead><tr className="border-b bg-secondary/40">
                 {["Date","Vendor","Stall","Section","Period","Amount","Method","Type","Reference","Receipt"].map(h=>(
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
@@ -603,7 +605,7 @@ const AdminReports = () => {
                 {rangePayments.map((p:any)=>{
                   const mCfg=METHOD_CONFIG[p.payment_method]||{icon:CreditCard,color:"bg-muted",label:p.payment_method};
                   const MI=mCfg.icon;
-                  return(<tr key={p.id} className="hover:bg-secondary/30 transition-colors">
+                  return(<tr key={p.id} className="hover:bg-green-50/50 transition-colors">
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(p.created_at).toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric"})}</td>
                     <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">{p.vendor_name}</td>
                     <td className="px-4 py-3 font-mono text-foreground">{p.stall}</td>
@@ -611,7 +613,7 @@ const AdminReports = () => {
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">{p.period_month?`${MONTHS_FULL[p.period_month-1]} ${p.period_year}`:"—"}</td>
                     <td className="px-4 py-3 font-mono font-bold text-foreground whitespace-nowrap">{fmt(Number(p.amount))}</td>
                     <td className="px-4 py-3"><span className="inline-flex items-center gap-1.5"><span className={`flex h-5 w-5 items-center justify-center rounded ${mCfg.color}`}><MI className="h-3 w-3 text-white"/></span><span className="text-xs text-muted-foreground">{mCfg.label}</span></span></td>
-                    <td className="px-4 py-3"><span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${p.payment_type==="staggered"?"border-primary/20 bg-primary/5 text-primary":"border-border bg-secondary text-muted-foreground"}`}>{p.payment_type==="staggered"?"Partial":"Full"}</span></td>
+                    <td className="px-4 py-3"><span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${p.payment_type==="staggered"?"border-primary/20 bg-green-700/5 text-green-700":"border-border bg-secondary text-muted-foreground"}`}>{p.payment_type==="staggered"?"Partial":"Full"}</span></td>
                     <td className="px-4 py-3"><span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">{p.reference_number||"—"}</span></td>
                     <td className="px-4 py-3"><span className="font-mono text-xs bg-secondary px-2 py-0.5 rounded">{p.receipt_number||"—"}</span></td>
                   </tr>);
@@ -636,14 +638,14 @@ const AdminReports = () => {
           </div>
           <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b bg-secondary/50">
+              <thead><tr className="border-b bg-secondary/40">
                 {["Vendor","Stall","Section","Rate","Total Paid","Outstanding","This Month","Months Overdue","Contact"].map(h=>(
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
               <tbody className="divide-y">
                 {(allData?.vendorStatus||[]).filter((v:any)=>filterSection==="all"||v.section===filterSection).map((v:any)=>(
-                  <tr key={v.vendorId} className="hover:bg-secondary/30 transition-colors">
+                  <tr key={v.vendorId} className="hover:bg-green-50/50 transition-colors">
                     <td className="px-4 py-3 font-semibold text-foreground">{v.name}</td>
                     <td className="px-4 py-3 font-mono text-foreground">{v.stall}</td>
                     <td className="px-4 py-3 text-muted-foreground">{v.section}</td>
@@ -651,7 +653,7 @@ const AdminReports = () => {
                     <td className="px-4 py-3 font-mono text-success font-semibold">{fmt(v.totalPaid)}</td>
                     <td className="px-4 py-3 font-mono font-semibold"><span className={v.outstanding>0?"text-accent":"text-success"}>{fmt(v.outstanding)}</span></td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${v.thisMonthStatus==="paid"?"bg-success/10 text-success border-success/20":v.thisMonthStatus==="partial"?"bg-primary/10 text-primary border-primary/20":"bg-accent/10 text-accent border-accent/20"}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${v.thisMonthStatus==="paid"?"bg-success/10 text-success border-success/20":v.thisMonthStatus==="partial"?"bg-green-700/10 text-green-700 border-primary/20":"bg-accent/10 text-accent border-accent/20"}`}>
                         {v.thisMonthStatus==="paid"?<><CheckCircle2 className="h-3 w-3"/>Paid</>:v.thisMonthStatus==="partial"?<><Clock className="h-3 w-3"/>Partial</>:<><AlertCircle className="h-3 w-3"/>Unpaid</>}
                       </span>
                     </td>
@@ -691,20 +693,20 @@ const AdminReports = () => {
               ):(
                 <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b bg-secondary/50">
+                    <thead><tr className="border-b bg-secondary/40">
                       {["Vendor","Stall","Section","Months Overdue","Outstanding Balance","Partial Paid","Contact","Status"].map(h=>(
                         <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr></thead>
                     <tbody className="divide-y">
                       {delinquent.map((v:any)=>(
-                        <tr key={v.vendorId} className={`hover:bg-secondary/30 transition-colors ${v.monthsOverdue>=3?"bg-accent/3":""}`}>
+                        <tr key={v.vendorId} className={`hover:bg-green-50/50 transition-colors ${v.monthsOverdue>=3?"bg-accent/3":""}`}>
                           <td className="px-4 py-3 font-semibold text-foreground">{v.name}</td>
                           <td className="px-4 py-3 font-mono">{v.stall}</td>
                           <td className="px-4 py-3 text-muted-foreground">{v.section}</td>
                           <td className="px-4 py-3"><span className={`font-bold ${v.monthsOverdue>=6?"text-red-600":v.monthsOverdue>=3?"text-accent":"text-amber-600"}`}>{v.monthsOverdue} month(s){v.monthsOverdue>=3?" ⚠️":""}</span></td>
                           <td className="px-4 py-3 font-mono font-bold text-accent">{fmt(v.outstanding)}</td>
-                          <td className="px-4 py-3 font-mono text-primary">{v.paidThisMonth>0?fmt(v.paidThisMonth):"—"}</td>
+                          <td className="px-4 py-3 font-mono text-green-700">{v.paidThisMonth>0?fmt(v.paidThisMonth):"—"}</td>
                           <td className="px-4 py-3 text-muted-foreground text-xs">{v.contact}</td>
                           <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${v.accountStatus==="active"?"bg-success/10 text-success":"bg-accent/10 text-accent"}`}>{v.accountStatus}</span></td>
                         </tr>
@@ -737,14 +739,14 @@ const AdminReports = () => {
           </div>
           <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b bg-secondary/50">
+              <thead><tr className="border-b bg-secondary/40">
                 {["Stall No.","Section","Location","Monthly Rate","Status"].map(h=>(
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr></thead>
               <tbody className="divide-y">
                 {(allData?.stalls||[]).map((s:any)=>(
-                  <tr key={s.id} className="hover:bg-secondary/30 transition-colors">
+                  <tr key={s.id} className="hover:bg-green-50/50 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-foreground">{s.stall_number}</td>
                     <td className="px-4 py-3 text-muted-foreground">{s.section}</td>
                     <td className="px-4 py-3 text-muted-foreground">{s.location||"—"}</td>
@@ -785,7 +787,7 @@ const AdminReports = () => {
           </div>
           <div className="rounded-2xl border bg-card shadow-civic overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b bg-secondary/50">
+              <thead><tr className="border-b bg-secondary/40">
                 {["Month","Total Collected","% of Year","vs Rate (all vendors)"].map(h=>(
                   <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">{h}</th>
                 ))}
@@ -797,16 +799,16 @@ const AdminReports = () => {
                   const rate=expectedMonthly>0?Math.round(m.amount/expectedMonthly*100):0;
                   const isCurrent=i===((allData?.currentMonth||1)-1);
                   return(
-                    <tr key={m.month} className={`hover:bg-secondary/30 transition-colors ${isCurrent?"bg-primary/3":""}`}>
-                      <td className="px-4 py-3 font-medium text-foreground">{MONTHS_FULL[i]} {allData?.currentYear}{isCurrent&&<span className="ml-2 text-xs text-primary">(current)</span>}</td>
+                    <tr key={m.month} className={`hover:bg-green-50/50 transition-colors ${isCurrent?"bg-green-700/3":""}`}>
+                      <td className="px-4 py-3 font-medium text-foreground">{MONTHS_FULL[i]} {allData?.currentYear}{isCurrent&&<span className="ml-2 text-xs text-green-700">(current)</span>}</td>
                       <td className="px-4 py-3 font-mono font-bold text-foreground">{fmt(m.amount)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{totalYear>0?((m.amount/totalYear)*100).toFixed(1):0}%</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-24 rounded-full bg-secondary overflow-hidden">
-                            <div className={`h-full rounded-full ${rate>=100?"bg-success":rate>=50?"bg-primary":"bg-accent"}`} style={{width:`${Math.min(rate,100)}%`}}/>
+                            <div className={`h-full rounded-full ${rate>=100?"bg-success":rate>=50?"bg-green-500":"bg-accent"}`} style={{width:`${Math.min(rate,100)}%`}}/>
                           </div>
-                          <span className={`text-xs font-semibold ${rate>=100?"text-success":rate>=50?"text-primary":"text-accent"}`}>{rate}%</span>
+                          <span className={`text-xs font-semibold ${rate>=100?"text-success":rate>=50?"text-green-700":"text-accent"}`}>{rate}%</span>
                         </div>
                       </td>
                     </tr>
