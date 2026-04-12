@@ -107,8 +107,8 @@ Deno.serve(async (req) => {
       vendor_name, stall_number, section, amount,
       period_month, period_year, payment_method, payment_type,
       receipt_number, reference_number, cashier_name,
-      // Push-only mode (for announcements)
-      _push_only, _push_title, _push_body,
+      // Push-only mode (for announcements/messages)
+      _push_only, _push_title, _push_body, _url,
     } = body
 
     const VP = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
         const pp = JSON.stringify({
           title: _push_title,
           body:  _push_body || '',
-          data:  { type: 'announcement', url: '/vendor/news' },
+          data:  { type: 'message', url: _url || '/vendor/notifications' },
         })
         for (const sub of subs) {
           try {

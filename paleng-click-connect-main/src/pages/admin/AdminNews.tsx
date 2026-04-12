@@ -100,28 +100,37 @@ const AdminNews = () => {
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Push notification helper (fire-and-forget) ───────────────────────────
-  const sendPushToVendor = (vendorUserId: string, pushTitle: string, pushBody: string) => {
+  // ── Send push notification to a vendor via Edge Function ─────────────────
+  // Uses the exact same pattern as CashierAcceptPayment notifyVendor()
+  const sendMessagePush = async (
+    vendorUserId: string,
+    pushTitle: string,
+    pushBody: string,
+    urlPath: string = "/vendor/notifications",
+  ) => {
     try {
-      const anonKey    = (window as any).__VITE_SUPABASE_KEY__ ||
-        import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-      const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || "";
-      fetch(`${supabaseUrl}/functions/v1/notify-vendor`, {
-        method:  "POST",
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-vendor`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "apikey":        anonKey,
           "Authorization": `Bearer ${anonKey}`,
+          "apikey": anonKey,
         },
         body: JSON.stringify({
           vendor_user_id: vendorUserId,
           _push_only:     true,
           _push_title:    pushTitle,
           _push_body:     pushBody,
+          _url:           urlPath,
         }),
-      }).catch(() => {}); // fire and forget — never blocks the UI
-    } catch {
-      // silently ignore — push is best-effort
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[AdminNews] sendMessagePush failed:", res.status, errText);
+      }
+    } catch (e) {
+      console.error("[AdminNews] sendMessagePush error:", e);
     }
   };
 
@@ -278,22 +287,23 @@ const AdminNews = () => {
       await supabase.from("message_threads")
         .update({ last_message: msgBody.trim(), last_at: new Date().toISOString() })
         .eq("id", activeThread.id);
-      // Send notification to vendor
-      const pushTitle =
+      // Send in-app notification to vendor
+      const notifTitle =
         msgType === "penalty"  ? "⚠️ Penalty Notice" :
         msgType === "reminder" ? "🔔 Payment Reminder" :
                                  "💬 New Message from Admin";
       await supabase.from("notifications").insert({
         user_id: activeThread.vendor_id,
-        title:   pushTitle,
+        title:   notifTitle,
         message: msgBody.trim().slice(0, 200),
         type:    msgType === "penalty" ? "overdue" : msgType === "reminder" ? "reminder" : "info",
       });
-      // Push notification (fire-and-forget)
-      sendPushToVendor(
+      // Send push notification (awaited — same pattern as CashierAcceptPayment)
+      await sendMessagePush(
         activeThread.vendor_id,
-        pushTitle,
+        notifTitle,
         msgBody.trim().slice(0, 120),
+        "/vendor/notifications",
       );
     },
     onSuccess: () => {
@@ -415,11 +425,12 @@ const AdminNews = () => {
         message: `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
         type: "overdue" as any,
       });
-      // Push notification for SOA card (fire-and-forget)
-      sendPushToVendor(
+      // Push for SOA card (awaited — same pattern as CashierAcceptPayment)
+      await sendMessagePush(
         activeThread.vendor_id,
         "📋 Statement of Account",
         `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
+        "/vendor/notifications",
       );
       // ── Auto follow-up message based on payment status ──────────────────
       const currentMonthName = ["January","February","March","April","May","June","July","August","September","October","November","December"][new Date().getMonth()];
@@ -489,18 +500,19 @@ Thank you for your cooperation.`;
           .update({ last_message: autoMsg.slice(0, 60) + "...", last_at: new Date().toISOString() })
           .eq("id", activeThread.id);
         // Update notification to include the auto message summary
+        const autoNotifTitle = autoType === "penalty" ? "⚠️ Penalty Notice — Action Required" : autoType === "reminder" ? "🔔 Payment Reminder" : "✅ Payments Up to Date";
         await supabase.from("notifications").insert({
           user_id: activeThread.vendor_id,
-          title: autoType === "penalty" ? "⚠️ Penalty Notice — Action Required" : autoType === "reminder" ? "🔔 Payment Reminder" : "✅ Payments Up to Date",
+          title: autoNotifTitle,
           message: autoMsg.replace(/\n/g, " ").slice(0, 200),
           type: autoType === "penalty" ? "overdue" as any : autoType === "reminder" ? "reminder" as any : "info" as any,
         });
-        // Push notification for auto follow-up message (fire-and-forget)
-        const autoTitle = autoType === "penalty" ? "⚠️ Penalty Notice — Action Required" : autoType === "reminder" ? "🔔 Payment Reminder" : "✅ Payments Up to Date";
-        sendPushToVendor(
+        // Push for auto follow-up message (awaited — same pattern as CashierAcceptPayment)
+        await sendMessagePush(
           activeThread.vendor_id,
-          autoTitle,
+          autoNotifTitle,
           autoMsg.replace(/\n/g, " ").slice(0, 120),
+          "/vendor/notifications",
         );
       }
 
