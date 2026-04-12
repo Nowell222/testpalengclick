@@ -100,6 +100,31 @@ const AdminNews = () => {
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Push notification helper (fire-and-forget) ───────────────────────────
+  const sendPushToVendor = (vendorUserId: string, pushTitle: string, pushBody: string) => {
+    try {
+      const anonKey    = (window as any).__VITE_SUPABASE_KEY__ ||
+        import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+      const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || "";
+      fetch(`${supabaseUrl}/functions/v1/notify-vendor`, {
+        method:  "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey":        anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({
+          vendor_user_id: vendorUserId,
+          _push_only:     true,
+          _push_title:    pushTitle,
+          _push_body:     pushBody,
+        }),
+      }).catch(() => {}); // fire and forget — never blocks the UI
+    } catch {
+      // silently ignore — push is best-effort
+    }
+  };
+
   const { data: news = [], isLoading: newsLoading } = useQuery({
     queryKey: ["announcements"],
     queryFn: async () => {
@@ -254,12 +279,22 @@ const AdminNews = () => {
         .update({ last_message: msgBody.trim(), last_at: new Date().toISOString() })
         .eq("id", activeThread.id);
       // Send notification to vendor
+      const pushTitle =
+        msgType === "penalty"  ? "⚠️ Penalty Notice" :
+        msgType === "reminder" ? "🔔 Payment Reminder" :
+                                 "💬 New Message from Admin";
       await supabase.from("notifications").insert({
         user_id: activeThread.vendor_id,
-        title:   msgType === "penalty" ? "⚠️ Penalty Notice" : msgType === "reminder" ? "🔔 Payment Reminder" : "New Message",
+        title:   pushTitle,
         message: msgBody.trim().slice(0, 200),
         type:    msgType === "penalty" ? "overdue" : msgType === "reminder" ? "reminder" : "info",
       });
+      // Push notification (fire-and-forget)
+      sendPushToVendor(
+        activeThread.vendor_id,
+        pushTitle,
+        msgBody.trim().slice(0, 120),
+      );
     },
     onSuccess: () => {
       setMsgBody("");
@@ -380,6 +415,12 @@ const AdminNews = () => {
         message: `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
         type: "overdue" as any,
       });
+      // Push notification for SOA card (fire-and-forget)
+      sendPushToVendor(
+        activeThread.vendor_id,
+        "📋 Statement of Account",
+        `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
+      );
       // ── Auto follow-up message based on payment status ──────────────────
       const currentMonthName = ["January","February","March","April","May","June","July","August","September","October","November","December"][new Date().getMonth()];
       const overdueMonths = MF.slice(0, cm).filter((_,i) => {
@@ -454,6 +495,13 @@ Thank you for your cooperation.`;
           message: autoMsg.replace(/\n/g, " ").slice(0, 200),
           type: autoType === "penalty" ? "overdue" as any : autoType === "reminder" ? "reminder" as any : "info" as any,
         });
+        // Push notification for auto follow-up message (fire-and-forget)
+        const autoTitle = autoType === "penalty" ? "⚠️ Penalty Notice — Action Required" : autoType === "reminder" ? "🔔 Payment Reminder" : "✅ Payments Up to Date";
+        sendPushToVendor(
+          activeThread.vendor_id,
+          autoTitle,
+          autoMsg.replace(/\n/g, " ").slice(0, 120),
+        );
       }
 
       queryClient.invalidateQueries({ queryKey: ["admin-messages", activeThread.id] });
