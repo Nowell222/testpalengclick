@@ -187,12 +187,16 @@ const HistoryCard = ({ p }: { p: any }) => {
             <StatusIcon className={`h-5 w-5 ${statusCfg.text}`} />
           </div>
           <div>
-            <p className="font-bold text-slate-900 text-sm">
+            {/* Billing period label */}
+            <p className="text-[9px] uppercase tracking-widest font-semibold text-slate-400 mb-0.5">Billing Period</p>
+            <p className="font-bold text-slate-900 text-sm leading-tight">
               {p.period_month && p.period_year
                 ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
                 : new Date(p.created_at).toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
             </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            {/* Paid-on date — clearly separated */}
+            <p className="text-[11px] text-slate-400 mt-1">
+              <span className="text-slate-500 font-medium">Paid on </span>
               {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
               {" · "}
               {new Date(p.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
@@ -283,6 +287,8 @@ const VendorHistory = () => {
   const [filterYear,    setFilterYear]    = useState<number>(currentYear);
   const [showFilters,   setShowFilters]   = useState(false);
   const [viewMode,      setViewMode]      = useState<"card" | "table">("card");
+  // "period" = filter by billing period month | "paid" = filter by transaction date month
+  const [filterBy,      setFilterBy]      = useState<"period" | "paid">("period");
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["vendor-history", user?.id],
@@ -366,22 +372,50 @@ const VendorHistory = () => {
         (p.payment_method   || "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === "all" || p.status === filterStatus;
       const matchMethod = filterMethod === "all" || p.payment_method === filterMethod;
-      const matchMonth  = filterMonth  === "all" || p.period_month === Number(filterMonth);
-      const matchYear   = !p.period_year || p.period_year === filterYear;
+
+      // Filter by billing period month OR by transaction (paid-on) date month
+      let matchMonth = true;
+      let matchYear  = true;
+      if (filterMonth !== "all") {
+        if (filterBy === "period") {
+          matchMonth = p.period_month === Number(filterMonth);
+          matchYear  = !p.period_year || p.period_year === filterYear;
+        } else {
+          // "paid" mode — filter by the date the payment was made
+          const paidDate = new Date(p.created_at);
+          matchMonth = paidDate.getMonth() + 1 === Number(filterMonth);
+          matchYear  = paidDate.getFullYear() === filterYear;
+        }
+      } else {
+        // When no month filter, still apply year
+        if (filterBy === "period") {
+          matchYear = !p.period_year || p.period_year === filterYear;
+        } else {
+          matchYear = new Date(p.created_at).getFullYear() === filterYear;
+        }
+      }
+
       return matchSearch && matchStatus && matchMethod && matchMonth && matchYear;
     });
-  }, [payments, search, filterStatus, filterMethod, filterMonth, filterYear]);
+  }, [payments, search, filterStatus, filterMethod, filterMonth, filterYear, filterBy]);
 
   const monthPayments = useMemo(() => {
     if (filterMonth === "all") return [];
-    return payments.filter((p: any) =>
-      p.period_month === Number(filterMonth) && p.period_year === filterYear
-    );
-  }, [payments, filterMonth, filterYear]);
+    if (filterBy === "period") {
+      return payments.filter((p: any) =>
+        p.period_month === Number(filterMonth) && p.period_year === filterYear
+      );
+    } else {
+      return payments.filter((p: any) => {
+        const d = new Date(p.created_at);
+        return d.getMonth() + 1 === Number(filterMonth) && d.getFullYear() === filterYear;
+      });
+    }
+  }, [payments, filterMonth, filterYear, filterBy]);
 
   const hasFilters = filterStatus !== "all" || filterMethod !== "all" || !!search || filterMonth !== "all";
   const clearFilters = () => {
-    setSearch(""); setFilterStatus("all"); setFilterMethod("all"); setFilterMonth("all");
+    setSearch(""); setFilterStatus("all"); setFilterMethod("all"); setFilterMonth("all"); setFilterBy("period");
   };
 
   const handlePrintMonthSOA = () => {
@@ -478,10 +512,30 @@ const VendorHistory = () => {
             </div>
 
             {/* Row 2 mobile: month + year + more + view toggle in one row */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
+              {/* Filter-by pill toggle: Billing Period vs Paid On */}
+              <div className="flex items-center rounded-xl border bg-secondary p-0.5 gap-0.5 shrink-0 h-10">
+                <button
+                  onClick={() => setFilterBy("period")}
+                  title="Filter by billing period month"
+                  className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
+                    filterBy === "period" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  Billing Period
+                </button>
+                <button
+                  onClick={() => setFilterBy("paid")}
+                  title="Filter by date payment was made"
+                  className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
+                    filterBy === "paid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  Paid On
+                </button>
+              </div>
+
               {/* Month */}
               <select
-                className="h-10 rounded-xl border bg-background px-3 text-sm flex-1 min-w-0"
+                className="h-10 rounded-xl border bg-background px-3 text-sm flex-1 min-w-[110px]"
                 value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
                 <option value="all">All Months</option>
                 {MONTHS.map((m, i) => (
@@ -568,7 +622,11 @@ const VendorHistory = () => {
               style={{ borderColor: DS.blue100, background: DS.blue50 }}>
               <Calendar className="h-4 w-4 shrink-0" style={{ color: DS.blue600 }} />
               <p className="text-sm flex-1" style={{ color: DS.blue600 }}>
-                <strong>{MONTHS[Number(filterMonth) - 1]} {filterYear}</strong> — {filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
+                <strong>{MONTHS[Number(filterMonth) - 1]} {filterYear}</strong>
+                <span className="text-[11px] font-normal ml-1.5 opacity-70">
+                  ({filterBy === "period" ? "billing period" : "paid on"})
+                </span>
+                {" — "}{filtered.length} transaction{filtered.length !== 1 ? "s" : ""}
                 {filtered.filter((p: any) => p.status === "completed").length > 0 && (
                   <span className="text-slate-500 font-normal">
                     {" · "}Total paid: <span className="font-semibold text-green-600">
@@ -648,7 +706,7 @@ const VendorHistory = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b" style={{ background: "#0d2240" }}>
-                {["Date","Period","Amount","Method","Type","Status","Reference","Receipt"].map(h => (
+                {["Date","Billing Period","Amount","Method","Type","Status","Reference","Receipt"].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap text-white" style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -670,8 +728,11 @@ const VendorHistory = () => {
                         {new Date(p.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </td>
-                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
-                      {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : "—"}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <p className="font-medium text-foreground text-sm">
+                        {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : "—"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">Billing Period</p>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-foreground whitespace-nowrap">
                       {fmt(Number(p.amount))}

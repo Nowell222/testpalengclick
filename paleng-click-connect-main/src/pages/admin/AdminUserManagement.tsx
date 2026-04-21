@@ -13,10 +13,33 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 const SECTION_PREFIX: Record<string, string> = {
-  "General": "G", "Fish": "F", "Meat": "M",
-  "Vegetables": "V", "Dry Goods": "D", "Bolante": "B",
+  "Vegetable Section - Extension":   "VSE",
+  "Eatery 2nd Floor":                "E2F",
+  "Vegetable Section":               "VS",
+  "Egg and Dried Fish":              "EDF",
+  "Fish Stalls":                     "FS",
+  "Meat Stalls":                     "MS",
+  "New Building - Kalayaan":         "NBK",
+  "New Building - Mojica":           "NBM",
+  "Fruit Stalls and Refreshments":   "FSR",
+  "Bldg 1 & 2 Bolante":             "B12",
+  "Building II - 2nd Floor":         "B2F",
+  "Building I - 2nd Floor":          "B1F",
 };
-const SECTIONS = ["General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
+const SECTIONS = [
+  "Vegetable Section - Extension",
+  "Eatery 2nd Floor",
+  "Vegetable Section",
+  "Egg and Dried Fish",
+  "Fish Stalls",
+  "Meat Stalls",
+  "New Building - Kalayaan",
+  "New Building - Mojica",
+  "Fruit Stalls and Refreshments",
+  "Bldg 1 & 2 Bolante",
+  "Building II - 2nd Floor",
+  "Building I - 2nd Floor",
+];
 const ROLE_CONFIG = {
   vendor:  { icon: Store,    color: "bg-emerald-100 text-emerald-700", label: "Vendor"  },
   cashier: { icon: Banknote, color: "bg-amber-100 text-amber-700",     label: "Cashier" },
@@ -26,7 +49,7 @@ const emptyForm = {
   email: "", password: "", role: "vendor" as "vendor" | "cashier",
   first_name: "", middle_name: "", last_name: "",
   address: "", contact_number: "",
-  stall_number: "", section: "General", location: "", monthly_rate: "",
+  stall_number: "", section: "Vegetable Section - Extension", location: "", monthly_rate: "",
 };
 const emptyEdit = {
   first_name: "", middle_name: "", last_name: "",
