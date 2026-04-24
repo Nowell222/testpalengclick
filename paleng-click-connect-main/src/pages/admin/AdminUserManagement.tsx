@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import {
   UserPlus, Search, Shield, Store, Banknote, Loader2,
   X, Users, CheckCircle2, AlertCircle, Eye, EyeOff,
-  RefreshCw, Edit3, Save, Phone, Home, Lock, UserCircle, Zap,
+  RefreshCw, Edit3, Save, Phone, Home, Lock, UserCircle, AlertTriangle,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +24,7 @@ const SECTION_PREFIX: Record<string, string> = {
   "Fruit Stalls and Refreshments":   "FSR",
   "Bldg 1 & 2 Bolante":             "B12",
   "Building II - 2nd Floor":         "B2F",
-  "Building I - 2nd Floor":          "B1F",
+  "Building I - 2nd Floor":         "B1F",
 };
 const SECTIONS = [
   "Vegetable Section - Extension",
@@ -45,6 +45,27 @@ const ROLE_CONFIG = {
   cashier: { icon: Banknote, color: "bg-amber-100 text-amber-700",     label: "Cashier" },
   admin:   { icon: Shield,   color: "bg-purple-100 text-purple-700",   label: "Admin"   },
 };
+
+// ── Status config — used throughout for consistent badge/color rendering ─────
+const STATUS_CONFIG = {
+  active: {
+    label: "Active",
+    dot: "bg-success",
+    badge: "bg-success/10 text-success border-success/20",
+  },
+  suspended: {
+    label: "Suspended",
+    dot: "bg-accent",
+    badge: "bg-accent/10 text-accent border-accent/20",
+  },
+  // NEW: delinquent status — amber/orange to distinguish from suspended (red)
+  delinquent: {
+    label: "Delinquent",
+    dot: "bg-amber-500",
+    badge: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+};
+
 const emptyForm = {
   email: "", password: "", role: "vendor" as "vendor" | "cashier",
   first_name: "", middle_name: "", last_name: "",
@@ -68,10 +89,13 @@ const AdminUserManagement = () => {
   const [showConfPwd,     setShowConfPwd]     = useState(false);
   const [form,            setForm]            = useState({ ...emptyForm });
   const [generatingStall, setGeneratingStall] = useState(false);
-  const [editUser,    setEditUser]    = useState<any>(null);
-  const [editForm,    setEditForm]    = useState({ ...emptyEdit });
-  const [suspendTarget, setSuspendTarget] = useState<any>(null);
-  const [suspendReason, setSuspendReason] = useState("");
+  const [editUser,        setEditUser]        = useState<any>(null);
+  const [editForm,        setEditForm]        = useState({ ...emptyEdit });
+  const [suspendTarget,   setSuspendTarget]   = useState<any>(null);
+  const [suspendReason,   setSuspendReason]   = useState("");
+  // NEW: separate state for the delinquent modal
+  const [delinquentTarget,  setDelinquentTarget]  = useState<any>(null);
+  const [delinquentReason,  setDelinquentReason]  = useState("");
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -197,6 +221,31 @@ const AdminUserManagement = () => {
     onError: () => toast.error("Failed to suspend account"),
   });
 
+  // NEW: Mark as Delinquent mutation
+  // Sets status to "delinquent", sends a notification, and blocks login (handled by auth check)
+  const confirmDelinquent = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ status: "delinquent" })
+        .eq("user_id", delinquentTarget.id);
+      if (error) throw error;
+
+      await supabase.from("notifications").insert({
+        user_id: delinquentTarget.id,
+        title: "🔒 Account Flagged as Delinquent",
+        message: `Your account has been flagged as delinquent and your access has been temporarily disabled.\n\nReason: ${delinquentReason || "Outstanding unpaid fees."}\n\nPlease settle your balance and contact the Market Supervisor or Municipal Treasurer's Office to restore your access.`,
+        type: "overdue",
+      });
+    },
+    onSuccess: () => {
+      toast.success(`${delinquentTarget.name} has been marked as delinquent.`);
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setDelinquentTarget(null); setDelinquentReason("");
+    },
+    onError: () => toast.error("Failed to mark account as delinquent"),
+  });
+
   const reactivate = useMutation({
     mutationFn: async (u: any) => {
       const { error } = await supabase.from("profiles").update({ status: "active" }).eq("user_id", u.id);
@@ -220,10 +269,12 @@ const AdminUserManagement = () => {
   });
 
   const counts = {
-    total: users.length,
-    vendors: users.filter((u: any) => u.role === "vendor").length,
-    active: users.filter((u: any) => u.status === "active").length,
-    suspended: users.filter((u: any) => u.status === "suspended").length,
+    total:      users.length,
+    vendors:    users.filter((u: any) => u.role === "vendor").length,
+    active:     users.filter((u: any) => u.status === "active").length,
+    suspended:  users.filter((u: any) => u.status === "suspended").length,
+    // NEW: delinquent count for KPI card
+    delinquent: users.filter((u: any) => u.status === "delinquent").length,
   };
 
   const ef = (key: keyof typeof emptyEdit) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -231,6 +282,56 @@ const AdminUserManagement = () => {
 
   return (
     <div className="space-y-5">
+
+      {/* ── NEW: Mark as Delinquent confirm modal ──────────────────────────── */}
+      {delinquentTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.5)"}} onClick={()=>setDelinquentTarget(null)}>
+          <div className="bg-card rounded-2xl border shadow-xl w-full max-w-md" onClick={e=>e.stopPropagation()}>
+            <div className="p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-amber-600"/>
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground">Mark as Delinquent</h3>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>{delinquentTarget.name}</strong>'s account will be <span className="font-semibold text-amber-600">disabled</span>. They will be notified and unable to log in until reactivated.
+                  </p>
+                </div>
+              </div>
+              {/* Info box explaining what happens at login */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 space-y-1">
+                <p className="font-semibold">What the vendor will see when they try to log in:</p>
+                <p className="italic">"Your account has been marked as delinquent due to outstanding fees. Please contact the Market Supervisor or Treasurer's Office to resolve this."</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Reason (optional)</Label>
+                <textarea
+                  className="w-full min-h-[80px] rounded-xl border bg-background px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-200"
+                  placeholder="e.g. 3 months unpaid stall fees…"
+                  value={delinquentReason}
+                  onChange={e=>setDelinquentReason(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  className="flex-1 gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white border-0"
+                  disabled={confirmDelinquent.isPending}
+                  onClick={()=>confirmDelinquent.mutate()}
+                >
+                  {confirmDelinquent.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin"/>
+                    : <AlertTriangle className="h-4 w-4"/>}
+                  Confirm — Mark Delinquent
+                </Button>
+                <Button variant="outline" className="rounded-xl" onClick={()=>{setDelinquentTarget(null);setDelinquentReason("");}}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Suspend confirm modal */}
       {suspendTarget && (
@@ -331,13 +432,15 @@ const AdminUserManagement = () => {
         </div>
       </div>
 
-      {/* ── Summary KPI cards ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* ── Summary KPI cards ── now 5 cards including Delinquent ─────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          {label:"Total Users",  value:counts.total,     icon:Users,        iconBg:"bg-blue-100",    iconColor:"#0ea5e9",  glow:"#0ea5e9",  gradient:"from-blue-50 to-blue-50/40"},
-          {label:"Vendors",      value:counts.vendors,   icon:Store,        iconBg:"bg-emerald-100", iconColor:"#10b981",  glow:"#10b981",  gradient:"from-emerald-50 to-emerald-50/40"},
-          {label:"Active",       value:counts.active,    icon:CheckCircle2, iconBg:"bg-emerald-100", iconColor:"#10b981",  glow:"#10b981",  gradient:"from-emerald-50 to-emerald-50/40"},
-          {label:"Suspended",    value:counts.suspended, icon:AlertCircle,  iconBg:counts.suspended>0?"bg-amber-100":"bg-secondary", iconColor:counts.suspended>0?"#f59e0b":"hsl(220,10%,55%)", glow:counts.suspended>0?"#f59e0b":"transparent", gradient:counts.suspended>0?"from-amber-50 to-amber-50/40":"from-secondary to-secondary/40"},
+          {label:"Total Users",  value:counts.total,      icon:Users,         iconBg:"bg-blue-100",    iconColor:"#0ea5e9",  glow:"#0ea5e9",  gradient:"from-blue-50 to-blue-50/40"},
+          {label:"Vendors",      value:counts.vendors,    icon:Store,         iconBg:"bg-emerald-100", iconColor:"#10b981",  glow:"#10b981",  gradient:"from-emerald-50 to-emerald-50/40"},
+          {label:"Active",       value:counts.active,     icon:CheckCircle2,  iconBg:"bg-emerald-100", iconColor:"#10b981",  glow:"#10b981",  gradient:"from-emerald-50 to-emerald-50/40"},
+          // NEW: Delinquent KPI card — amber
+          {label:"Delinquent",   value:counts.delinquent, icon:AlertTriangle,  iconBg:counts.delinquent>0?"bg-amber-100":"bg-secondary", iconColor:counts.delinquent>0?"#d97706":"hsl(220,10%,55%)", glow:counts.delinquent>0?"#d97706":"transparent", gradient:counts.delinquent>0?"from-amber-50 to-amber-50/40":"from-secondary to-secondary/40"},
+          {label:"Suspended",    value:counts.suspended,  icon:AlertCircle,   iconBg:counts.suspended>0?"bg-red-100":"bg-secondary",   iconColor:counts.suspended>0?"#ef4444":"hsl(220,10%,55%)",  glow:counts.suspended>0?"#ef4444":"transparent",  gradient:counts.suspended>0?"from-red-50 to-red-50/40":"from-secondary to-secondary/40"},
         ].map((c,i)=>(
           <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`} style={{minHeight:110}}>
             <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity" style={{background:c.glow}}/>
@@ -458,7 +561,7 @@ const AdminUserManagement = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Search + filters ─────────────────────────────────────────────── */}
+      {/* ── Search + filters — added delinquent option ────────────────────── */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
@@ -473,6 +576,7 @@ const AdminUserManagement = () => {
         <select className="h-10 rounded-xl border bg-background px-3 text-sm" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
           <option value="all">All Status</option>
           <option value="active">Active</option>
+          <option value="delinquent">Delinquent</option>
           <option value="suspended">Suspended</option>
         </select>
       </div>
@@ -502,8 +606,13 @@ const AdminUserManagement = () => {
               </thead>
               <tbody className="divide-y">
                 {filtered.map((u: any) => {
-                  const roleCfg  = ROLE_CONFIG[u.role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.vendor;
-                  const RoleIcon = roleCfg.icon;
+                  const roleCfg   = ROLE_CONFIG[u.role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.vendor;
+                  const statusCfg = STATUS_CONFIG[u.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.active;
+                  const RoleIcon  = roleCfg.icon;
+                  const isActive     = u.status === "active";
+                  const isDelinquent = u.status === "delinquent";
+                  const isSuspended  = u.status === "suspended";
+
                   return (
                     <tr key={u.id} className="hover:bg-emerald-50/40 transition-colors">
                       <td className="px-4 py-3">
@@ -527,28 +636,59 @@ const AdminUserManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-sm">{u.contact}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                          u.status === "active"
-                            ? "bg-success/10 text-success border-success/20"
-                            : "bg-accent/10 text-accent border-accent/20"
-                        }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${u.status==="active"?"bg-success":"bg-accent"}`}/>
-                          {u.status === "active" ? "Active" : "Suspended"}
+                        {/* NEW: dynamic status badge using STATUS_CONFIG */}
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusCfg.badge}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusCfg.dot}`}/>
+                          {statusCfg.label}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1.5 flex-wrap">
                           <Button size="sm" variant="outline" className="h-7 gap-1 rounded-lg text-xs" onClick={()=>openEdit(u)}>
                             <Edit3 className="h-3 w-3"/> Edit
                           </Button>
-                          {u.status === "active" ? (
-                            <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs border-accent/30 text-accent hover:bg-accent/10"
-                              onClick={()=>{setSuspendTarget(u);setSuspendReason("");}}>
-                              Suspend
+
+                          {/* Active → can be marked delinquent OR suspended */}
+                          {isActive && (
+                            <>
+                              {/* NEW: Delinquent button — primary action for unpaid fees */}
+                              <Button
+                                size="sm" variant="outline"
+                                className="h-7 rounded-lg text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                                onClick={()=>{setDelinquentTarget(u);setDelinquentReason("");}}
+                              >
+                                Delinquent
+                              </Button>
+                              <Button
+                                size="sm" variant="outline"
+                                className="h-7 rounded-lg text-xs border-accent/30 text-accent hover:bg-accent/10"
+                                onClick={()=>{setSuspendTarget(u);setSuspendReason("");}}
+                              >
+                                Suspend
+                              </Button>
+                            </>
+                          )}
+
+                          {/* Delinquent → can be reactivated directly */}
+                          {isDelinquent && (
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 rounded-lg text-xs border-success/30 text-success hover:bg-success/10"
+                              disabled={reactivate.isPending}
+                              onClick={()=>reactivate.mutate(u)}
+                            >
+                              Reactivate
                             </Button>
-                          ) : (
-                            <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs border-success/30 text-success hover:bg-success/10"
-                              disabled={reactivate.isPending} onClick={()=>reactivate.mutate(u)}>
+                          )}
+
+                          {/* Suspended → can be reactivated */}
+                          {isSuspended && (
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 rounded-lg text-xs border-success/30 text-success hover:bg-success/10"
+                              disabled={reactivate.isPending}
+                              onClick={()=>reactivate.mutate(u)}
+                            >
                               Activate
                             </Button>
                           )}
@@ -582,6 +722,11 @@ const AdminUserManagement = () => {
               <span className="flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
                 <span className="h-2 w-2 rounded-full bg-emerald-500"/> {counts.active} active
               </span>
+              {counts.delinquent > 0 && (
+                <span className="flex items-center gap-1.5 text-xs text-amber-700 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-amber-500"/> {counts.delinquent} delinquent
+                </span>
+              )}
               {counts.suspended > 0 && (
                 <span className="flex items-center gap-1.5 text-xs text-accent font-medium">
                   <span className="h-2 w-2 rounded-full bg-accent"/> {counts.suspended} suspended
