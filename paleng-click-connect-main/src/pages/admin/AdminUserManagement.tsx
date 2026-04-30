@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,6 +6,7 @@ import {
   UserPlus, Search, Shield, Store, Banknote, Loader2,
   X, Users, CheckCircle2, AlertCircle, Eye, EyeOff,
   RefreshCw, Edit3, Save, Phone, Home, Lock, UserCircle, AlertTriangle,
+  FileUp, Download, CheckCheck, XCircle, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,6 +97,16 @@ const AdminUserManagement = () => {
   // NEW: separate state for the delinquent modal
   const [delinquentTarget,  setDelinquentTarget]  = useState<any>(null);
   const [delinquentReason,  setDelinquentReason]  = useState("");
+
+  // ── CSV Import state ──────────────────────────────────────────────────────
+  const [showImport,      setShowImport]      = useState(false);
+  const [csvRows,         setCsvRows]         = useState<any[]>([]);
+  const [csvFileName,     setCsvFileName]     = useState("");
+  const [importResults,   setImportResults]   = useState<{name:string;status:"pending"|"success"|"error";message?:string}[]>([]);
+  const [isImporting,     setIsImporting]     = useState(false);
+  const [importDone,      setImportDone]      = useState(false);
+  const [showPreview,     setShowPreview]     = useState(true);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -263,6 +274,114 @@ const AdminUserManagement = () => {
     onError: () => toast.error("Failed to reactivate account"),
   });
 
+  // ── CSV helpers ───────────────────────────────────────────────────────────
+  const parseCSV = (text: string) => {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/\s+/g, "_"));
+    return lines.slice(1).filter(l => l.trim()).map(line => {
+      const values: string[] = [];
+      let cur = "", inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === "," && !inQ) { values.push(cur.trim()); cur = ""; }
+        else { cur += ch; }
+      }
+      values.push(cur.trim());
+      const row: any = {};
+      headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
+      return row;
+    });
+  };
+
+  const handleCSVFile = (file: File) => {
+    setCsvFileName(file.name);
+    setImportResults([]);
+    setImportDone(false);
+    setShowPreview(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCSV(text);
+      setCsvRows(rows);
+      setImportResults(rows.map(r => ({
+        name: `${r.first_name || ""} ${r.last_name || ""}`.trim() || r.email || "Unknown",
+        status: "pending" as const,
+      })));
+    };
+    reader.readAsText(file);
+  };
+
+  const runImport = async () => {
+    if (!csvRows.length || isImporting) return;
+    setIsImporting(true);
+    setShowPreview(false);
+    const results = csvRows.map(r => ({
+      name: `${r.first_name || ""} ${r.last_name || ""}`.trim() || r.email || "Unknown",
+      status: "pending" as "pending" | "success" | "error",
+      message: undefined as string | undefined,
+    }));
+    setImportResults([...results]);
+
+    for (let i = 0; i < csvRows.length; i++) {
+      const row = csvRows[i];
+      try {
+        const res = await supabase.functions.invoke("create-user", {
+          body: {
+            email:          (row.email || "").trim(),
+            password:       (row.password || "").trim(),
+            first_name:     (row.first_name || "").trim(),
+            middle_name:    (row.middle_name || "").trim(),
+            last_name:      (row.last_name || "").trim(),
+            contact_number: (row.contact_number || "").trim(),
+            address:        (row.address || "").trim(),
+            role:           (row.role || "vendor").trim(),
+            stall_number:   (row.stall_number || "").trim(),
+            section:        (row.section || "Vegetable Section - Extension").trim(),
+            location:       (row.location || "").trim(),
+            monthly_rate:   row.monthly_rate ? Number(row.monthly_rate) : undefined,
+          },
+        });
+        // res.data contains the actual error message from the edge function body
+        // res.error is just a generic "non-2xx" wrapper — always prefer res.data?.error
+        const errMsg = res.data?.error || res.error?.message || null;
+        if (errMsg) {
+          results[i] = { ...results[i], status: "error", message: errMsg };
+        } else {
+          results[i] = { ...results[i], status: "success" };
+        }
+      } catch (err: any) {
+        results[i] = { ...results[i], status: "error", message: err.message || "Unknown error" };
+      }
+      setImportResults([...results]);
+      await new Promise(r => setTimeout(r, 200));
+    }
+    setIsImporting(false);
+    setImportDone(true);
+    queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    const succeeded = results.filter(r => r.status === "success").length;
+    const failed    = results.filter(r => r.status === "error").length;
+    if (failed === 0) toast.success(`All ${succeeded} users imported successfully!`);
+    else toast.warning(`${succeeded} imported, ${failed} failed. Check the log below.`);
+  };
+
+  const downloadSampleCSV = () => {
+    const header = "email,password,first_name,middle_name,last_name,contact_number,address,role,stall_number,section,location,monthly_rate";
+    const row1   = "juan@example.com,abc123,Juan,,Dela Cruz,09171234567,Lipa City,vendor,VSE-001,Vegetable Section - Extension,Near gate,1200";
+    const row2   = "maria@example.com,abc123,Maria,Santos,Reyes,09181234567,Batangas City,cashier,,,,";
+    const blob   = new Blob([header + "\n" + row1 + "\n" + row2], { type: "text/csv" });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement("a"); a.href = url; a.download = "sample-users.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const resetImport = () => {
+    setCsvRows([]); setCsvFileName(""); setImportResults([]);
+    setIsImporting(false); setImportDone(false); setShowPreview(true);
+    if (csvInputRef.current) csvInputRef.current.value = "";
+  };
+
   const filtered = users.filter((u: any) => {
     const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.stall.toLowerCase().includes(search.toLowerCase()) || u.contact.includes(search);
     return matchSearch && (filterRole === "all" || u.role === filterRole) && (filterStatus === "all" || u.status === filterStatus);
@@ -425,10 +544,16 @@ const AdminUserManagement = () => {
             <h1 className="text-2xl font-bold text-white">User Management</h1>
             <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Create, edit, and manage vendor and cashier accounts</p>
           </div>
-          <Button onClick={()=>{setShowCreate(true);if(form.role==="vendor")generateStallNumber(form.section);}}
-            className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
-            <UserPlus className="h-4 w-4"/> Create Account
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={()=>{setShowCreate(true);if(form.role==="vendor")generateStallNumber(form.section);}}
+              className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
+              <UserPlus className="h-4 w-4"/> Create Account
+            </Button>
+            <Button onClick={()=>{setShowImport(v=>!v);resetImport();}}
+              className="gap-2 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 border">
+              <FileUp className="h-4 w-4"/> Import CSV
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -456,6 +581,222 @@ const AdminUserManagement = () => {
           </div>
         ))}
       </div>
+
+      {/* ── CSV Import panel ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showImport && (
+          <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}}
+            className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50/60 to-transparent px-6 py-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"/>
+                  <h3 className="text-[13px] font-bold text-foreground">Bulk Import via CSV</h3>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Upload a CSV file to create multiple accounts at once</p>
+              </div>
+              <button onClick={()=>{setShowImport(false);resetImport();}} className="rounded-lg p-1.5 hover:bg-secondary"><X className="h-5 w-5 text-muted-foreground"/></button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Step 1: Download sample + upload */}
+              {!csvFileName && (
+                <div className="space-y-4">
+                  {/* Sample download */}
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 flex items-start gap-3">
+                    <Download className="h-4 w-4 text-blue-600 mt-0.5 shrink-0"/>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-blue-800">Need a template?</p>
+                      <p className="text-xs text-blue-600 mt-0.5">Download our sample CSV with the correct column headers already set up.</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="shrink-0 gap-1.5 rounded-lg border-blue-300 text-blue-700 hover:bg-blue-100" onClick={downloadSampleCSV}>
+                      <Download className="h-3.5 w-3.5"/> Download Sample
+                    </Button>
+                  </div>
+
+                  {/* Required columns reference */}
+                  <div className="rounded-xl border bg-secondary/40 px-4 py-3 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Required CSV Columns</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {[
+                        {col:"email",req:true},{col:"password",req:true},{col:"first_name",req:true},
+                        {col:"last_name",req:true},{col:"role",req:true,note:"vendor / cashier"},
+                        {col:"middle_name",req:false},{col:"contact_number",req:false},{col:"address",req:false},
+                        {col:"stall_number",req:false,note:"vendors only"},{col:"section",req:false,note:"vendors only"},
+                        {col:"location",req:false},{col:"monthly_rate",req:false,note:"vendors only"},
+                      ].map(({col,req,note})=>(
+                        <div key={col} className="flex items-center gap-1.5">
+                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${req?"bg-emerald-500":"bg-slate-300"}`}/>
+                          <span className="font-mono text-[11px] text-foreground">{col}</span>
+                          {note&&<span className="text-[10px] text-muted-foreground">({note})</span>}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">● required &nbsp; ○ optional</p>
+                  </div>
+
+                  {/* Drop zone */}
+                  <label
+                    className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-blue-200 bg-blue-50/40 py-10 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all"
+                    onDragOver={e=>{e.preventDefault();}}
+                    onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleCSVFile(f);}}
+                  >
+                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <FileUp className="h-5 w-5 text-blue-600"/>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-foreground">Drop your CSV here, or <span className="text-blue-600 underline underline-offset-2">browse</span></p>
+                      <p className="text-xs text-muted-foreground mt-1">.csv files only</p>
+                    </div>
+                    <input ref={csvInputRef} type="file" accept=".csv,text/csv" className="hidden"
+                      onChange={e=>{const f=e.target.files?.[0];if(f)handleCSVFile(f);}}/>
+                  </label>
+                </div>
+              )}
+
+              {/* Step 2: Preview + run */}
+              {csvFileName && !importDone && (
+                <div className="space-y-4">
+                  {/* File info bar */}
+                  <div className="flex items-center gap-3 rounded-xl border bg-secondary/40 px-4 py-3">
+                    <div className="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                      <FileUp className="h-4 w-4 text-blue-600"/>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{csvFileName}</p>
+                      <p className="text-xs text-muted-foreground">{csvRows.length} row{csvRows.length!==1?"s":""} detected</p>
+                    </div>
+                    {!isImporting&&(
+                      <button onClick={resetImport} className="text-xs text-muted-foreground hover:text-accent flex items-center gap-1">
+                        <X className="h-3.5 w-3.5"/> Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Preview table toggle */}
+                  {csvRows.length > 0 && !isImporting && (
+                    <button onClick={()=>setShowPreview(v=>!v)} className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                      {showPreview?<ChevronUp className="h-3.5 w-3.5"/>:<ChevronDown className="h-3.5 w-3.5"/>}
+                      {showPreview?"Hide":"Show"} preview ({csvRows.length} users)
+                    </button>
+                  )}
+
+                  {showPreview && csvRows.length > 0 && !isImporting && (
+                    <div className="rounded-xl border overflow-hidden">
+                      <div className="overflow-x-auto max-h-56">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b bg-secondary/60">
+                              {["#","Email","Name","Role","Stall","Section","Rate"].map(h=>(
+                                <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {csvRows.map((r,i)=>(
+                              <tr key={i} className="hover:bg-secondary/30">
+                                <td className="px-3 py-2 text-muted-foreground font-mono">{i+1}</td>
+                                <td className="px-3 py-2 max-w-[140px] truncate">{r.email}</td>
+                                <td className="px-3 py-2 whitespace-nowrap">{r.first_name} {r.last_name}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${r.role==="cashier"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}`}>
+                                    {r.role||"vendor"}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 font-mono">{r.stall_number||"—"}</td>
+                                <td className="px-3 py-2 max-w-[120px] truncate text-muted-foreground">{r.section||"—"}</td>
+                                <td className="px-3 py-2 font-mono">{r.monthly_rate?`₱${r.monthly_rate}`:"—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Progress list while importing */}
+                  {isImporting && (
+                    <div className="space-y-2 max-h-56 overflow-y-auto rounded-xl border p-3">
+                      {importResults.map((r,i)=>(
+                        <div key={i} className="flex items-center gap-2.5 text-sm">
+                          {r.status==="pending"   && i===importResults.findIndex(x=>x.status==="pending")
+                            ? <Loader2 className="h-4 w-4 animate-spin text-blue-500 shrink-0"/>
+                            : r.status==="success" ? <CheckCheck className="h-4 w-4 text-emerald-500 shrink-0"/>
+                            : r.status==="error"   ? <XCircle className="h-4 w-4 text-red-500 shrink-0"/>
+                            : <div className="h-4 w-4 rounded-full border-2 border-secondary shrink-0"/>}
+                          <span className={`flex-1 truncate ${r.status==="error"?"text-red-600":r.status==="success"?"text-emerald-700":"text-muted-foreground"}`}>
+                            {r.name}
+                          </span>
+                          {r.message&&<span className="text-[10px] text-red-500 truncate max-w-[180px]">{r.message}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  {!isImporting && (
+                    <div className="flex gap-3 pt-2 border-t">
+                      <Button className="flex-1 gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white border-0" onClick={runImport} disabled={csvRows.length===0}>
+                        <FileUp className="h-4 w-4"/> Import {csvRows.length} User{csvRows.length!==1?"s":""}
+                      </Button>
+                      <Button variant="outline" className="rounded-xl" onClick={resetImport}>Cancel</Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: Done summary */}
+              {importDone && (
+                <div className="space-y-4">
+                  {/* Summary banner */}
+                  {(()=>{
+                    const ok  = importResults.filter(r=>r.status==="success").length;
+                    const bad = importResults.filter(r=>r.status==="error").length;
+                    return (
+                      <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${bad===0?"border-emerald-200 bg-emerald-50":"border-amber-200 bg-amber-50"}`}>
+                        {bad===0
+                          ? <CheckCheck className="h-5 w-5 text-emerald-600 shrink-0"/>
+                          : <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0"/>}
+                        <div>
+                          <p className={`text-sm font-semibold ${bad===0?"text-emerald-800":"text-amber-800"}`}>
+                            {bad===0 ? `All ${ok} users imported!` : `${ok} imported, ${bad} failed`}
+                          </p>
+                          <p className={`text-xs ${bad===0?"text-emerald-600":"text-amber-600"}`}>
+                            {bad===0 ? "Users can now log in." : "Fix the errors below and re-import those rows."}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Result list */}
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto rounded-xl border p-3">
+                    {importResults.map((r,i)=>(
+                      <div key={i} className="flex items-center gap-2.5 text-sm">
+                        {r.status==="success"
+                          ? <CheckCheck className="h-4 w-4 text-emerald-500 shrink-0"/>
+                          : <XCircle className="h-4 w-4 text-red-500 shrink-0"/>}
+                        <span className={`flex-1 truncate ${r.status==="error"?"text-red-600":"text-emerald-700"}`}>{r.name}</span>
+                        {r.message&&<span className="text-[10px] text-red-500 truncate max-w-[200px]">{r.message}</span>}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3 pt-2 border-t">
+                    <Button className="rounded-xl gap-2" onClick={()=>{setShowImport(false);resetImport();}}>
+                      <CheckCircle2 className="h-4 w-4"/> Done
+                    </Button>
+                    <Button variant="outline" className="rounded-xl gap-2" onClick={resetImport}>
+                      <FileUp className="h-4 w-4"/> Import Another File
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Create Account form ───────────────────────────────────────────── */}
       <AnimatePresence>
@@ -544,7 +885,7 @@ const AdminUserManagement = () => {
                       <Label>Monthly Fee (₱) <span className="text-accent">*</span></Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                        <Input type="number" placeholder="e.g. 1200" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate} onChange={e=>setForm(f=>({...f,monthly_rate:e.target.value}))}/>
+                        <Input type="number" placeholder="e.g. 1200.50" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate} onChange={e=>setForm(f=>({...f,monthly_rate:e.target.value}))}/>
                       </div>
                     </div>
                   </div>

@@ -861,7 +861,7 @@ Thank you for your cooperation.`;
                                             : <span className={r.isFuture&&!r.isPartial?"text-muted-foreground":"text-accent"}>₱{r.balance.toLocaleString("en-PH",{minimumFractionDigits:2})}</span>}
                                         </td>
                                         <td className="py-1 text-center">
-                                          {r.isAdvance  ? <span className="text-green-700 font-semibold">★ Advance</span>
+                                          {r.isAdvance  ? <span className="text-green-700 font-semibold"> Advance</span>
                                           :r.isFully    ? <span className="text-success font-semibold">✓ Paid</span>
                                           :r.isPartial  ? <span className="text-green-700 font-semibold">Partial</span>
                                           :(r.isFuture&&!r.isPartial) ? <span className="text-muted-foreground">Upcoming</span>

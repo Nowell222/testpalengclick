@@ -13,13 +13,18 @@ const LoginPage = () => {
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
   const [isLoading,   setIsLoading]   = useState(false);
+  const [blockedStatus, setBlockedStatus] = useState<"suspended" | "delinquent" | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast.error("Please enter your email and password"); return; }
     setIsLoading(true);
-    const { error } = await signIn(email, password);
+    const { error, blockedStatus } = await signIn(email, password);
     setIsLoading(false);
+    if (blockedStatus) {
+      setBlockedStatus(blockedStatus);
+      return;
+    }
     if (error) {
       toast.error(error);
     } else {
@@ -39,6 +44,65 @@ const LoginPage = () => {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", fontFamily: "'Georgia', 'Times New Roman', serif", background: "#f8f5f0", position: "relative", overflow: "hidden" }}>
+
+      {/* ── Account Blocked Modal ────────────────────────────────────────────── */}
+      {blockedStatus && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(10,20,12,0.7)", backdropFilter: "blur(4px)" }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 420, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}
+          >
+            {/* Top accent bar */}
+            <div style={{ height: 4, background: blockedStatus === "delinquent" ? "linear-gradient(90deg, #b45309, #f59e0b)" : "linear-gradient(90deg, #991b1b, #ef4444)" }} />
+            <div style={{ padding: "28px 32px 32px" }}>
+              {/* Icon + title */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: blockedStatus === "delinquent" ? "#fef3c7" : "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22 }}>
+                  {blockedStatus === "delinquent" ? "⚠️" : "🚫"}
+                </div>
+                <div>
+                  <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: "#1a2e1a", marginBottom: 4 }}>
+                    {blockedStatus === "delinquent" ? "Account Flagged as Delinquent" : "Account Suspended"}
+                  </h2>
+                  <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+                    {blockedStatus === "delinquent"
+                      ? "Your account has been flagged due to outstanding unpaid fees and your access has been temporarily disabled."
+                      : "Your account has been suspended. You are currently unable to access PALENG-CLICK."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Info box */}
+              <div style={{ background: blockedStatus === "delinquent" ? "#fffbeb" : "#fef2f2", border: `1px solid ${blockedStatus === "delinquent" ? "#fde68a" : "#fecaca"}`, borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
+                <p style={{ fontSize: 12.5, color: blockedStatus === "delinquent" ? "#92400e" : "#991b1b", lineHeight: 1.7, fontFamily: "Georgia, serif" }}>
+                  {blockedStatus === "delinquent"
+                    ? "To restore your account access, please settle your outstanding balance and visit the Market Supervisor or Municipal Treasurer's Office personally."
+                    : "To appeal or resolve your account suspension, please visit the Market Supervisor or Municipal Treasurer's Office personally."}
+                </p>
+              </div>
+
+              {/* Contact info */}
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 16px", marginBottom: 24 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#166534", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 6 }}>Contact for Assistance</p>
+                <p style={{ fontSize: 13, color: "#15803d", fontFamily: "Georgia, serif", lineHeight: 1.6 }}>
+                  📍 Municipal Treasurer's Office<br />
+                  San Juan, Batangas
+                </p>
+              </div>
+
+              {/* Dismiss button */}
+              <button
+                onClick={() => setBlockedStatus(null)}
+                style={{ width: "100%", height: 46, background: blockedStatus === "delinquent" ? "linear-gradient(135deg, #b45309, #d97706)" : "linear-gradient(135deg, #991b1b, #dc2626)", color: "#fff", border: "none", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "Georgia, serif", letterSpacing: 0.5 }}
+              >
+                I Understand — Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* ── LEFT PANEL — image with overlay ─────────────────────────────────── */}
       <div style={{ display: "none", flex: "1 1 0%", position: "relative", overflow: "hidden" }} className="lg:block" id="login-left">

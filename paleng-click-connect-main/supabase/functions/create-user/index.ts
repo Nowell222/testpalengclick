@@ -54,11 +54,13 @@ Deno.serve(async (req) => {
 
     // Server-side validation: monthly_rate required for vendors
     // monthly_rate may come as string, number, or undefined from the form
-    const parsedRate = monthly_rate !== undefined && monthly_rate !== null && monthly_rate !== '' 
-      ? Number(monthly_rate) 
+    // Also handle locale-specific decimal separators (comma vs period)
+    const normalizedRate = monthly_rate !== undefined && monthly_rate !== null && monthly_rate !== ''
+      ? String(monthly_rate).replace(/,/g, '.').trim()
       : null;
-    if (role === 'vendor' && (!parsedRate || parsedRate <= 0)) {
-      return new Response(JSON.stringify({ error: 'Monthly fee is required for vendor accounts' }), {
+    const parsedRate = normalizedRate ? parseFloat(normalizedRate) : null;
+    if (role === 'vendor' && (parsedRate === null || isNaN(parsedRate) || parsedRate <= 0)) {
+      return new Response(JSON.stringify({ error: `Monthly fee is required for vendor accounts (received: ${monthly_rate})` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -72,7 +74,8 @@ Deno.serve(async (req) => {
     })
 
     if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
+      const isEmailTaken = createError.message?.toLowerCase().includes('already registered') || createError.message?.toLowerCase().includes('already been registered')
+      return new Response(JSON.stringify({ error: isEmailTaken ? 'Email already exists — user already registered' : createError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -137,6 +140,12 @@ Deno.serve(async (req) => {
         }
         stallId = newStall.id
       }
+
+      // Clear any stale fee schedules so monthly_rate is the source of truth
+      await supabaseAdmin
+        .from('stall_fee_schedules')
+        .delete()
+        .eq('stall_id', stallId)
 
       // Create vendor record linking user to stall
       const { error: vendorError } = await supabaseAdmin

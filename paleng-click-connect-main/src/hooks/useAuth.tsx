@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "cashier" | "vendor";
+type AccountStatus = "active" | "suspended" | "delinquent";
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +11,7 @@ interface AuthContextType {
   role: AppRole | null;
   profile: { first_name: string; last_name: string; middle_name?: string; contact_number?: string } | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; blockedStatus?: AccountStatus }>;
   signOut: () => Promise<void>;
 }
 
@@ -84,8 +85,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+
+    // ── Check account status before allowing access ──────────────────────
+    const userId = data.user?.id;
+    if (userId) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("user_id", userId)
+        .single();
+
+      const status = profileData?.status as AccountStatus | undefined;
+
+      if (status === "suspended" || status === "delinquent") {
+        // Sign them out immediately — they should not get a session
+        await supabase.auth.signOut();
+        return { error: null, blockedStatus: status };
+      }
+    }
+
+    return { error: null };
   };
 
   const signOut = async () => {

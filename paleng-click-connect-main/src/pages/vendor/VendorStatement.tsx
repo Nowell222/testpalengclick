@@ -31,7 +31,7 @@ const getPrintHTML = (data: any) => {
       <td class="r">${r.paid > 0 ? fmt(r.paid) : "—"}</td>
       <td class="r ${r.balance > 0 && !r.isFuture && !r.isAdvance ? "bal" : ""}">${(r.isFully || r.isAdvance) ? "₱0.00" : fmt(r.balance)}</td>
       <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : (r.isFuture && !r.isPartial) ? "upcoming" : "unpaid"}">
-        ${r.isAdvance ? "★ Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? " Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
