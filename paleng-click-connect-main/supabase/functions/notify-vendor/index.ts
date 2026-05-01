@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 const fmt = (n: number) => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 // ── Email HTML ───────────────────────────────────────────────────────────────
 const buildEmailHTML = (data: {
@@ -17,16 +17,16 @@ const buildEmailHTML = (data: {
   receiptNumber: string; referenceNumber: string; cashierName: string; dateTime: string
 }) => {
   const rows = [
-    ['Receipt No.',    data.receiptNumber  || '—'],
-    ['Reference No.',  data.referenceNumber || '—'],
-    ['Date & Time',    data.dateTime],
-    ['Vendor',         data.vendorName],
-    ['Stall Number',   data.stallNumber],
-    ['Section',        data.section],
+    ['Receipt No.', data.receiptNumber || '—'],
+    ['Reference No.', data.referenceNumber || '—'],
+    ['Date & Time', data.dateTime],
+    ['Vendor', data.vendorName],
+    ['Stall Number', data.stallNumber],
+    ['Section', data.section],
     ['Billing Period', data.period],
-    ['Payment Type',   data.paymentType],
-    ['Method',         data.paymentMethod],
-    ['Processed by',   data.cashierName],
+    ['Payment Type', data.paymentType],
+    ['Method', data.paymentMethod],
+    ['Processed by', data.cashierName],
   ].map(([l, v]) =>
     `<tr style="border-bottom:1px dashed #ede5d5">
       <td style="padding:10px 0;color:#7a8a7a;width:45%">${l}</td>
@@ -77,7 +77,7 @@ async function sendPush(
     const result = await webpush.sendNotification(
       {
         endpoint: sub.endpoint,
-        keys:     { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+        keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
       },
       payload,
       { TTL: 86400 }
@@ -85,7 +85,7 @@ async function sendPush(
     return { ok: true, status: result.statusCode, body: result.body || '' }
   } catch (err: any) {
     const status = err.statusCode || 500
-    const body   = err.body || err.message || String(err)
+    const body = err.body || err.message || String(err)
     return { ok: false, status, body }
   }
 }
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     } = body
 
     const VP = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
-    const VK = Deno.env.get('VAPID_PUBLIC_KEY')  ?? ''
+    const VK = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
     const VAPID_SUBJECT = 'mailto:nowellandal71@gmail.com'
 
     // ── Push-only mode (announcements) ────────────────────────────────────────
@@ -124,8 +124,12 @@ Deno.serve(async (req) => {
       if (subs?.length && VP && VK) {
         const pp = JSON.stringify({
           title: _push_title,
-          body:  _push_body || '',
-          data:  { type: 'message', url: _url || '/vendor/notifications' },
+          body: _push_body || '',
+          data: {
+            type: 'message',
+            url: _url || '/vendor/notifications',
+            timestamp: new Date().toISOString()
+          },
         })
         for (const sub of subs) {
           try {
@@ -137,7 +141,7 @@ Deno.serve(async (req) => {
             if (!r.ok && (r.status === 410 || r.status === 404)) {
               await (supabase.from('push_subscriptions' as any) as any).delete().eq('id', sub.id)
             }
-          } catch(e) { console.error('push-only err:', e) }
+          } catch (e) { console.error('push-only err:', e) }
         }
       }
       return new Response(
@@ -149,7 +153,7 @@ Deno.serve(async (req) => {
     // ── Standard payment notification flow ────────────────────────────────────
     console.log('notify-vendor:', vendor_user_id, amount)
 
-    const period   = period_month ? `${MONTHS[period_month - 1]} ${period_year}` : '—'
+    const period = period_month ? `${MONTHS[period_month - 1]} ${period_year}` : '—'
     const dateTime = new Date().toLocaleString('en-PH', {
       year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
     })
@@ -161,7 +165,7 @@ Deno.serve(async (req) => {
     // 1. In-app notification ──────────────────────────────────────────────────
     const { error: ne } = await supabase.from('notifications').insert({
       user_id: vendor_user_id,
-      title:   `✅ Payment Confirmed — ${fmt(Number(amount))}`,
+      title: `✅ Payment Confirmed — ${fmt(Number(amount))}`,
       message: `Your payment has been confirmed.
 • Stall: ${stall_number} — ${section}
 • Amount: ${fmt(Number(amount))}
@@ -186,23 +190,23 @@ Thank you!`,
       console.log('vendor email:', email)
       if (email) {
         const er = await fetch('https://api.resend.com/emails', {
-          method:  'POST',
+          method: 'POST',
           headers: { 'Authorization': `Bearer ${RKEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from:    'PALENG-CLICK <onboarding@resend.dev>',
-            to:      [email],
+            from: 'PALENG-CLICK <onboarding@resend.dev>',
+            to: [email],
             subject: `✅ Payment Confirmed — ${fmt(Number(amount))} for ${period}`,
-            html:    buildEmailHTML({
-              vendorName:    vendor_name,
-              stallNumber:   stall_number,
+            html: buildEmailHTML({
+              vendorName: vendor_name,
+              stallNumber: stall_number,
               section,
-              amount:        Number(amount),
+              amount: Number(amount),
               period,
               paymentMethod: ML[payment_method] || payment_method,
-              paymentType:   payment_type === 'staggered' ? 'Partial Payment' : 'Full Payment',
-              receiptNumber:   receipt_number  || '—',
+              paymentType: payment_type === 'staggered' ? 'Partial Payment' : 'Full Payment',
+              receiptNumber: receipt_number || '—',
               referenceNumber: reference_number || '—',
-              cashierName:   cashier_name,
+              cashierName: cashier_name,
               dateTime,
             }),
           }),
@@ -232,14 +236,24 @@ Thank you!`,
     } else {
       const payload = JSON.stringify({
         title: `✅ Payment Confirmed — ${fmt(Number(amount))}`,
-        body:  `${period} · Stall ${stall_number} · ${ML[payment_method] || payment_method}`,
+        body: `Your payment of ${fmt(Number(amount))} for ${period} has been processed via ${ML[payment_method] || payment_method}. Stall: ${stall_number} (${section}).`,
         data: {
-          type:             'payment_confirmed',
+          type: 'payment_confirmed',
           amount,
           period,
+          period_month,
+          period_year,
+          vendor_user_id,
+          vendor_name,
+          stall_number,
+          section,
+          payment_method: ML[payment_method] || payment_method,
+          payment_type,
           receipt_number,
           reference_number,
-          url:              '/vendor/notifications',
+          cashier_name,
+          dateTime,
+          url: '/vendor/notifications',
         },
       })
 
@@ -273,7 +287,7 @@ Thank you!`,
               console.log('removed expired subscription:', sub.id)
             }
           }
-        } catch(e) {
+        } catch (e) {
           console.error('push send err:', e)
           results.errors.push(`push exception: ${String(e)}`)
         }
@@ -287,7 +301,7 @@ Thank you!`,
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch(e: any) {
+  } catch (e: any) {
     console.error('fatal:', e)
     return new Response(
       JSON.stringify({ error: e.message }),
