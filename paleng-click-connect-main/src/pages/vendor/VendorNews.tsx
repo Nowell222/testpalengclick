@@ -36,13 +36,77 @@ const ANN_TYPE: Record<string, { label: string; icon: string; headerBg: string; 
 
 const getAnnType = (n: any) => ANN_TYPE[n.type] || ANN_TYPE.announcement;
 
+// ── Desktop table row — own useState so expand works correctly ────────────────
+const DesktopRow = ({ n, cfg, idx, isLast }: { n: any; cfg: any; idx: number; isLast: boolean }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLong = (n.content?.length ?? 0) > 120;
+  const formatRelative = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days/7)} week${Math.floor(days/7) > 1 ? "s" : ""} ago`;
+    return new Date(d).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+  };
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "130px 1fr 130px 110px", gap: "0 16px",
+      padding: "14px 20px", borderBottom: !isLast ? "1px solid #f1f5f9" : "none",
+      background: "#fff", transition: "background 0.1s",
+    }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#f8fafc"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "#fff"; }}>
+
+      {/* Type */}
+      <div style={{ paddingTop: 2 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, background: cfg.badgeBg, color: cfg.badgeText, fontSize: 11, fontWeight: 700 }}>
+          {cfg.icon} {cfg.label}
+        </span>
+      </div>
+
+      {/* Title + content */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {n.is_pinned && <span style={{ color: "#f59e0b", fontSize: 12 }}>📌</span>}
+          <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>{n.title}</p>
+        </div>
+        <p style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
+          {isExpanded || !isLong ? n.content : n.content.slice(0, 120) + "…"}
+        </p>
+        {isLong && (
+          <button onClick={() => setIsExpanded(v => !v)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4, fontSize: 11, fontWeight: 700, color: "#2563eb", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+            {isExpanded ? <><ChevronUp size={11}/> Show less</> : <><ChevronDown size={11}/> Read more</>}
+          </button>
+        )}
+      </div>
+
+      {/* Audience */}
+      <div style={{ paddingTop: 2 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
+          <Users size={11}/>
+          {n.target_section && n.target_section !== "all" ? n.target_section : "All Vendors"}
+        </span>
+      </div>
+
+      {/* Date */}
+      <div style={{ paddingTop: 2 }}>
+        <p style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>
+          {new Date(n.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+        </p>
+        <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{formatRelative(n.created_at)}</p>
+      </div>
+    </div>
+  );
+};
+
 const VendorNews = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [tab,          setTab]          = useState<"news" | "messages">("news");
   const [msgBody,      setMsgBody]      = useState("");
   const [thread,       setThread]       = useState<any>(null);
-  const [expandedId,   setExpandedId]   = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ── Announcements ──────────────────────────────────────────────────────────
@@ -145,43 +209,39 @@ const VendorNews = () => {
   // ── News card component ────────────────────────────────────────────────────
   const NewsCard = ({ n, featured = false }: { n: any; featured?: boolean }) => {
     const cfg = getAnnType(n);
-    const isExpanded = expandedId === n.id;
-    const isLong = n.content?.length > 160;
+    const [isExpanded, setIsExpanded] = useState(false);
+    const isLong = (n.content?.length ?? 0) > 160;
 
     if (featured) {
       return (
-        <div style={{ background: cfg.headerBg, borderRadius: 16, padding: "24px 28px", marginBottom: 16, position: "relative", overflow: "hidden" }}>
-          {/* Decorative circle */}
-          <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.1)", pointerEvents: "none" }}/>
-          <div style={{ position: "absolute", inset: 0, opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "20px 20px", pointerEvents: "none" }}/>
+        <div style={{ background: cfg.headerBg, borderRadius: 18, padding: "20px 18px", position: "relative", overflow: "hidden" }}>
+          {/* Decorative circles */}
+          <div style={{ position: "absolute", top: -28, right: -28, width: 120, height: 120, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.12)", pointerEvents: "none" }}/>
+          <div style={{ position: "absolute", bottom: -18, left: -18, width: 80, height: 80, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.08)", pointerEvents: "none" }}/>
+          <div style={{ position: "absolute", inset: 0, opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "18px 18px", pointerEvents: "none" }}/>
 
           <div style={{ position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" as const }}>
               {n.is_pinned && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", border: "1px solid rgba(255,255,255,0.25)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 999, background: "rgba(255,255,255,0.18)", color: "#fff", fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase" as const, border: "1px solid rgba(255,255,255,0.25)" }}>
                   📌 Pinned
                 </span>
               )}
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 10, fontWeight: 700, border: "1px solid rgba(255,255,255,0.25)" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 999, background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 10, fontWeight: 700, border: "1px solid rgba(255,255,255,0.2)" }}>
                 {cfg.icon} {cfg.label}
               </span>
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 10 }}>{n.title}</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", lineHeight: 1.7, maxWidth: 600 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 8 }}>{n.title}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.78)", lineHeight: 1.65 }}>
               {isExpanded || !isLong ? n.content : n.content.slice(0, 160) + "…"}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" as const }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
                 <Clock size={11}/> {formatDate(n.created_at)} · {formatRelative(n.created_at)}
               </span>
-              {n.target_section && n.target_section !== "all" && (
-                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                  <Users size={11}/> {n.target_section}
-                </span>
-              )}
               {isLong && (
-                <button onClick={() => setExpandedId(isExpanded ? null : n.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 14px", borderRadius: 8, background: "#fff", fontSize: 11, fontWeight: 700, color: DS.blue900, border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                <button onClick={() => setIsExpanded(v => !v)}
+                  style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 12px", borderRadius: 8, background: "rgba(255,255,255,0.15)", color: "#fff", fontSize: 11, fontWeight: 700, border: "1px solid rgba(255,255,255,0.25)", cursor: "pointer", fontFamily: "inherit" }}>
                   {isExpanded ? <><ChevronUp size={12}/> Show Less</> : <><ChevronDown size={12}/> Read More</>}
                 </button>
               )}
@@ -191,52 +251,54 @@ const VendorNews = () => {
       );
     }
 
+    // ── Regular card: left gradient icon, no top strip ────────────────────
     return (
-      <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s" }}
-        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 14px rgba(0,0,0,0.1)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}>
+      <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
+        <div style={{ padding: "15px 16px", display: "flex", gap: 13, alignItems: "flex-start" }}>
 
-        {/* Color header strip */}
-        <div style={{ height: 6, background: cfg.headerBg }}/>
-
-        <div style={{ padding: "16px 18px" }}>
-          {/* Meta row */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              {n.is_pinned && <Pin size={12} style={{ color: "#f59e0b", flexShrink: 0 }}/>}
-              <span style={{ padding: "3px 9px", borderRadius: 999, background: cfg.badgeBg, color: cfg.badgeText, fontSize: 10, fontWeight: 700 }}>
-                {cfg.icon} {cfg.label}
-              </span>
-            </div>
-            <span style={{ fontSize: 10, color: "#94a3b8", flexShrink: 0 }}>{formatRelative(n.created_at)}</span>
+          {/* Left gradient icon block */}
+          <div style={{
+            flexShrink: 0, width: 46, height: 46, borderRadius: 13,
+            background: cfg.headerBg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 21, boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+          }}>
+            {cfg.icon}
           </div>
-
-          {/* Title */}
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", lineHeight: 1.4, marginBottom: 8 }}>{n.title}</div>
 
           {/* Content */}
-          <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.7 }}>
-            {isExpanded || !isLong ? n.content : n.content.slice(0, 140) + "…"}
-          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Badge + date row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5, gap: 8 }}>
+              <span style={{ padding: "2px 8px", borderRadius: 999, background: cfg.badgeBg, color: cfg.badgeText, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                {cfg.label}
+              </span>
+              <span style={{ fontSize: 10, color: "#94a3b8", flexShrink: 0 }}>{formatRelative(n.created_at)}</span>
+            </div>
 
-          {/* Footer */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, flexWrap: "wrap", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Title */}
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", lineHeight: 1.4, marginBottom: 5 }}>
+              {n.is_pinned && <span style={{ color: "#f59e0b", marginRight: 3 }}>📌</span>}
+              {n.title}
+            </div>
+
+            {/* Body */}
+            <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.65 }}>
+              {isExpanded || !isLong ? n.content : n.content.slice(0, 120) + "…"}
+            </div>
+
+            {/* Footer: date + read more */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 9, gap: 8 }}>
               <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#94a3b8" }}>
                 <Clock size={10}/> {formatDate(n.created_at)}
               </span>
-              {n.target_section && n.target_section !== "all" && (
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#94a3b8" }}>
-                  <Users size={10}/> {n.target_section}
-                </span>
+              {isLong && (
+                <button onClick={() => setIsExpanded(v => !v)}
+                  style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: DS.blue600, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0, flexShrink: 0 }}>
+                  {isExpanded ? <><ChevronUp size={11}/> Less</> : <><ChevronDown size={11}/> Read more</>}
+                </button>
               )}
             </div>
-            {isLong && (
-              <button onClick={() => setExpandedId(isExpanded ? null : n.id)}
-                style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: DS.blue600, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
-                {isExpanded ? <><ChevronUp size={12}/> Show Less</> : <><ChevronDown size={12}/> Read More</>}
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -315,10 +377,12 @@ const VendorNews = () => {
         ) : (
           <>
             {/* ── Mobile list ─────────────────────────────────────────────── */}
-            <div className="lg:hidden px-4 pb-24 space-y-3 pt-3" style={{ background: "#f0f4f8" }}>
-              {urgentNews.map((n: any) => <NewsCard key={n.id} n={n} featured/>)}
-              {pinnedNews.map((n: any) => <NewsCard key={n.id} n={n} featured/>)}
-              {regularNews.map((n: any) => <NewsCard key={n.id} n={n}/>)}
+            <div className="lg:hidden pb-28" style={{ background: "#f0f4f8" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 14px 0" }}>
+                {urgentNews.map((n: any) => <NewsCard key={n.id} n={n} featured/>)}
+                {pinnedNews.map((n: any) => <NewsCard key={n.id} n={n} featured/>)}
+                {regularNews.map((n: any) => <NewsCard key={n.id} n={n}/>)}
+              </div>
             </div>
 
             {/* ── Desktop layout ───────────────────────────────────────────── */}
@@ -357,62 +421,14 @@ const VendorNews = () => {
                       ))}
                     </div>
 
-                    {/* Table rows */}
+                    {/* Table rows — each row manages its own expand state */}
                     {regularNews.map((n: any, idx: number) => {
                       const cfg = getAnnType(n);
-                      const isExpanded = expandedId === n.id;
-                      const isLong = n.content?.length > 120;
-                      return (
-                        <div key={n.id} style={{
-                          display: "grid", gridTemplateColumns: "130px 1fr 130px 110px", gap: "0 16px",
-                          padding: "14px 20px", borderBottom: idx < regularNews.length - 1 ? "1px solid #f1f5f9" : "none",
-                          background: "#fff", transition: "background 0.1s",
-                        }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#f8fafc"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "#fff"; }}>
-
-                          {/* Type */}
-                          <div style={{ paddingTop: 2 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, background: cfg.badgeBg, color: cfg.badgeText, fontSize: 11, fontWeight: 700 }}>
-                              {cfg.icon} {cfg.label}
-                            </span>
-                          </div>
-
-                          {/* Title + content */}
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              {n.is_pinned && <Pin size={12} style={{ color: "#f59e0b", flexShrink: 0 }}/>}
-                              <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.4 }}>{n.title}</p>
-                            </div>
-                            <p style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.6 }}>
-                              {isExpanded || !isLong ? n.content : n.content.slice(0, 120) + "…"}
-                            </p>
-                            {isLong && (
-                              <button onClick={() => setExpandedId(isExpanded ? null : n.id)}
-                                style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4, fontSize: 11, fontWeight: 700, color: DS.blue600, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
-                                {isExpanded ? <><ChevronUp size={11}/> Show less</> : <><ChevronDown size={11}/> Read more</>}
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Audience */}
-                          <div style={{ paddingTop: 2 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, color: "#64748b" }}>
-                              <Users size={11}/>
-                              {n.target_section && n.target_section !== "all" ? n.target_section : "All Vendors"}
-                            </span>
-                          </div>
-
-                          {/* Date */}
-                          <div style={{ paddingTop: 2 }}>
-                            <p style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>
-                              {new Date(n.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
-                            </p>
-                            <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{formatRelative(n.created_at)}</p>
-                          </div>
-                        </div>
-                      );
+                      // Use NewsCard which has its own useState — desktop just reuses the same card
+                      // but we need inline rows here, so use a tiny wrapper component
+                      return <DesktopRow key={n.id} n={n} cfg={cfg} idx={idx} isLast={idx === regularNews.length - 1}/>;
                     })}
+
                   </div>
                 </div>
               )}
