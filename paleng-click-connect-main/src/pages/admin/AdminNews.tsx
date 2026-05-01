@@ -248,43 +248,177 @@ const AdminNews = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // ── SOA (kept from original) ──────────────────────────────────────────────────
+  // ── SOA with auto follow-up message (restored from original) ─────────────────
   const sendSOA = async () => {
     if (!activeThread) return;
     setSendingSOA(true);
     try {
       const MF = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-      const yr = new Date().getFullYear(); const cm = new Date().getMonth() + 1;
-      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(id, stall_number, section, monthly_rate, location)").eq("user_id", activeThread.vendor_id).single();
+      const yr = new Date().getFullYear();
+      const cm = new Date().getMonth() + 1;
+
+      const { data: vendor } = await supabase
+        .from("vendors")
+        .select("id, stall_id, stalls(id, stall_number, section, monthly_rate, location)")
+        .eq("user_id", activeThread.vendor_id)
+        .single();
+
       if (!vendor) throw new Error("Vendor not found");
-      const st = vendor.stalls as any; const defaultRate = st?.monthly_rate || 1450;
+      const st          = vendor.stalls as any;
+      const defaultRate = st?.monthly_rate || 1450;
+
       const [pmtsRes, schedulesRes] = await Promise.all([
         supabase.from("payments").select("period_month, amount").eq("vendor_id", vendor.id).eq("status", "completed").eq("period_year", yr),
-        st?.id ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", st.id).eq("year", yr) : Promise.resolve({ data: [] }),
+        st?.id
+          ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", st.id).eq("year", yr)
+          : Promise.resolve({ data: [] }),
       ]);
-      const pmts = pmtsRes.data || []; const schedules = schedulesRes.data || [];
-      const getRate = (m: number) => { const s = schedules.find((s: any) => s.month === m); return s ? Number(s.amount) : defaultRate; };
-      const rawPm: Record<number,number> = {}; (pmts||[]).forEach((p:any) => { if(p.period_month) rawPm[p.period_month] = (rawPm[p.period_month]||0) + Number(p.amount); });
-      const effMap: Record<number,number> = {}; let carry = 0;
-      for (let m = 1; m <= 12; m++) { const due_m = getRate(m); const credited = (rawPm[m] || 0) + carry; effMap[m] = credited; carry = credited >= due_m ? (credited - due_m) : 0; }
-      const totalPaid = Object.values(rawPm).reduce((s,v)=>s+v, 0);
-      const totalOut = MF.reduce((sum,_,i)=>{ const m=i+1; if(m>cm) return sum; return sum + Math.max(0, getRate(m) - (effMap[m]||0)); }, 0);
-      const soaData = {
-        __soa: true, year: yr, stall: st?.stall_number||"—", section: st?.section||"General", location: st?.location||"—",
-        vendorName: activeThread.vendor_name, rate: defaultRate,
-        rows: MF.map((month,i) => { const m=i+1; const due_m=getRate(m); const credited=effMap[m]||0; const displayPaid=Math.min(credited,due_m); const balance=Math.max(0,due_m-credited); const isAdvance=m>cm&&credited>=due_m; const isFuture=m>cm&&credited===0; const isFully=credited>=due_m&&!isAdvance; const isPartial=credited>0&&credited<due_m; return { month, label: month, due: due_m, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture }; }),
-        totalPaid, totalOut, printedAt: new Date().toISOString(),
+
+      const pmts      = pmtsRes.data     || [];
+      const schedules = schedulesRes.data || [];
+
+      const getRate = (m: number): number => {
+        const s = schedules.find((s: any) => s.month === m);
+        return s ? Number(s.amount) : defaultRate;
       };
+      const rate = defaultRate;
+
+      // ── Raw paid map ──────────────────────────────────────────────────────
+      const rawPm: Record<number,number> = {};
+      (pmts||[]).forEach((p:any) => {
+        if(p.period_month) rawPm[p.period_month] = (rawPm[p.period_month]||0) + Number(p.amount);
+      });
+
+      // ── Cascade excess payments forward ───────────────────────────────────
+      const effMap: Record<number,number> = {};
+      let carry = 0;
+      for (let m = 1; m <= 12; m++) {
+        const due_m    = getRate(m);
+        const credited = (rawPm[m] || 0) + carry;
+        effMap[m] = credited;
+        carry = credited >= due_m ? (credited - due_m) : 0;
+      }
+
+      const totalPaid = Object.values(rawPm).reduce((s,v)=>s+v, 0);
+      const totalOut  = MF.reduce((sum,_,i)=>{
+        const m=i+1; if(m>cm) return sum;
+        return sum + Math.max(0, getRate(m) - (effMap[m]||0));
+      }, 0);
+
+      const soaData = {
+        __soa: true,
+        year: yr,
+        stall: st?.stall_number||"—",
+        section: st?.section||"General",
+        location: st?.location||"—",
+        vendorName: activeThread.vendor_name,
+        rate,
+        rows: MF.map((month,i)=>{
+          const m         = i+1;
+          const due_m     = getRate(m);
+          const credited  = effMap[m] || 0;
+          const displayPaid = Math.min(credited, due_m);
+          const balance   = Math.max(0, due_m - credited);
+          const isAdvance = m > cm && credited >= due_m;
+          const isFuture  = m > cm && credited === 0;
+          const isFully   = credited >= due_m && !isAdvance;
+          const isPartial = credited > 0 && credited < due_m;
+          return { month, label: month, due: due_m, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture };
+        }),
+        totalPaid,
+        totalOut,
+        printedAt: new Date().toISOString(),
+      };
+
       const body = JSON.stringify(soaData);
-      await (supabase.from("messages") as any).insert({ thread_id: activeThread.id, sender_id: user!.id, recipient_id: activeThread.vendor_id, body, type: "penalty" });
-      await (supabase.from("message_threads") as any).update({ last_message: "📋 Statement of Account sent", last_at: new Date().toISOString() }).eq("id", activeThread.id);
-      await supabase.from("notifications").insert({ user_id: activeThread.vendor_id, title: "📋 Statement of Account", message: `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`, type: "overdue" as any });
-      await sendMessagePush(activeThread.vendor_id, "📋 Statement of Account", `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}`);
+
+      await (supabase.from("messages") as any).insert({
+        thread_id: activeThread.id, sender_id: user!.id,
+        recipient_id: activeThread.vendor_id, body, type: "penalty",
+      });
+      await (supabase.from("message_threads") as any)
+        .update({ last_message: "📋 Statement of Account sent", last_at: new Date().toISOString() })
+        .eq("id", activeThread.id);
+      await supabase.from("notifications").insert({
+        user_id: activeThread.vendor_id,
+        title: "📋 Statement of Account",
+        message: `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
+        type: "overdue" as any,
+      });
+      await sendMessagePush(
+        activeThread.vendor_id,
+        "📋 Statement of Account",
+        `Outstanding balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}. Please check your messages.`,
+        "/vendor/notifications",
+      );
+
+      // ── Auto follow-up message based on payment status ────────────────────
+      const currentMonthName = MF[new Date().getMonth()];
+      const overdueMonths = MF.slice(0, cm).filter((_,i) => {
+        const m = i + 1;
+        return (effMap[m] || 0) < getRate(m);
+      });
+      const partialMonths = MF.slice(0, cm).filter((_,i) => {
+        const m = i + 1;
+        const paid = effMap[m] || 0;
+        return paid > 0 && paid < getRate(m);
+      });
+
+      let autoMsg = "";
+      let autoType: "message" | "penalty" | "reminder" = "message";
+
+      if (totalOut === 0) {
+        autoMsg = `✅ Good news! Your Statement of Account for ${soaData.year} shows that all stall fees are fully settled. Thank you for your prompt payments, ${activeThread.vendor_name}! Your cooperation is greatly appreciated by the Municipal Treasurer's Office.`;
+        autoType = "message";
+      } else if (overdueMonths.length >= 3) {
+        const monthList = overdueMonths.slice(0, 5).join(", ");
+        autoMsg = `⚠️ PENALTY NOTICE\n\nDear ${activeThread.vendor_name},\n\nOur records show that your stall fee payments for the following month(s) are OVERDUE:\n📌 ${monthList}\n\nTotal Outstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nAs per market regulations, delayed payments are subject to penalty charges. You are hereby required to settle your outstanding balance immediately to avoid further penalties and possible stall suspension.\n\nPlease visit the Municipal Treasurer's Office or pay online through the PALENG-CLICK system.\n\nThank you.`;
+        autoType = "penalty";
+      } else if (partialMonths.length > 0 || overdueMonths.length > 0) {
+        const dueList = overdueMonths.slice(0, 3).join(", ");
+        autoMsg = `🔔 PAYMENT REMINDER\n\nDear ${activeThread.vendor_name},\n\nThis is a friendly reminder that your stall fee for ${dueList || currentMonthName} has not been fully settled yet.\n\nOutstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nPlease settle your balance at your earliest convenience either by visiting the cashier or paying online through the PALENG-CLICK app.\n\nThank you for your cooperation.`;
+        autoType = "reminder";
+      }
+
+      if (autoMsg) {
+        // Small delay so SOA card appears first
+        await new Promise(r => setTimeout(r, 800));
+        await (supabase.from("messages") as any).insert({
+          thread_id: activeThread.id,
+          sender_id: user!.id,
+          recipient_id: activeThread.vendor_id,
+          body: autoMsg,
+          type: autoType,
+        });
+        await (supabase.from("message_threads") as any)
+          .update({ last_message: autoMsg.slice(0, 60) + "...", last_at: new Date().toISOString() })
+          .eq("id", activeThread.id);
+        const autoNotifTitle =
+          autoType === "penalty"  ? "⚠️ Penalty Notice — Action Required" :
+          autoType === "reminder" ? "🔔 Payment Reminder" :
+                                    "✅ Payments Up to Date";
+        await supabase.from("notifications").insert({
+          user_id: activeThread.vendor_id,
+          title: autoNotifTitle,
+          message: autoMsg.replace(/\n/g, " ").slice(0, 200),
+          type: autoType === "penalty" ? "overdue" as any : autoType === "reminder" ? "reminder" as any : "info" as any,
+        });
+        await sendMessagePush(
+          activeThread.vendor_id,
+          autoNotifTitle,
+          autoMsg.replace(/\n/g, " ").slice(0, 120),
+          "/vendor/notifications",
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ["admin-messages", activeThread.id] });
       queryClient.invalidateQueries({ queryKey: ["admin-threads"] });
-      toast.success("SOA sent to vendor!");
-    } catch(e:any) { toast.error(e.message||"Failed to send SOA"); }
-    finally { setSendingSOA(false); }
+      toast.success("SOA and follow-up message sent to vendor!");
+    } catch(e:any) {
+      toast.error(e.message||"Failed to send SOA");
+    } finally {
+      setSendingSOA(false);
+    }
   };
 
   const parseSOA = (body: string) => { try { const d = JSON.parse(body); return d.__soa ? d : null; } catch { return null; } };
