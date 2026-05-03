@@ -12,12 +12,14 @@ import DashboardLayout from "./components/DashboardLayout";
 
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import AdminUserManagement from "./pages/admin/AdminUserManagement";
+import AdminApplications from "./pages/admin/AdminApplications";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminQRCodes from "./pages/admin/AdminQRCodes";
 import AdminSMS from "./pages/admin/AdminSMS";
 import AdminNews from "./pages/admin/AdminNews";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminFeeSchedules from "./pages/admin/AdminFeeSchedules";
+import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 
 import VendorDashboardHome from "./pages/vendor/VendorDashboardHome";
 import VendorPayOnline from "./pages/vendor/VendorPayOnline";
@@ -26,6 +28,9 @@ import VendorStatement from "./pages/vendor/VendorStatement";
 import VendorStallInfo from "./pages/vendor/VendorStallInfo";
 import VendorNotifications from "./pages/vendor/VendorNotifications";
 import VendorNews from "./pages/vendor/VendorNews";
+import VendorMessages from "./pages/vendor/VendorMessages";
+
+import AdminMessages from "./pages/admin/AdminMessages";
 
 import CashierDashboardHome from "./pages/cashier/CashierDashboardHome";
 import CashierAcceptPayment from "./pages/cashier/CashierAcceptPayment";
@@ -33,8 +38,10 @@ import CashierSearchVendor from "./pages/cashier/CashierSearchVendor";
 import CashierPaymentStatus from "./pages/cashier/CashierPaymentStatus";
 import CashierSOA from "./pages/cashier/CashierSOA";
 import CashierSMS from "./pages/cashier/CashierSMS";
+import CashierShiftHistory from "./pages/cashier/CashierShiftHistory";
 import CashierReports from "./pages/cashier/CashierReports";
 
+import VendorApply from "./pages/VendorApply";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +56,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/apply" element={<VendorApply />} />
 
             {/* Admin routes */}
             <Route path="/admin" element={
@@ -58,12 +66,15 @@ const App = () => (
             }>
               <Route index element={<AdminDashboardHome />} />
               <Route path="users" element={<AdminUserManagement />} />
+              <Route path="applications" element={<AdminApplications />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="qr-codes" element={<AdminQRCodes />} />
               <Route path="sms" element={<AdminSMS />} />
               <Route path="news" element={<AdminNews />} />
               <Route path="reports" element={<AdminReports />} />
               <Route path="fee-schedules" element={<AdminFeeSchedules />} />
+              <Route path="audit-logs" element={<AdminAuditLogs />} />
+              <Route path="messages" element={<AdminMessages />} />
             </Route>
 
             {/* Vendor routes */}
@@ -79,6 +90,7 @@ const App = () => (
               <Route path="stall" element={<VendorStallInfo />} />
               <Route path="notifications" element={<VendorNotifications />} />
               <Route path="news" element={<VendorNews />} />
+              <Route path="messages" element={<VendorMessages />} />
             </Route>
 
             {/* Cashier routes */}
@@ -93,6 +105,7 @@ const App = () => (
               <Route path="status" element={<CashierPaymentStatus />} />
               <Route path="soa" element={<CashierSOA />} />
               <Route path="sms" element={<CashierSMS />} />
+              <Route path="shifts" element={<CashierShiftHistory />} />
               <Route path="reports" element={<CashierReports />} />
             </Route>
 

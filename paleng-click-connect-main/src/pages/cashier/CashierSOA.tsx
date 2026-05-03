@@ -8,17 +8,19 @@ import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 // ─── Helper: build SOA data for one vendor (with cascade + per-month fee schedules) ──
 const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] = []) => {
-  const stall        = vendor.stalls as any;
-  const defaultRate  = stall?.monthly_rate || 1450;
-  const currentYear  = new Date().getFullYear();
+  const stall = vendor.stalls as any;
+  const defaultRate = stall?.monthly_rate || 1450;
+  const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
   // Per-month fee: reads from fee schedules if set, else falls back to stall default rate
@@ -36,14 +38,24 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
         rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
     });
 
-  // ── STEP 2: Cascade using per-month fee — carry stops at partial month ───
   const effMap: Record<number, number> = {};
   let carry = 0;
   for (let m = 1; m <= 12; m++) {
-    const due      = getMonthFee(m);
+    const isOverdue = m < currentMonth;
+    const baseDue = getMonthFee(m);
     const credited = (rawPaidMap[m] || 0) + carry;
-    effMap[m]      = credited;
-    carry          = credited >= due ? (credited - due) : 0;
+
+    // Flat 25% surcharge for overdue unpaid balances
+    const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    const totalDue = baseDue + penalty;
+
+    effMap[m] = credited;
+
+    if (credited >= totalDue) {
+      carry = credited - totalDue;
+    } else {
+      carry = 0;
+    }
   }
 
   // ── STEP 3: Summary totals ───────────────────────────────────────────────
@@ -52,35 +64,46 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
   const totalOutstanding = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    return sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0));
+    const isOverdue = m < currentMonth;
+    const baseDue = getMonthFee(m);
+    const penalty = isOverdue && ((effMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
+    const totalDue = baseDue + penalty;
+    return sum + Math.max(0, totalDue - (effMap[m] || 0));
   }, 0);
 
   // ── STEP 4: Build rows with correct display values ───────────────────────
   const rows = MONTHS.map((name, i) => {
-    const m           = i + 1;
-    const due         = getMonthFee(m);
-    const credited    = effMap[m] || 0;
-    const displayPaid = Math.min(credited, due);
-    const balance     = Math.max(0, due - credited);
-    const isAdvance   = m > currentMonth && credited >= due;   // future, fully covered
-    const isFuture    = m > currentMonth && credited === 0;    // future, nothing paid
-    const isFully     = credited >= due && !isAdvance;         // past/current fully paid
-    const isPartial   = credited > 0 && credited < due;       // partial — any month
+    const m = i + 1;
+    const baseDue = getMonthFee(m);
+    const credited = effMap[m] || 0;
+    const isOverdue = m < currentMonth;
+    const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    const totalDue = baseDue + penalty;
+
+    const displayPaid = Math.min(credited, totalDue);
+    const balance = Math.max(0, totalDue - credited);
+    const isAdvance = m > currentMonth && credited >= totalDue;   // future, fully covered
+    const isFuture = m > currentMonth && credited === 0;    // future, nothing paid
+    const isFully = credited >= totalDue && !isAdvance;         // past/current fully paid
+    const isPartial = credited > 0 && credited < totalDue;       // partial — any month
     return {
-      month:    name,
+      month: name,
       monthNum: m,
-      due,
-      paid:     displayPaid,
+      due: totalDue,
+      baseDue,
+      penalty,
+      paid: displayPaid,
       balance,
       isFully,
       isPartial,
       isAdvance,
       isFuture,
+      isOverdue
     };
   });
 
   return {
-    vendorId:   vendor.id,
+    vendorId: vendor.id,
     profile,
     stall,
     monthlyRate: defaultRate,
@@ -228,14 +251,14 @@ const getPrintHTML = (soa: any) => {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const CashierSOA = () => {
-  const [search, setSearch]         = useState("");
-  const [selected, setSelected]     = useState<any>(null);
-  const [printing, setPrinting]     = useState(false);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<any>(null);
+  const [printing, setPrinting] = useState(false);
   const [bulkSection, setBulkSection] = useState("All");
   const [bulkPrinting, setBulkPrinting] = useState(false);
-  const printFrameRef               = useRef<HTMLIFrameElement>(null);
+  const printFrameRef = useRef<HTMLIFrameElement>(null);
 
-  const SECTIONS = ["All","General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
+  const SECTIONS = ["All", "General", "Fish", "Meat", "Vegetables", "Dry Goods", "Bolante"];
 
   // Fetch ALL vendors at once for instant search
   const { data: allVendors = [], isLoading } = useQuery({
@@ -254,14 +277,14 @@ const CashierSOA = () => {
 
       return vendorList.map(v => {
         const profile = profiles?.find(p => p.user_id === v.user_id);
-        const stall   = v.stalls as any;
+        const stall = v.stalls as any;
         return {
           ...v,
           profile,
           stall,
           displayName: profile ? `${profile.first_name} ${profile.last_name}` : "Unknown",
           stallNumber: stall?.stall_number || "—",
-          section:     stall?.section || "General",
+          section: stall?.section || "General",
         };
       });
     },
@@ -332,7 +355,7 @@ const CashierSOA = () => {
   const handlePrint = () => {
     if (!selected) return;
     setPrinting(true);
-    const html  = getPrintHTML(selected);
+    const html = getPrintHTML(selected);
     const frame = printFrameRef.current;
     if (!frame) return;
     frame.srcdoc = html;
@@ -347,18 +370,77 @@ const CashierSOA = () => {
   // Save as PDF (uses browser print-to-PDF)
   const handleSavePDF = () => {
     if (!selected) return;
-    setPrinting(true);
-    toast.info("In the print dialog, choose 'Save as PDF' as the destination.");
-    const html  = getPrintHTML(selected);
-    const frame = printFrameRef.current;
-    if (!frame) return;
-    frame.srcdoc = html;
-    frame.onload = () => {
-      setTimeout(() => {
-        frame.contentWindow?.print();
-        setPrinting(false);
-      }, 300);
-    };
+    const doc = new jsPDF();
+    doc.setFont("helvetica");
+    doc.setFontSize(10);
+    doc.text("Republic of the Philippines", 105, 15, { align: "center" });
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Municipality of San Juan, Batangas", 105, 22, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text("Office of the Municipal Treasurer", 105, 28, { align: "center" });
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("STATEMENT OF ACCOUNT", 105, 40, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Public Market Stall Rental — Fiscal Year ${selected.currentYear}`, 105, 46, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.text(`Vendor Name: ${selected.profile?.first_name} ${selected.profile?.last_name}`, 15, 60);
+    doc.text(`Stall Number: ${selected.stall?.stall_number || "—"}`, 15, 66);
+    doc.text(`Section: ${selected.stall?.section || "General"}`, 15, 72);
+    doc.text(`Monthly Rate: ₱${Number(selected.monthlyRate).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`, 120, 60);
+    doc.text(`Location: ${selected.stall?.location || "—"}`, 120, 66);
+    doc.text(`Date Printed: ${new Date().toLocaleDateString("en-PH")}`, 120, 72);
+
+    const tableData = selected.rows.map((r: any) => [
+      `${r.month} ${selected.currentYear}`,
+      `PHP ${r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
+      r.paid > 0 ? `PHP ${r.paid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—",
+      (r.isFully || r.isAdvance) ? "PHP 0.00" : `PHP ${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
+      r.isAdvance ? "Advance" : r.isFully ? "Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"
+    ]);
+
+    autoTable(doc, {
+      startY: 80,
+      head: [['Period', 'Amount Due', 'Paid', 'Balance', 'Status']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [26, 26, 26] }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 80;
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Paid (${selected.currentYear}):`, 15, finalY + 10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(39, 174, 96);
+    doc.text(`PHP ${selected.totalPaid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`, 60, finalY + 10);
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(`TOTAL OUTSTANDING BALANCE:`, 15, finalY + 18);
+    doc.setTextColor(192, 57, 43);
+    if (selected.totalOutstanding === 0) doc.setTextColor(39, 174, 96);
+    doc.text(`PHP ${selected.totalOutstanding.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`, 85, finalY + 18);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`${selected.profile?.first_name} ${selected.profile?.last_name}`, 30, finalY + 45, { align: "center" });
+    doc.line(15, finalY + 41, 45, finalY + 41);
+    doc.text("Vendor / Lessee", 30, finalY + 50, { align: "center" });
+
+    doc.text("Cashier", 105, finalY + 45, { align: "center" });
+    doc.line(90, finalY + 41, 120, finalY + 41);
+    doc.text("Prepared by", 105, finalY + 50, { align: "center" });
+
+    doc.text("Municipal Treasurer", 180, finalY + 45, { align: "center" });
+    doc.line(165, finalY + 41, 195, finalY + 41);
+    doc.text("Noted by", 180, finalY + 50, { align: "center" });
+
+    doc.save(`SOA_${selected.profile?.first_name}_${selected.profile?.last_name}_${selected.currentYear}.pdf`);
   };
 
   return (
@@ -427,9 +509,8 @@ const CashierSOA = () => {
                   <button
                     key={v.id}
                     onClick={() => loadSOA(v)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${
-                      selected?.vendorId === v.id ? "bg-primary/5 border-l-2 border-l-primary" : ""
-                    }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${selected?.vendorId === v.id ? "bg-primary/5 border-l-2 border-l-primary" : ""
+                      }`}
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary">
                       <User className="h-4 w-4 text-muted-foreground" />
@@ -495,10 +576,10 @@ const CashierSOA = () => {
                   {/* Vendor info grid */}
                   <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm rounded-xl bg-secondary/40 p-4 sm:grid-cols-3">
                     {[
-                      { label: "Vendor Name",  value: `${selected.profile?.first_name} ${selected.profile?.last_name}` },
+                      { label: "Vendor Name", value: `${selected.profile?.first_name} ${selected.profile?.last_name}` },
                       { label: "Stall Number", value: selected.stall?.stall_number || "—" },
-                      { label: "Section",      value: selected.stall?.section || "General" },
-                      { label: "Location",     value: selected.stall?.location || "—" },
+                      { label: "Section", value: selected.stall?.section || "General" },
+                      { label: "Location", value: selected.stall?.location || "—" },
                       { label: "Monthly Rate", value: `₱${Number(selected.monthlyRate).toLocaleString("en-PH", { minimumFractionDigits: 2 })}` },
                       { label: "Date Printed", value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },
                     ].map(({ label, value }) => (
@@ -526,6 +607,7 @@ const CashierSOA = () => {
                           <tr key={r.monthNum} className={`transition-colors hover:bg-secondary/20 ${r.isFuture ? "opacity-40" : ""}`}>
                             <td className="px-4 py-2.5 text-foreground font-medium">
                               {r.month} {selected.currentYear}
+                              {r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span>}
                             </td>
                             <td className="px-4 py-2.5 text-right font-mono text-foreground">
                               ₱{r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
@@ -539,13 +621,13 @@ const CashierSOA = () => {
                               {(r.isFully || r.isAdvance)
                                 ? <span className="text-success font-mono">₱0.00</span>
                                 : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>
-                                    ₱{r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-                                  </span>}
+                                  ₱{r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                                </span>}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {r.isAdvance ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                                   Advance
+                                  Advance
                                 </span>
                               ) : r.isFully ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
@@ -589,7 +671,7 @@ const CashierSOA = () => {
                   <div className="grid grid-cols-3 gap-6 pt-4">
                     {[
                       { name: `${selected.profile?.first_name} ${selected.profile?.last_name}`, role: "Vendor / Lessee" },
-                      { name: "Cashier",             role: "Prepared by" },
+                      { name: "Cashier", role: "Prepared by" },
                       { name: "Municipal Treasurer", role: "Noted by" },
                     ].map(s => (
                       <div key={s.role} className="text-center">

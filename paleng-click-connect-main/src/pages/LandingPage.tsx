@@ -63,11 +63,18 @@ const LandingPage = () => {
                 </a>
               ))}
             </div>
-            <Link to="/login">
-              <button style={{ background: "linear-gradient(135deg, #1a4a2e, #2d7a4f)", color: "#f0e6c8", border: "none", borderRadius: 6, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 8, fontFamily: "Georgia, serif" }}>
-                Login <ArrowRight size={14} />
-              </button>
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Link to="/apply">
+                <button style={{ background: "transparent", color: "#1a4a2e", border: "1px solid #1a4a2e", borderRadius: 6, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5, fontFamily: "Georgia, serif" }}>
+                  Apply as Vendor
+                </button>
+              </Link>
+              <Link to="/login">
+                <button style={{ background: "linear-gradient(135deg, #1a4a2e, #2d7a4f)", color: "#f0e6c8", border: "none", borderRadius: 6, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 8, fontFamily: "Georgia, serif" }}>
+                  Login <ArrowRight size={14} />
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -99,7 +106,12 @@ const LandingPage = () => {
             <motion.div variants={fadeUp} custom={4} style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 52 }}>
               <Link to="/login">
                 <button style={{ background: "linear-gradient(135deg, #c9a84c, #e8c86e)", color: "#1a2e1a", border: "none", borderRadius: 6, padding: "14px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 8, fontFamily: "Georgia, serif", boxShadow: "0 4px 20px rgba(201,168,76,0.35)" }}>
-                  Get Started <ArrowRight size={16} />
+                  Login to Portal <ArrowRight size={16} />
+                </button>
+              </Link>
+              <Link to="/apply">
+                <button style={{ background: "transparent", color: "#f0e6c8", border: "1px solid rgba(240,230,200,0.35)", borderRadius: 6, padding: "14px 32px", fontSize: 14, cursor: "pointer", letterSpacing: 0.5, fontFamily: "Georgia, serif" }}>
+                  Apply for a Stall
                 </button>
               </Link>
               <a href="#features">

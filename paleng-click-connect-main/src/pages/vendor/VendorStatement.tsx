@@ -6,10 +6,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
@@ -17,7 +18,7 @@ const DS = {
   gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
   blue900: "#0d2240",
   blue600: "#2563eb",
-  blue50:  "#eff6ff",
+  blue50: "#eff6ff",
   blue100: "#dbeafe",
 };
 
@@ -79,7 +80,7 @@ const getPrintHTML = (data: any) => {
   <div class="info-item"><label>Section</label><p>${stall?.section || "General"}</p></div>
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
-  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH",{year:"numeric",month:"long",day:"numeric"})}</p></div>
+  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
 </div>
 <table>
   <thead><tr><th>Period</th><th class="r">Amount Due</th><th class="r">Paid</th><th class="r">Balance</th><th class="c">Status</th></tr></thead>
@@ -100,9 +101,9 @@ const getPrintHTML = (data: any) => {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 const VendorStatement = () => {
-  const { user }   = useAuth();
-  const printRef   = useRef<HTMLIFrameElement>(null);
-  const thisYear   = new Date().getFullYear();
+  const { user } = useAuth();
+  const printRef = useRef<HTMLIFrameElement>(null);
+  const thisYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(thisYear);
 
   const availableYears = Array.from({ length: 4 }, (_, i) => thisYear - i);
@@ -112,7 +113,7 @@ const VendorStatement = () => {
     enabled: !!user,
     refetchInterval: 5000,
     queryFn: async () => {
-      const { data: vendor }  = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, location)").eq("user_id", user!.id).single();
+      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, location)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
       const [paymentsRes, schedulesRes] = await Promise.all([
         supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true }),
@@ -128,17 +129,17 @@ const VendorStatement = () => {
     </div>
   );
 
-  const stall       = data?.stall;
-  const profile     = data?.profile;
-  const payments    = data?.payments || [];
-  const schedules   = data?.schedules || [];
+  const stall = data?.stall;
+  const profile = data?.profile;
+  const payments = data?.payments || [];
+  const schedules = data?.schedules || [];
   const defaultRate = stall?.monthly_rate || 1450;
   const getMonthFee = (month: number) => {
     const s = schedules.find((s: any) => s.month === month);
     return s ? Number(s.amount) : defaultRate;
   };
-  const monthlyRate  = defaultRate;
-  const currentYear  = selectedYear;
+  const monthlyRate = defaultRate;
+  const currentYear = selectedYear;
   const currentMonth = selectedYear === thisYear ? new Date().getMonth() + 1 : 12;
 
   const rawPaidMap: Record<number, number> = {};
@@ -149,11 +150,17 @@ const VendorStatement = () => {
   const displayPaidMap: Record<number, number> = {};
   let carryOver = 0;
   for (let m = 1; m <= 12; m++) {
-    const due      = getMonthFee(m);
+    const isOverdue = m < currentMonth;
+    const baseDue = getMonthFee(m);
+    // Flat 25% surcharge for overdue unpaid balances
+    const penalty = isOverdue && ((rawPaidMap[m] || 0) + carryOver < baseDue) ? baseDue * 0.25 : 0;
+    const totalDue = baseDue + penalty;
+
     const credited = (rawPaidMap[m] || 0) + carryOver;
     displayPaidMap[m] = credited;
-    if (credited >= due) {
-      carryOver = credited - due;
+
+    if (credited >= totalDue) {
+      carryOver = credited - totalDue;
     } else {
       carryOver = 0;
     }
@@ -164,9 +171,12 @@ const VendorStatement = () => {
   const totalOutstanding = MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
-    const due  = getMonthFee(m);
+    const baseDue = getMonthFee(m);
+    const isOverdue = m < currentMonth;
+    const penalty = isOverdue && ((displayPaidMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
+    const totalDue = baseDue + penalty;
     const paid = displayPaidMap[m] || 0;
-    return sum + Math.max(0, due - paid);
+    return sum + Math.max(0, totalDue - paid);
   }, 0);
 
   const monthsPaid = MONTHS.filter((_, i) => {
@@ -175,16 +185,21 @@ const VendorStatement = () => {
   }).length;
 
   const rows = MONTHS.map((month, i) => {
-    const m        = i + 1;
-    const due      = getMonthFee(m);
+    const m = i + 1;
+    const baseDue = getMonthFee(m);
+    const isOverdue = m < currentMonth;
     const credited = displayPaidMap[m] || 0;
-    const displayPaid = Math.min(credited, due);
-    const balance     = Math.max(0, due - credited);
-    const isAdvance  = m > currentMonth && credited >= due;
-    const isFuture   = m > currentMonth && credited === 0;
-    const isFully    = credited >= due && !isAdvance;
-    const isPartial  = credited > 0 && credited < due;
-    return { month, monthNum: m, due, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture };
+
+    const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    const totalDue = baseDue + penalty;
+
+    const displayPaid = Math.min(credited, totalDue);
+    const balance = Math.max(0, totalDue - credited);
+    const isAdvance = m > currentMonth && credited >= totalDue;
+    const isFuture = m > currentMonth && credited === 0;
+    const isFully = credited >= totalDue && !isAdvance;
+    const isPartial = credited > 0 && credited < totalDue;
+    return { month, monthNum: m, due: totalDue, baseDue, penalty, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture, isOverdue };
   });
 
   const printData = { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate: defaultRate };
@@ -194,6 +209,80 @@ const VendorStatement = () => {
     if (!frame) return;
     frame.srcdoc = getPrintHTML(printData);
     frame.onload = () => setTimeout(() => frame.contentWindow?.print(), 300);
+  };
+
+  const doDownloadPDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("helvetica");
+    doc.setFontSize(10);
+    doc.text("Republic of the Philippines", 105, 15, { align: "center" });
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Municipality of San Juan, Batangas", 105, 22, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text("Office of the Municipal Treasurer", 105, 28, { align: "center" });
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("STATEMENT OF ACCOUNT", 105, 40, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Public Market Stall Rental — Fiscal Year ${currentYear}`, 105, 46, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.text(`Vendor Name: ${profile?.first_name} ${profile?.last_name}`, 15, 60);
+    doc.text(`Stall Number: ${stall?.stall_number || "—"}`, 15, 66);
+    doc.text(`Section: ${stall?.section || "General"}`, 15, 72);
+    doc.text(`Monthly Rate: ${fmt(monthlyRate)}`, 120, 60);
+    doc.text(`Location: ${stall?.location || "—"}`, 120, 66);
+    doc.text(`Date Printed: ${new Date().toLocaleDateString("en-PH")}`, 120, 72);
+
+    const tableData = rows.map((r: any) => [
+      `${r.month} ${currentYear}`,
+      fmt(r.due),
+      r.paid > 0 ? fmt(r.paid) : "—",
+      (r.isFully || r.isAdvance) ? "PHP 0.00" : fmt(r.balance),
+      r.isAdvance ? "Advance" : r.isFully ? "Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"
+    ]);
+
+    autoTable(doc, {
+      startY: 80,
+      head: [['Period', 'Amount Due', 'Paid', 'Balance', 'Status']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [17, 17, 17] }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY || 80;
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Paid (${currentYear}):`, 15, finalY + 10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(39, 174, 96);
+    doc.text(fmt(totalPaid), 60, finalY + 10);
+
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(`TOTAL OUTSTANDING BALANCE:`, 15, finalY + 18);
+    doc.setTextColor(192, 57, 43);
+    if (totalOutstanding === 0) doc.setTextColor(39, 174, 96);
+    doc.text(fmt(totalOutstanding), 85, finalY + 18);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`${profile?.first_name} ${profile?.last_name}`, 30, finalY + 45, { align: "center" });
+    doc.line(15, finalY + 41, 45, finalY + 41);
+    doc.text("Vendor / Lessee", 30, finalY + 50, { align: "center" });
+
+    doc.text("Cashier", 105, finalY + 45, { align: "center" });
+    doc.line(90, finalY + 41, 120, finalY + 41);
+    doc.text("Prepared by", 105, finalY + 50, { align: "center" });
+
+    doc.text("Municipal Treasurer", 180, finalY + 45, { align: "center" });
+    doc.line(165, finalY + 41, 195, finalY + 41);
+    doc.text("Noted by", 180, finalY + 50, { align: "center" });
+
+    doc.save(`SOA_${profile?.first_name}_${profile?.last_name}_${currentYear}.pdf`);
   };
 
   return (
@@ -207,9 +296,9 @@ const VendorStatement = () => {
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Official summary of your stall rental</p>
           <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
-              { label: "Total Paid",   value: fmt(totalPaid), green: true },
-              { label: "Months Paid",  value: `${monthsPaid}/${currentMonth}` },
-              { label: "Outstanding",  value: fmt(totalOutstanding), green: totalOutstanding === 0 },
+              { label: "Total Paid", value: fmt(totalPaid), green: true },
+              { label: "Months Paid", value: `${monthsPaid}/${currentMonth}` },
+              { label: "Outstanding", value: fmt(totalOutstanding), green: totalOutstanding === 0 },
             ].map(s => (
               <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
                 style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
@@ -242,7 +331,7 @@ const VendorStatement = () => {
           <Button variant="outline" className="gap-2 rounded-xl" onClick={doPrint}>
             <Printer className="h-4 w-4" /> Print
           </Button>
-          <Button variant="hero" className="gap-2 rounded-xl" onClick={doPrint}>
+          <Button variant="hero" className="gap-2 rounded-xl" onClick={doDownloadPDF}>
             <Download className="h-4 w-4" /> Save PDF
           </Button>
         </div>
@@ -251,10 +340,10 @@ const VendorStatement = () => {
       {/* Desktop summary cards */}
       <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ padding: "16px 32px 0" }}>
         {[
-          { label: "Monthly Rate",   value: fmt(monthlyRate),        color: "#0f172a",  icon: Calendar,     bg: "#f1f5f9"   },
-          { label: "Total Paid",     value: fmt(totalPaid),          color: "#16a34a",  icon: TrendingUp,   bg: "#dcfce7"   },
-          { label: "Months Paid",    value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "#16a34a" : "#2563eb", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "#dcfce7" : "#dbeafe" },
-          { label: "Outstanding",    value: fmt(totalOutstanding),   color: totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle, bg: totalOutstanding === 0 ? "#dcfce7" : "#fef3c7" },
+          { label: "Monthly Rate", value: fmt(monthlyRate), color: "#0f172a", icon: Calendar, bg: "#f1f5f9" },
+          { label: "Total Paid", value: fmt(totalPaid), color: "#16a34a", icon: TrendingUp, bg: "#dcfce7" },
+          { label: "Months Paid", value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "#16a34a" : "#2563eb", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "#dcfce7" : "#dbeafe" },
+          { label: "Outstanding", value: fmt(totalOutstanding), color: totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle, bg: totalOutstanding === 0 ? "#dcfce7" : "#fef3c7" },
         ].map(c => (
           <div key={c.label} style={{ borderRadius: 16, border: "1px solid #e2e8f0", background: "#fff", padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -285,7 +374,7 @@ const VendorStatement = () => {
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100">
             <Printer className="h-3.5 w-3.5" /> Print
           </button>
-          <button onClick={doPrint}
+          <button onClick={doDownloadPDF}
             className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white"
             style={{ background: DS.blue600 }}>
             <Download className="h-3.5 w-3.5" /> Save PDF
@@ -310,10 +399,10 @@ const VendorStatement = () => {
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm rounded-2xl px-4 py-4 sm:grid-cols-3"
             style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
             {[
-              { label: "Vendor Name",  value: `${profile?.first_name} ${profile?.last_name}` },
+              { label: "Vendor Name", value: `${profile?.first_name} ${profile?.last_name}` },
               { label: "Stall Number", value: stall?.stall_number || "—" },
-              { label: "Section",      value: stall?.section || "General" },
-              { label: "Location",     value: stall?.location || "—" },
+              { label: "Section", value: stall?.section || "General" },
+              { label: "Location", value: stall?.location || "—" },
               { label: "Monthly Rate", value: fmt(monthlyRate) },
               { label: "Date Printed", value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },
             ].map(({ label, value }) => (
@@ -339,7 +428,10 @@ const VendorStatement = () => {
               <tbody className="divide-y">
                 {rows.map(r => (
                   <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
-                    <td className="px-4 py-2.5 font-medium text-foreground">{r.month} {currentYear}</td>
+                    <td className="px-4 py-2.5 font-medium text-foreground">
+                      {r.month} {currentYear}
+                      {r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span>}
+                    </td>
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
                     <td className="px-4 py-2.5 text-right font-mono">
                       {r.paid > 0
@@ -417,7 +509,7 @@ const VendorStatement = () => {
           <div className="grid grid-cols-3 gap-6 pt-4">
             {[
               { name: `${profile?.first_name} ${profile?.last_name}`, role: "Vendor / Lessee" },
-              { name: "Cashier",             role: "Prepared by" },
+              { name: "Cashier", role: "Prepared by" },
               { name: "Municipal Treasurer", role: "Noted by" },
             ].map(s => (
               <div key={s.role} className="text-center">
