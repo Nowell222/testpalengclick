@@ -11,36 +11,35 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
-import VendorHistory   from "./VendorHistory";
+import VendorHistory from "./VendorHistory";
 import VendorStatement from "./VendorStatement";
 import VendorBottomNav from "../../components/VendorBottomNav";
-import { M } from "vitest/dist/chunks/reporters.d.BFLkQcL6.js";
 
-const MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 const DS = {
   gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
-  gradientCard:   "linear-gradient(135deg, #1a3a5f 0%, #2563eb 100%)",
+  gradientCard: "linear-gradient(135deg, #1a3a5f 0%, #2563eb 100%)",
   blue900: "#0d2240",
   blue800: "#1a3a5f",
   blue700: "#1d4ed8",
   blue600: "#2563eb",
   blue400: "#60a5fa",
-  blue50:  "#eff6ff",
+  blue50: "#eff6ff",
   blue100: "#dbeafe",
   slate50: "#f8fafc",
-  slate100:"#f1f5f9",
-  slate200:"#e2e8f0",
-  slate900:"#0f172a",
-  green600:"#16a34a",
-  green500:"#22c55e",
-  green100:"#dcfce7",
-  amber600:"#d97706",
-  amber100:"#fef3c7",
+  slate100: "#f1f5f9",
+  slate200: "#e2e8f0",
+  slate900: "#0f172a",
+  green600: "#16a34a",
+  green500: "#22c55e",
+  green100: "#dcfce7",
+  amber600: "#d97706",
+  amber100: "#fef3c7",
 };
 
 // ── Slide Panel ────────────────────────────────────────────────────────────────
@@ -75,24 +74,56 @@ const SlidePanel = ({
   </AnimatePresence>
 );
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ─── Summary Carousel ─────────────────────────────────────────────────────────
+const SummaryCarousel = ({
+  items,
+  onViewSOA
+}: {
+  items: Array<{ label: string; value: string; bg: string; iconColor: string; icon: any }>;
+  onViewSOA: () => void
+}) => (
+  <div className="mx-3 mb-2 overflow-x-auto flex gap-3 pb-2 scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
+    {items.map((item, idx) => (
+      <div key={idx} className="flex-shrink-0 w-[140px] p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: item.bg }}>
+            <item.icon size={15} color={item.iconColor} />
+          </div>
+        </div>
+        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.label}</p>
+        <p className="text-base font-black text-slate-900 mt-1">{item.value}</p>
+      </div>
+    ))}
+    <div
+      onClick={onViewSOA}
+      className="flex-shrink-0 w-[110px] p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95 transition-transform"
+    >
+      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-slate-100">
+        <ArrowRight size={14} className="text-slate-400" />
+      </div>
+      <p className="text-[9px] font-bold text-slate-400 uppercase text-center leading-tight">View Full<br />SOA</p>
+    </div>
+  </div>
+);
+
+// ─── Main Component ─────────────────────────────────────────────────────────────
 const VendorDashboardHome = () => {
   const { user } = useAuth();
 
-  const [activeTab,          setActiveTab]          = useState<"balance" | "history" | "statement">("balance");
-  const [showHistoryPanel,   setShowHistoryPanel]   = useState(false);
+  const [activeTab, setActiveTab] = useState<"balance" | "history" | "statement">("balance");
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [showStatementPanel, setShowStatementPanel] = useState(false);
-  const [paymentsExpanded,   setPaymentsExpanded]   = useState(false);
+  const [paymentsExpanded, setPaymentsExpanded] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-dashboard", user?.id],
     enabled: !!user,
     refetchInterval: 5000,
     queryFn: async () => {
-      const { data: vendor }   = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
-      const { data: profile }  = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
+      const { data: vendor } = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
+      const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
       const { data: confirmedPayments } = await supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").order("created_at", { ascending: false });
-      const { data: submissions } = await (supabase.from("payment_submissions" as any) as any)
+      const { data: submissions } = await supabase.from("payment_submissions")
         .select("*").eq("vendor_id", vendor?.id || "").in("status", ["pending", "rejected"]).order("created_at", { ascending: false });
       const pendingRows = (submissions || []).map((s: any) => ({
         id: `sub_${s.id}`, amount: s.amount, status: s.status === "rejected" ? "failed" : "pending",
@@ -107,7 +138,7 @@ const VendorDashboardHome = () => {
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
       const { data: schedules } = stall?.id
-        ? await (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", stall.id).eq("year", currentYear)
+        ? await supabase.from("stall_fee_schedules").select("*").eq("stall_id", stall.id).eq("year", currentYear)
         : { data: [] };
       const getMonthFee = (m: number): number => {
         const s = (schedules || []).find((s: any) => s.month === m);
@@ -140,8 +171,8 @@ const VendorDashboardHome = () => {
       const totalOutstanding = Array.from({ length: currentMonth }, (_, i) => i + 1).reduce((sum, m) => sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0)), 0);
       const chartData = MONTHS_SHORT.slice(0, currentMonth).map((m, i) => ({
         month: m,
-        paid:  Math.min(effMap[i + 1] || 0, getMonthFee(i + 1)),
-        due:   getMonthFee(i + 1),
+        paid: Math.min(effMap[i + 1] || 0, getMonthFee(i + 1)),
+        due: getMonthFee(i + 1),
       }));
       return {
         vendor, profile, stall, monthlyRate, payments: (payments || []).slice(0, 8),
@@ -170,39 +201,39 @@ const VendorDashboardHome = () => {
     setActiveTab(tab);
     // On mobile, open slide panels. On desktop, navigate to pages.
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-      if (tab === "history")   window.location.href = "/vendor/history";
+      if (tab === "history") window.location.href = "/vendor/history";
       if (tab === "statement") window.location.href = "/vendor/statement";
     } else {
-      if (tab === "history")   setShowHistoryPanel(true);
+      if (tab === "history") setShowHistoryPanel(true);
       if (tab === "statement") setShowStatementPanel(true);
     }
   };
 
   const mobileActions = [
-    { label: "Pay Online",  to: "/vendor/pay",           icon: CreditCard },
-    { label: "History",     to: "/vendor/history",       icon: History    },
-    { label: "Statement",   to: "/vendor/statement",     icon: FileText   },
-    { label: "Stall Info",  to: "/vendor/stall",         icon: Store      },
-    { label: "Alerts",      to: "/vendor/notifications", icon: Bell,  badge: d.unreadNotifs.length },
-    { label: "News",        to: "/vendor/news",          icon: Newspaper  },
+    { label: "Pay Online", to: "/vendor/pay", icon: CreditCard },
+    { label: "History", to: "/vendor/history", icon: History },
+    { label: "Statement", to: "/vendor/statement", icon: FileText },
+    { label: "Stall Info", to: "/vendor/stall", icon: Store },
+    { label: "Alerts", to: "/vendor/notifications", icon: Bell, badge: d.unreadNotifs.length },
+    { label: "News", to: "/vendor/news", icon: Newspaper },
   ];
 
   const quickLinks = [
-    { label: "Pay Online",            to: "/vendor/pay",           icon: CreditCard },
-    { label: "Payment History",       to: "/vendor/history",       icon: History   },
-    { label: "Statement of Account",  to: "/vendor/statement",     icon: FileText  },
-    { label: "Stall Information",     to: "/vendor/stall",         icon: Store     },
-    { label: "Notifications",         to: "/vendor/notifications", icon: Bell,     badge: d.unreadNotifs.length },
-    { label: "News & Updates",        to: "/vendor/news",          icon: Newspaper },
+    { label: "Pay Online", to: "/vendor/pay", icon: CreditCard },
+    { label: "Payment History", to: "/vendor/history", icon: History },
+    { label: "Statement of Account", to: "/vendor/statement", icon: FileText },
+    { label: "Stall Information", to: "/vendor/stall", icon: Store },
+    { label: "Notifications", to: "/vendor/notifications", icon: Bell, badge: d.unreadNotifs.length },
+    { label: "News & Updates", to: "/vendor/news", icon: Newspaper },
   ];
 
   const tabs = [
-    { key: "balance",   label: "Balance"   },
-    { key: "history",   label: "History"   },
+    { key: "balance", label: "Balance" },
+    { key: "history", label: "History" },
     { key: "statement", label: "Statement" },
   ] as const;
 
-  const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   /* ─── DESKTOP VIEW ──────────────────────────────────────────────────────────── */
   const DesktopView = () => (
@@ -345,10 +376,10 @@ const VendorDashboardHome = () => {
           {/* Stats grid — styled like image 7 */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {[
-              { label: "Monthly Rate",   value: fmt(monthlyRate),        sub: "per month",              color: DS.slate900,  iconColor: "#64748b", bg: DS.slate100, icon: Calendar    },
-              { label: "Total Paid",     value: fmt(d.totalPaidYear),    sub: `${d.currentYear} so far`, color: DS.green600,  iconColor: DS.green600, bg: "#dcfce7",  icon: TrendingUp  },
+              { label: "Monthly Rate", value: fmt(monthlyRate), sub: "per month", color: DS.slate900, iconColor: "#64748b", bg: DS.slate100, icon: Calendar },
+              { label: "Total Paid", value: fmt(d.totalPaidYear), sub: `${d.currentYear} so far`, color: DS.green600, iconColor: DS.green600, bg: "#dcfce7", icon: TrendingUp },
               { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, sub: "paid in full", color: d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600, iconColor: d.monthsPaid === d.currentMonth ? DS.green600 : DS.blue600, bg: d.monthsPaid === d.currentMonth ? "#dcfce7" : DS.blue100, icon: CheckCircle2 },
-              { label: "Outstanding",    value: fmt(d.totalOutstanding), sub: "balance due",             color: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, iconColor: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, bg: d.totalOutstanding === 0 ? "#dcfce7" : DS.amber100, icon: AlertCircle },
+              { label: "Outstanding", value: fmt(d.totalOutstanding), sub: "balance due", color: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, iconColor: d.totalOutstanding === 0 ? DS.green600 : DS.amber600, bg: d.totalOutstanding === 0 ? "#dcfce7" : DS.amber100, icon: AlertCircle },
             ].map(c => (
               <div key={c.label} style={{
                 background: "#fff", border: `1px solid ${DS.slate200}`,
@@ -517,9 +548,9 @@ const VendorDashboardHome = () => {
             <div style={{ fontSize: 14, fontWeight: 800, color: DS.slate900, marginBottom: 14 }}>Quick Links</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
               {[
-                { label: "Pay Online", to: "/vendor/pay",       icon: CreditCard },
-                { label: "History",    to: "/vendor/history",   icon: History    },
-                { label: "Statement",  to: "/vendor/statement", icon: FileText   },
+                { label: "Pay Online", to: "/vendor/pay", icon: CreditCard },
+                { label: "History", to: "/vendor/history", icon: History },
+                { label: "Statement", to: "/vendor/statement", icon: FileText },
               ].map(l => (
                 <Link key={l.to} to={l.to} style={{ textDecoration: "none" }}>
                   <div style={{
@@ -658,30 +689,15 @@ const VendorDashboardHome = () => {
             )}
           </div>
 
-          <div>
-            <div className="flex items-center justify-between px-4 pt-2 pb-2">
-              <p className="text-sm font-bold" style={{ color: DS.blue900 }}>Your Summary</p>
-              <button onClick={() => setShowStatementPanel(true)} className="text-xs font-semibold flex items-center gap-1" style={{ color: DS.blue600 }}>
-                View SOA <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
-            <div className="flex gap-2.5 px-4 pb-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              {[
-                { label: "Total Paid",     value: fmt(d.totalPaidYear),    bg: "#dcfce7", iconColor: "#16a34a", icon: TrendingUp  },
-                { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, bg: "#dbeafe", iconColor: "#2563eb", icon: Calendar   },
-                { label: "Outstanding",    value: fmt(d.totalOutstanding), bg: d.totalOutstanding === 0 ? "#dcfce7" : "#fef3c7", iconColor: d.totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle },
-                { label: "Monthly Rate",   value: fmt(monthlyRate),        bg: "#f1f5f9", iconColor: "#475569", icon: CreditCard },
-              ].map(s => (
-                <div key={s.label} className="shrink-0 bg-white rounded-2xl p-3 border border-slate-100" style={{ width: 128 }}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-2" style={{ background: s.bg }}>
-                    <s.icon className="h-4 w-4" style={{ color: s.iconColor } as any} />
-                  </div>
-                  <p className="font-black text-[15px] text-slate-900 leading-tight" style={{ fontVariantNumeric: "tabular-nums" }}>{s.value}</p>
-                  <p className="text-[9.5px] text-slate-400 mt-0.5 uppercase tracking-wide font-semibold">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <SummaryCarousel
+            items={[
+              { label: "Total Paid", value: fmt(d.totalPaidYear), bg: "#dcfce7", iconColor: "#16a34a", icon: TrendingUp },
+              { label: "Months Settled", value: `${d.monthsPaid}/${d.currentMonth}`, bg: "#dbeafe", iconColor: "#2563eb", icon: Calendar },
+              { label: "Outstanding", value: fmt(d.totalOutstanding), bg: d.totalOutstanding === 0 ? "#dcfce7" : "#fef3c7", iconColor: d.totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle },
+              { label: "Monthly Rate", value: fmt(monthlyRate), bg: "#f1f5f9", iconColor: "#475569", icon: CreditCard },
+            ]}
+            onViewSOA={() => setShowStatementPanel(true)}
+          />
 
           <div className="mx-3 mb-2 rounded-2xl overflow-hidden" style={{ background: DS.gradientCard }}>
             <div className="flex items-center gap-4 p-4">
@@ -713,10 +729,10 @@ const VendorDashboardHome = () => {
                 <BarChart data={d.chartData} barGap={3} barSize={14}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} tickFormatter={v => v >= 1000 ? `₱${v/1000}k` : `₱${v}`} axisLine={false} tickLine={false} width={40} />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} tickFormatter={v => v >= 1000 ? `₱${v / 1000}k` : `₱${v}`} axisLine={false} tickLine={false} width={40} />
                   <Tooltip formatter={(v: number, name: string) => [fmt(v), name === "paid" ? "Paid" : "Due"]} contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
-                  <Bar dataKey="due"  fill="#e2e8f0" radius={[4,4,0,0]} name="due" />
-                  <Bar dataKey="paid" fill="#2563eb" radius={[4,4,0,0]} name="paid" />
+                  <Bar dataKey="due" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="due" />
+                  <Bar dataKey="paid" fill="#2563eb" radius={[4, 4, 0, 0]} name="paid" />
                 </BarChart>
               </ResponsiveContainer>
             )}

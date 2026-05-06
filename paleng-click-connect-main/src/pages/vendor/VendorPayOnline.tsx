@@ -138,7 +138,7 @@ const VendorPayOnline = () => {
           .eq("status", "completed")
           .eq("period_year", currentYear),
         stall?.id
-          ? (supabase.from("stall_fee_schedules" as any) as any)
+          ? supabase.from("stall_fee_schedules")
               .select("*").eq("stall_id", stall.id).eq("year", currentYear)
           : Promise.resolve({ data: [] }),
       ]);
@@ -249,8 +249,8 @@ const VendorPayOnline = () => {
         .getPublicUrl(filePath);
       const receiptUrl = urlData.publicUrl;
 
-      const { data: submission, error: subError } = await (supabase
-        .from("payment_submissions" as any) as any)
+      const { data: submission, error: subError } = await supabase
+        .from("payment_submissions")
         .insert({
           vendor_id:      data.vendor.id,
           vendor_user_id: user!.id,
@@ -273,8 +273,8 @@ const VendorPayOnline = () => {
         .single();
       if (subError) throw new Error(`Submission failed: ${subError.message}`);
 
-      const { data: cashiers } = await (supabase
-        .from("user_roles" as any) as any)
+      const { data: cashiers } = await supabase
+        .from("user_roles")
         .select("user_id")
         .eq("role", "cashier");
 

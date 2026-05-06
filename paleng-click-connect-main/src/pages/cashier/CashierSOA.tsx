@@ -46,7 +46,8 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
     const credited = (rawPaidMap[m] || 0) + carry;
 
     // Flat 25% surcharge for overdue unpaid balances
-    const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    // const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    const penalty = 0; // Penalty temporarily disabled
     const totalDue = baseDue + penalty;
 
     effMap[m] = credited;
@@ -66,7 +67,8 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
     if (m > currentMonth) return sum;
     const isOverdue = m < currentMonth;
     const baseDue = getMonthFee(m);
-    const penalty = isOverdue && ((effMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
+    // const penalty = isOverdue && ((effMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
+    const penalty = 0; // Penalty temporarily disabled
     const totalDue = baseDue + penalty;
     return sum + Math.max(0, totalDue - (effMap[m] || 0));
   }, 0);
@@ -77,7 +79,8 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
     const baseDue = getMonthFee(m);
     const credited = effMap[m] || 0;
     const isOverdue = m < currentMonth;
-    const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    // const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    const penalty = 0; // Penalty temporarily disabled
     const totalDue = baseDue + penalty;
 
     const displayPaid = Math.min(credited, totalDue);
@@ -607,7 +610,7 @@ const CashierSOA = () => {
                           <tr key={r.monthNum} className={`transition-colors hover:bg-secondary/20 ${r.isFuture ? "opacity-40" : ""}`}>
                             <td className="px-4 py-2.5 text-foreground font-medium">
                               {r.month} {selected.currentYear}
-                              {r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span>}
+                              {/* r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span> */}
                             </td>
                             <td className="px-4 py-2.5 text-right font-mono text-foreground">
                               ₱{r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}

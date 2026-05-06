@@ -50,7 +50,11 @@ export const syncOfflinePayments = async () => {
   if (!dbPromise) return { success: true, count: 0 };
   const db = await dbPromise;
 
-  const offlinePayments = await db.getAllFromIndex('offline_payments', 'by-synced', false);
+  // Use getAll() + JS filter — booleans are not valid IDB keys and
+  // cannot be used with getAllFromIndex/countFromIndex queries.
+  const allPayments = await db.getAll('offline_payments');
+  const offlinePayments = allPayments.filter(p => !p.synced);
+
   if (offlinePayments.length === 0) return { success: true, count: 0 };
 
   let successCount = 0;
@@ -77,8 +81,8 @@ export const syncOfflinePayments = async () => {
     }
   }
 
-  // Optional: clear synced payments to save space
-  const syncedPayments = await db.getAllFromIndex('offline_payments', 'by-synced', true);
+  // Clear synced payments to save space
+  const syncedPayments = allPayments.filter(p => p.synced);
   for (const s of syncedPayments) {
     await db.delete('offline_payments', s.id);
   }
@@ -89,5 +93,7 @@ export const syncOfflinePayments = async () => {
 export const getUnsyncedCount = async () => {
   if (!dbPromise) return 0;
   const db = await dbPromise;
-  return await db.countFromIndex('offline_payments', 'by-synced', false);
+  // Use getAll() + JS filter — boolean is not a valid IDB key
+  const all = await db.getAll('offline_payments');
+  return all.filter(p => !p.synced).length;
 };

@@ -100,7 +100,7 @@ const CashierDashboardHome = () => {
     enabled: !!session?.user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cashier_shifts" as any)
+        .from("cashier_shifts")
         .select("*")
         .eq("cashier_id", session?.user?.id)
         .eq("status", "open")
@@ -114,7 +114,7 @@ const CashierDashboardHome = () => {
     mutationFn: async () => {
       const start = Number(startingCash);
       if (isNaN(start) || start < 0) throw new Error("Invalid starting cash");
-      const { error } = await supabase.from("cashier_shifts" as any).insert({
+      const { error } = await supabase.from("cashier_shifts").insert({
         cashier_id: session?.user?.id,
         starting_cash: start,
         status: "open",
@@ -138,7 +138,7 @@ const CashierDashboardHome = () => {
       const end = Number(endingCash);
       if (isNaN(end) || end < 0) throw new Error("Invalid actual ending cash");
 
-      const { error } = await supabase.from("cashier_shifts" as any)
+      const { error } = await supabase.from("cashier_shifts")
         .update({
           status: "closed",
           actual_ending_cash: end,
@@ -821,14 +821,14 @@ const CashierDashboardHome = () => {
                       <div className="flex justify-center">
                         <div className="relative">
                           <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${isCompleted ? "bg-emerald-100 text-emerald-700"
-                              : isPending ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
+                            : isPending ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"
                             }`}>
                             {initials}
                           </div>
                           <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isCompleted ? "bg-emerald-500 shadow-md"
-                              : isPending ? "bg-amber-400 animate-pulse"
-                                : "bg-red-500"
+                            : isPending ? "bg-amber-400 animate-pulse"
+                              : "bg-red-500"
                             }`} />
                         </div>
                       </div>
@@ -858,8 +858,8 @@ const CashierDashboardHome = () => {
 
                       <div className="text-center">
                         <span className={`inline-flex items-center text-[9px] font-bold px-2 py-1 rounded-full transition-all ${isCompleted ? "bg-emerald-50 text-emerald-700"
-                            : isPending ? "bg-amber-50 text-amber-700"
-                              : "bg-red-50 text-red-600"
+                          : isPending ? "bg-amber-50 text-amber-700"
+                            : "bg-red-50 text-red-600"
                           }`}>
                           {isCompleted ? "✓ Completed" : isPending ? "⏱ Pending" : "✗ Failed"}
                         </span>
@@ -879,14 +879,14 @@ const CashierDashboardHome = () => {
                     <div key={r.id} className="md:hidden flex items-start gap-3.5 px-4 py-3.5 hover:bg-secondary/40 transition-colors border-t">
                       <div className="relative shrink-0">
                         <div className={`h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-bold ${isCompleted ? "bg-emerald-100 text-emerald-700"
-                            : isPending ? "bg-amber-100 text-amber-700"
-                              : "bg-red-100 text-red-700"
+                          : isPending ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-700"
                           }`}>
                           {initials}
                         </div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isCompleted ? "bg-emerald-500 shadow-md"
-                            : isPending ? "bg-amber-400 animate-pulse"
-                              : "bg-red-500"
+                          : isPending ? "bg-amber-400 animate-pulse"
+                            : "bg-red-500"
                           }`} />
                       </div>
 
@@ -903,8 +903,8 @@ const CashierDashboardHome = () => {
                             {methodLabel}
                           </span>
                           <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full ${isCompleted ? "bg-emerald-50 text-emerald-700"
-                              : isPending ? "bg-amber-50 text-amber-700"
-                                : "bg-red-50 text-red-600"
+                            : isPending ? "bg-amber-50 text-amber-700"
+                              : "bg-red-50 text-red-600"
                             }`}>
                             {isCompleted ? "Completed" : isPending ? "Pending" : "Failed"}
                           </span>

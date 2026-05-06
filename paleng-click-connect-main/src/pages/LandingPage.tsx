@@ -1,30 +1,24 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   CreditCard, BarChart3, Bell, QrCode, Shield, Users,
   ArrowRight, CheckCircle2, MapPin, Phone, Mail,
 } from "lucide-react";
 
-const stats = [
-  { label: "Active Stallholders", value: "955", suffix: "" },
-  { label: "Delinquency Rate 2024", value: "20.01", suffix: "%" },
-  { label: "Target Reduction", value: "50", suffix: "%" },
-  { label: "Payment Methods", value: "4", suffix: "+" },
-];
-
 const features = [
-  { icon: CreditCard, title: "Digital Payments",       description: "Pay stall fees via GCash, PayMaya, Instapay, or cash — anytime, anywhere." },
-  { icon: BarChart3,  title: "Staggered Installments", description: "Flexible payment plans that match your financial capacity. No more missed deadlines." },
-  { icon: Bell,       title: "SMS Reminders",          description: "Automated notifications for due dates, confirmations, and municipal announcements." },
-  { icon: QrCode,     title: "QR Identification",      description: "Unique QR codes for every stall — fast verification and payment reference." },
-  { icon: Shield,     title: "Secure & Transparent",   description: "HTTPS encryption, audit logs, and role-based access for complete data security." },
-  { icon: Users,      title: "Admin Dashboard",        description: "Real-time analytics for collections, delinquency tracking, and vendor management." },
+  { icon: CreditCard, title: "Digital Payments", description: "Pay stall fees via GCash, PayMaya, Instapay, or cash — anytime, anywhere." },
+  { icon: BarChart3, title: "Staggered Installments", description: "Flexible payment plans that match your financial capacity. No more missed deadlines." },
+  { icon: Bell, title: "SMS Reminders", description: "Automated notifications for due dates, confirmations, and municipal announcements." },
+  { icon: QrCode, title: "QR Identification", description: "Unique QR codes for every stall — fast verification and payment reference." },
+  { icon: Shield, title: "Secure & Transparent", description: "HTTPS encryption, audit logs, and role-based access for complete data security." },
+  { icon: Users, title: "Admin Dashboard", description: "Real-time analytics for collections, delinquency tracking, and vendor management." },
 ];
 
 const fadeUp = {
-  hidden:   { opacity: 0, y: 32 },
+  hidden: { opacity: 0, y: 32 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
     transition: { delay: i * 0.12, duration: 0.6, ease: [0.16, 1, 0.3, 1] },
@@ -32,46 +26,61 @@ const fadeUp = {
 };
 
 const LandingPage = () => {
-  const heroRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroY       = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
+  const heroY = useTransform(scrollYProgress, [0, 1], ["0%", "25%"]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
 
-  return (
-    <div className="min-h-screen overflow-x-hidden" style={{ fontFamily: "'Georgia', 'Times New Roman', serif", background: "#f8f5f0" }}>
+  const { data: realStats } = useQuery({
+    queryKey: ['landing-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_landing_page_stats');
 
+      if (error) {
+        console.error("Error fetching landing stats:", error);
+        return { vendorCount: 955, delinquencyRate: 20.01 };
+      }
+
+      return data as { vendorCount: number, delinquencyRate: number };
+    }
+  });
+
+  const displayStats = [
+    { label: "Active Stallholders", value: realStats?.vendorCount ?? "955", suffix: "" },
+    { label: "Current Delinquency", value: realStats?.delinquencyRate ?? "20.01", suffix: "%" },
+    { label: "Target Reduction", value: "50", suffix: "%" },
+    { label: "Payment Methods", value: "4", suffix: "+" },
+  ]; return (
+    <div className="min-h-screen overflow-x-hidden font-serif bg-[#f8f5f0]">
       {/* ── NAV ─────────────────────────────────────────────────────────────── */}
-      <nav style={{ background: "rgba(248,245,240,0.95)", backdropFilter: "blur(12px)", borderBottom: "1px solid #d4c9b8", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
-            {/* favicon.png logo */}
-            <div style={{ width: 42, height: 42, borderRadius: 8, overflow: "hidden", boxShadow: "0 2px 8px rgba(26,74,46,0.3)", flexShrink: 0 }}>
-              <img src="/favicon.png" alt="PALENG-CLICK" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+      <nav className="bg-[#f8f5f0]/95 backdrop-blur-md border-b border-[#d4c9b8] sticky top-0 z-50">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-[60px] sm:h-[68px] flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 no-underline">
+            <div className="w-8 h-8 sm:w-[42px] sm:h-[42px] rounded-lg overflow-hidden shadow-sm flex-shrink-0">
+              <img src="/favicon.png" alt="PALENG-CLICK" className="w-full h-full object-contain" loading="lazy" />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: "#1a2e1a", letterSpacing: 1, fontFamily: "'Georgia', serif" }}>PALENG-CLICK</div>
-              <div style={{ fontSize: 10, color: "#6b7c6b", letterSpacing: 2, textTransform: "uppercase" }}>San Juan, Batangas</div>
+              <div className="font-bold text-[13px] sm:text-[16px] text-[#1a2e1a] tracking-wide font-serif">PALENG-CLICK</div>
+              <div className="text-[9px] sm:text-[10px] text-[#6b7c6b] tracking-wider uppercase hidden sm:block">San Juan, Batangas</div>
             </div>
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <div style={{ display: "flex", gap: 28 }} className="hidden md:flex">
-              {["Features","About","Impact"].map(item => (
-                <a key={item} href={`#${item.toLowerCase()}`} style={{ fontSize: 13, color: "#4a5e4a", textDecoration: "none", letterSpacing: 0.5, fontFamily: "Georgia, serif" }}
-                  onMouseEnter={e => (e.target as HTMLElement).style.color = "#1a4a2e"}
-                  onMouseLeave={e => (e.target as HTMLElement).style.color = "#4a5e4a"}>
+          <div className="flex items-center gap-4 sm:gap-8">
+            <div className="hidden md:flex gap-7">
+              {["Features", "About", "Impact"].map(item => (
+                <a key={item} href={`#${item.toLowerCase()}`} className="text-[13px] text-[#4a5e4a] no-underline tracking-wide hover:text-[#1a4a2e] transition-colors font-serif">
                   {item}
                 </a>
               ))}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Link to="/apply">
-                <button style={{ background: "transparent", color: "#1a4a2e", border: "1px solid #1a4a2e", borderRadius: 6, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5, fontFamily: "Georgia, serif" }}>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link to="/apply" className="hidden sm:block">
+                <button className="bg-transparent text-[#1a4a2e] border border-[#1a4a2e] rounded-md px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-[12px] font-semibold cursor-pointer tracking-wide font-serif hover:bg-[#1a4a2e]/5 transition-colors">
                   Apply as Vendor
                 </button>
               </Link>
               <Link to="/login">
-                <button style={{ background: "linear-gradient(135deg, #1a4a2e, #2d7a4f)", color: "#f0e6c8", border: "none", borderRadius: 6, padding: "10px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 8, fontFamily: "Georgia, serif" }}>
-                  Login <ArrowRight size={14} />
+                <button className="flex items-center gap-1.5 sm:gap-2 text-[#f0e6c8] border-none rounded-md px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-[12px] font-semibold cursor-pointer tracking-wide font-serif bg-gradient-to-br from-[#1a4a2e] to-[#2d7a4f] shadow-sm hover:opacity-90 transition-opacity">
+                  Login <ArrowRight size={14} className="hidden sm:block" />
                 </button>
               </Link>
             </div>
@@ -80,104 +89,108 @@ const LandingPage = () => {
       </nav>
 
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
-      <section ref={heroRef} style={{ position: "relative", minHeight: "92vh", display: "flex", alignItems: "center", overflow: "hidden" }}>
-        <motion.div style={{ position: "absolute", inset: 0, y: heroY }}>
-          <img src="/market.jpg" alt="San Juan Public Market" style={{ width: "100%", height: "115%", objectFit: "cover", objectPosition: "center" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(10,30,15,0.88) 0%, rgba(10,30,15,0.65) 50%, rgba(10,30,15,0.4) 100%)" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,30,15,0.6) 0%, transparent 60%)" }} />
+      <section ref={heroRef} className="relative min-h-[85vh] sm:min-h-[92vh] flex items-center overflow-hidden pb-12 sm:pb-0">
+        <motion.div className="absolute inset-0" style={{ y: heroY }}>
+          <img src="/market.jpg" alt="San Juan Public Market" className="w-full h-[115%] object-cover object-center" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0a1e0f]/90 via-[#0a1e0f]/75 to-[#0a1e0f]/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a1e0f]/60 to-transparent h-3/5 top-auto" />
         </motion.div>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg, transparent, #c9a84c, #e8c86e, #c9a84c, transparent)" }} />
+        <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#c9a84c] to-transparent" />
 
-        <motion.div style={{ opacity: heroOpacity, position: "relative", zIndex: 2, width: "100%", maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
+        <motion.div style={{ opacity: heroOpacity }} className="relative z-10 w-full max-w-[1200px] mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-16 sm:pb-20">
           <motion.div initial="hidden" animate="visible">
-            <motion.div variants={fadeUp} custom={0} style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.4)", borderRadius: 100, padding: "8px 20px", marginBottom: 28 }}>
-              <MapPin size={13} color="#c9a84c" />
-              <span style={{ color: "#e8c86e", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", fontFamily: "Georgia, serif" }}>Pamilihang Bayan ng San Juan, Batangas</span>
+            <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 sm:gap-2.5 bg-[#c9a84c]/15 border border-[#c9a84c]/40 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 mb-6 sm:mb-7">
+              <MapPin size={12} className="text-[#c9a84c] flex-shrink-0 sm:w-[13px] sm:h-[13px]" />
+              <span className="text-[#e8c86e] text-[9px] sm:text-[11px] tracking-[1.5px] uppercase font-serif text-left">Pamilihang Bayan ng San Juan, Batangas</span>
             </motion.div>
-            <motion.h1 variants={fadeUp} custom={1} style={{ color: "#f0e6c8", fontSize: "clamp(2.4rem, 6vw, 4.5rem)", fontWeight: 700, lineHeight: 1.08, fontFamily: "Georgia, serif", maxWidth: 780, marginBottom: 8 }}>
-              Your Stall,{" "}<span style={{ color: "#e8c86e", fontStyle: "italic" }}>Dignified.</span>
+            <motion.h1 variants={fadeUp} custom={1} className="text-[#f0e6c8] text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.08] font-serif max-w-[780px] mb-2 sm:mb-3">
+              Your Stall,<br className="sm:hidden" />{" "}<span className="text-[#e8c86e] italic">Dignified.</span>
             </motion.h1>
-            <motion.p variants={fadeUp} custom={2} style={{ color: "rgba(201,168,76,0.8)", fontSize: 13, letterSpacing: 3, textTransform: "uppercase", marginBottom: 24, fontFamily: "Georgia, serif" }}>
+            <motion.p variants={fadeUp} custom={2} className="text-[#c9a84c]/80 text-[10px] sm:text-[12px] tracking-[2px] sm:tracking-[3px] uppercase mb-4 sm:mb-6 font-serif">
               Para sa mga Magtitinda ng San Juan
             </motion.p>
-            <motion.p variants={fadeUp} custom={3} style={{ color: "rgba(240,230,200,0.82)", fontSize: "clamp(1rem, 2vw, 1.2rem)", lineHeight: 1.75, maxWidth: 580, marginBottom: 44, fontFamily: "Georgia, serif" }}>
-              A modern digital platform that empowers San Juan's 955 stallholders — streamlining stall fee payments through secure, accessible, and transparent technology.
+            <motion.p variants={fadeUp} custom={3} className="text-[#f0e6c8]/80 text-[13px] sm:text-[16px] lg:text-[18px] leading-relaxed max-w-[580px] mb-8 sm:mb-10 font-serif">
+              A modern digital platform that empowers San Juan&apos;s 955 stallholders — streamlining stall fee payments through secure, accessible, and transparent technology.
             </motion.p>
-            <motion.div variants={fadeUp} custom={4} style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 52 }}>
-              <Link to="/login">
-                <button style={{ background: "linear-gradient(135deg, #c9a84c, #e8c86e)", color: "#1a2e1a", border: "none", borderRadius: 6, padding: "14px 32px", fontSize: 14, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 8, fontFamily: "Georgia, serif", boxShadow: "0 4px 20px rgba(201,168,76,0.35)" }}>
+
+            <motion.div variants={fadeUp} custom={4} className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-[400px] sm:max-w-none mb-10 sm:mb-12">
+              <Link to="/login" className="block w-full sm:w-auto">
+                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#c9a84c] to-[#e8c86e] text-[#1a2e1a] rounded-md py-3 sm:py-3.5 px-6 sm:px-8 font-bold text-[14px] sm:text-[15px] tracking-wide shadow-lg hover:shadow-xl transition-all font-serif">
                   Login to Portal <ArrowRight size={16} />
                 </button>
               </Link>
-              <Link to="/apply">
-                <button style={{ background: "transparent", color: "#f0e6c8", border: "1px solid rgba(240,230,200,0.35)", borderRadius: 6, padding: "14px 32px", fontSize: 14, cursor: "pointer", letterSpacing: 0.5, fontFamily: "Georgia, serif" }}>
-                  Apply for a Stall
-                </button>
-              </Link>
-              <a href="#features">
-                <button style={{ background: "transparent", color: "#f0e6c8", border: "1px solid rgba(240,230,200,0.35)", borderRadius: 6, padding: "14px 32px", fontSize: 14, cursor: "pointer", letterSpacing: 0.5, fontFamily: "Georgia, serif" }}>
-                  Learn More
-                </button>
-              </a>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+                <Link to="/apply" className="block w-full sm:w-auto">
+                  <button className="w-full flex items-center justify-center bg-transparent text-[#f0e6c8] border border-[#f0e6c8]/30 rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[14px] tracking-wide hover:bg-[#f0e6c8]/10 transition-all font-serif">
+                    Apply for a Stall
+                  </button>
+                </Link>
+                <a href="#features" className="block w-full sm:w-auto">
+                  <button className="w-full flex items-center justify-center bg-transparent text-[#f0e6c8] border border-[#f0e6c8]/30 rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[14px] tracking-wide hover:bg-[#f0e6c8]/10 transition-all font-serif">
+                    Learn More
+                  </button>
+                </a>
+              </div>
             </motion.div>
-            <motion.div variants={fadeUp} custom={5} style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
-              {["Free for vendors","Secure payments","SMS alerts","LGU-powered"].map(t => (
-                <span key={t} style={{ display: "flex", alignItems: "center", gap: 7, color: "rgba(232,200,110,0.9)", fontSize: 12, fontFamily: "Georgia, serif" }}>
-                  <CheckCircle2 size={13} color="#c9a84c" /> {t}
+
+            <motion.div variants={fadeUp} custom={5} className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-6">
+              {["Free for vendors", "Secure payments", "SMS alerts", "LGU-powered"].map(t => (
+                <span key={t} className="flex items-center gap-1.5 sm:gap-2 text-[#e8c86e]/90 text-[11px] sm:text-[13px] font-serif">
+                  <CheckCircle2 size={13} className="text-[#c9a84c] flex-shrink-0 sm:w-[14px] sm:h-[14px]" /> {t}
                 </span>
               ))}
             </motion.div>
           </motion.div>
         </motion.div>
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 120, background: "linear-gradient(to bottom, transparent, #f8f5f0)" }} />
+        <div className="absolute bottom-0 left-0 right-0 h-20 sm:h-32 bg-gradient-to-b from-transparent to-[#f8f5f0]" />
       </section>
 
       {/* ── STATS BAND ──────────────────────────────────────────────────────── */}
-      <section id="impact" style={{ background: "#1a2e1a", padding: "60px 24px", position: "relative" }}>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #c9a84c, transparent)" }} />
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 44 }}>
-            <p style={{ color: "#c9a84c", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 8 }}>By the Numbers</p>
-            <h2 style={{ color: "#f0e6c8", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontFamily: "Georgia, serif", fontWeight: 700 }}>The Challenge We're Solving</h2>
+      <section id="impact" className="bg-[#1a2e1a] py-12 sm:py-16 px-4 sm:px-6 relative">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#c9a84c] to-transparent" />
+        <div className="max-w-[1200px] mx-auto">
+          <div className="text-center mb-8 sm:mb-11">
+            <p className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase mb-2 font-serif">By the Numbers</p>
+            <h2 className="text-[#f0e6c8] text-2xl sm:text-3xl lg:text-4xl font-bold font-serif">The Challenge We&apos;re Solving</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 2 }}>
-            {stats.map((stat, i) => (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-6 sm:gap-y-0 divide-x-0 sm:divide-x divide-[rgba(201,168,76,0.2)]">
+            {displayStats.map((stat, i) => (
               <motion.div key={stat.label} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={i}
-                style={{ textAlign: "center", padding: "36px 24px", borderRight: i < stats.length - 1 ? "1px solid rgba(201,168,76,0.2)" : "none" }}>
-                <div style={{ fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(2.4rem, 4vw, 3.2rem)", color: "#e8c86e", lineHeight: 1 }}>
-                  {stat.value}<span style={{ fontSize: "0.55em", color: "#c9a84c" }}>{stat.suffix}</span>
+                className="text-center px-4 sm:px-6 py-2 sm:py-9">
+                <div className="font-serif font-bold text-3xl sm:text-4xl lg:text-5xl text-[#e8c86e] leading-none">
+                  {stat.value}<span className="text-[0.55em] text-[#c9a84c]">{stat.suffix}</span>
                 </div>
-                <div style={{ color: "rgba(240,230,200,0.65)", fontSize: 12, marginTop: 10, letterSpacing: 0.5, fontFamily: "Georgia, serif" }}>{stat.label}</div>
+                <div className="text-[#f0e6c8]/65 text-[10px] sm:text-xs mt-2 sm:mt-3 tracking-wide font-serif">{stat.label}</div>
               </motion.div>
             ))}
           </div>
         </div>
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #c9a84c, transparent)" }} />
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#c9a84c] to-transparent" />
       </section>
 
       {/* ── MUNICIPAL HALL SECTION ───────────────────────────────────────────── */}
-      <section style={{ position: "relative", overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 520 }} className="flex flex-col lg:grid">
-          <div style={{ position: "relative", minHeight: 320, overflow: "hidden" }}>
-            <img src="/hall.jpg" alt="Municipal Hall of San Juan Batangas" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent 60%, #f8f5f0)" }} />
-            <div style={{ position: "absolute", inset: 16, border: "1px solid rgba(201,168,76,0.3)", pointerEvents: "none" }} />
+      <section className="relative overflow-hidden">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 min-h-[350px] lg:min-h-[520px]">
+          <div className="relative h-[220px] sm:h-[320px] lg:h-auto lg:min-h-[320px] overflow-hidden order-1 lg:order-none">
+            <img src="/hall.jpg" alt="Municipal Hall of San Juan Batangas" className="w-full h-full object-cover object-top" loading="lazy" />
+            <div className="absolute inset-0 bg-gradient-to-b lg:bg-gradient-to-r from-transparent via-transparent to-[#f8f5f0]" />
+            <div className="absolute inset-4 border border-[#c9a84c]/30 pointer-events-none hidden lg:block" />
           </div>
-          <div style={{ background: "#f8f5f0", padding: "64px 56px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div className="bg-[#f8f5f0] px-5 py-10 sm:px-10 lg:px-14 lg:py-16 flex flex-col justify-center order-2 lg:order-none">
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}>
-              <motion.p variants={fadeUp} custom={0} style={{ color: "#c9a84c", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 16 }}>Municipality of San Juan</motion.p>
-              <motion.h2 variants={fadeUp} custom={1} style={{ fontFamily: "Georgia, serif", fontSize: "clamp(1.8rem, 3vw, 2.6rem)", fontWeight: 700, color: "#1a2e1a", lineHeight: 1.2, marginBottom: 24 }}>
-                Serving the Heart of<br /><em style={{ color: "#2d7a4f" }}>Batangas Commerce</em>
+              <motion.p variants={fadeUp} custom={0} className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase font-serif mb-3 sm:mb-4">Municipality of San Juan</motion.p>
+              <motion.h2 variants={fadeUp} custom={1} className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1a2e1a] leading-tight mb-4 sm:mb-6">
+                Serving the Heart of<br /><em className="text-[#2d7a4f] not-italic lg:italic">Batangas Commerce</em>
               </motion.h2>
-              <motion.p variants={fadeUp} custom={2} style={{ color: "#5a6e5a", fontSize: 15, lineHeight: 1.8, fontFamily: "Georgia, serif", marginBottom: 20 }}>
-                The San Juan Public Market sits on 1.92 hectares at the heart of the municipality's commercial district — home to 955 stallholders including awarded stalls, fish retailers, meat retailers, and dry goods vendors.
+              <motion.p variants={fadeUp} custom={2} className="text-[#5a6e5a] text-[13px] sm:text-[15px] leading-relaxed font-serif mb-4 sm:mb-5">
+                The San Juan Public Market sits on 1.92 hectares at the heart of the municipality&apos;s commercial district — home to 955 stallholders including awarded stalls, fish retailers, meat retailers, and dry goods vendors.
               </motion.p>
-              <motion.p variants={fadeUp} custom={3} style={{ color: "#5a6e5a", fontSize: 15, lineHeight: 1.8, fontFamily: "Georgia, serif", marginBottom: 32 }}>
-                PALENG-CLICK bridges modern technology with the municipality's commitment to transparent, efficient governance for every stallholder.
+              <motion.p variants={fadeUp} custom={3} className="text-[#5a6e5a] text-[13px] sm:text-[15px] leading-relaxed font-serif mb-6 sm:mb-8">
+                PALENG-CLICK bridges modern technology with the municipality&apos;s commitment to transparent, efficient governance for every stallholder.
               </motion.p>
-              <motion.div variants={fadeUp} custom={4} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <motion.div variants={fadeUp} custom={4} className="flex gap-2 flex-wrap">
                 {["LGU San Juan", "1.92 hectares", "955 Stallholders", "Since 2026"].map(tag => (
-                  <span key={tag} style={{ background: "rgba(45,122,79,0.08)", border: "1px solid rgba(45,122,79,0.2)", color: "#2d7a4f", borderRadius: 100, padding: "5px 14px", fontSize: 12, fontFamily: "Georgia, serif" }}>{tag}</span>
+                  <span key={tag} className="bg-[#2d7a4f]/10 border border-[#2d7a4f]/20 text-[#2d7a4f] rounded-full px-3 py-1 text-[10px] sm:text-[12px] font-serif">{tag}</span>
                 ))}
               </motion.div>
             </motion.div>
@@ -186,26 +199,25 @@ const LandingPage = () => {
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────────────────────── */}
-      <section id="features" style={{ background: "#1a2e1a", padding: "96px 24px", position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 20% 50%, rgba(45,122,79,0.15) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(201,168,76,0.08) 0%, transparent 50%)" }} />
-        <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
-          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} style={{ textAlign: "center", marginBottom: 64 }}>
-            <motion.p variants={fadeUp} custom={0} style={{ color: "#c9a84c", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 12 }}>Platform Features</motion.p>
-            <motion.h2 variants={fadeUp} custom={1} style={{ color: "#f0e6c8", fontFamily: "Georgia, serif", fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", fontWeight: 700, marginBottom: 16 }}>Built for the Pamilihang Bayan</motion.h2>
-            <motion.p variants={fadeUp} custom={2} style={{ color: "rgba(240,230,200,0.6)", fontSize: 15, fontFamily: "Georgia, serif", maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>
-              A comprehensive platform designed specifically for San Juan's stallholders and municipal administrators.
+      <section id="features" className="bg-[#1a2e1a] py-16 sm:py-24 px-4 sm:px-6 relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(45,122,79,0.15)_0%,transparent_60%),radial-gradient(circle_at_80%_20%,rgba(201,168,76,0.08)_0%,transparent_50%)]" />
+        <div className="max-w-[1200px] mx-auto relative">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-10 sm:mb-16">
+            <motion.p variants={fadeUp} custom={0} className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase font-serif mb-2 sm:mb-3">Platform Features</motion.p>
+            <motion.h2 variants={fadeUp} custom={1} className="text-[#f0e6c8] font-serif text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">Built for the Pamilihang Bayan</motion.h2>
+            <motion.p variants={fadeUp} custom={2} className="text-[#f0e6c8]/60 text-[13px] sm:text-[15px] font-serif max-w-[560px] mx-auto leading-relaxed">
+              A comprehensive platform designed specifically for San Juan&apos;s stallholders and municipal administrators.
             </motion.p>
           </motion.div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 1, border: "1px solid rgba(201,168,76,0.2)", borderRadius: 12, overflow: "hidden" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[1px] border border-[#c9a84c]/20 rounded-xl overflow-hidden bg-[#c9a84c]/20">
             {features.map((f, i) => (
               <motion.div key={f.title} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} custom={i}
-                style={{ padding: "36px 32px", borderRight: "1px solid rgba(201,168,76,0.15)", borderBottom: "1px solid rgba(201,168,76,0.15)", transition: "background 0.3s", cursor: "default" }}
-                whileHover={{ backgroundColor: "rgba(45,122,79,0.08)" }}>
-                <div style={{ width: 44, height: 44, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-                  <f.icon size={20} color="#c9a84c" />
+                className="p-6 sm:p-8 bg-[#1a2e1a] transition-colors cursor-default hover:bg-[#2d7a4f]/10">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 bg-[#c9a84c]/10 border border-[#c9a84c]/25 rounded-lg flex items-center justify-center mb-4 sm:mb-5">
+                  <f.icon className="text-[#c9a84c] w-[18px] h-[18px] sm:w-[20px] sm:h-[20px]" />
                 </div>
-                <h3 style={{ color: "#f0e6c8", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, marginBottom: 10 }}>{f.title}</h3>
-                <p style={{ color: "rgba(240,230,200,0.55)", fontSize: 13.5, lineHeight: 1.75, fontFamily: "Georgia, serif" }}>{f.description}</p>
+                <h3 className="text-[#f0e6c8] font-serif text-[16px] sm:text-[17px] font-bold mb-2">{f.title}</h3>
+                <p className="text-[#f0e6c8]/55 text-[12.5px] sm:text-[13.5px] leading-relaxed font-serif">{f.description}</p>
               </motion.div>
             ))}
           </div>
@@ -213,26 +225,30 @@ const LandingPage = () => {
       </section>
 
       {/* ── ABOUT / WHY ───────────────────────────────────────────────────────── */}
-      <section id="about" style={{ background: "#f8f5f0", padding: "96px 24px", position: "relative" }}>
-        <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 1, height: 80, background: "linear-gradient(to bottom, #1a2e1a, transparent)" }} />
-        <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
+      <section id="about" className="bg-[#f8f5f0] py-16 sm:py-24 px-4 sm:px-6 relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] h-12 sm:h-20 bg-gradient-to-b from-[#1a2e1a] to-transparent" />
+        <div className="max-w-[800px] mx-auto text-center mt-6 sm:mt-0">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}>
-            <motion.p variants={fadeUp} custom={0} style={{ color: "#c9a84c", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 16 }}>Our Mission</motion.p>
-            <motion.h2 variants={fadeUp} custom={1} style={{ fontFamily: "Georgia, serif", fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)", fontWeight: 700, color: "#1a2e1a", marginBottom: 32, lineHeight: 1.2 }}>Why PALENG-CLICK?</motion.h2>
-            <motion.div variants={fadeUp} custom={2} style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 40, flexWrap: "wrap" }}>
-              {[["13.94%","Delinquency 2023"],["20.01%","Delinquency 2024"],["50%","Reduction Target"]].map(([val, lbl]) => (
-                <div key={lbl} style={{ background: "#fff", border: "1px solid #ddd5c5", borderRadius: 10, padding: "20px 28px", textAlign: "center", minWidth: 140 }}>
-                  <div style={{ fontFamily: "Georgia, serif", fontSize: "1.8rem", fontWeight: 700, color: val === "50%" ? "#2d7a4f" : "#b34a2a", lineHeight: 1 }}>{val}</div>
-                  <div style={{ color: "#7a8a7a", fontSize: 11, marginTop: 6, fontFamily: "Georgia, serif", letterSpacing: 0.5 }}>{lbl}</div>
+            <motion.p variants={fadeUp} custom={0} className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase font-serif mb-3 sm:mb-4">Our Mission</motion.p>
+            <motion.h2 variants={fadeUp} custom={1} className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1a2e1a] mb-6 sm:mb-8 leading-tight">Why PALENG-CLICK?</motion.h2>
+            <motion.div variants={fadeUp} custom={2} className="flex gap-2.5 sm:gap-4 justify-center mb-8 sm:mb-10 flex-wrap">
+              {[
+                ["13.94%", "Delinquency 2023"],
+                [`${realStats?.delinquencyRate ?? 20.01}%`, "Current Delinquency"],
+                ["50%", "Reduction Target"]
+              ].map(([val, lbl]) => (
+                <div key={lbl} className="bg-white border border-[#ddd5c5] rounded-xl p-3 sm:p-5 text-center min-w-[100px] sm:min-w-[140px] flex-1 sm:flex-none">
+                  <div className={`font-serif text-[1.4rem] sm:text-[1.8rem] font-bold leading-none ${val === "50%" ? "text-[#2d7a4f]" : "text-[#b34a2a]"}`}>{val}</div>
+                  <div className="text-[#7a8a7a] text-[9px] sm:text-[11px] mt-1.5 sm:mt-2 font-serif tracking-wide">{lbl}</div>
                 </div>
               ))}
             </motion.div>
-            <motion.div variants={fadeUp} custom={3} style={{ color: "#5a6e5a", fontSize: 15.5, lineHeight: 1.85, fontFamily: "Georgia, serif", textAlign: "left", background: "#fff", border: "1px solid #ddd5c5", borderRadius: 12, padding: "36px 40px" }}>
-              <p style={{ marginBottom: 16 }}>
+            <motion.div variants={fadeUp} custom={3} className="text-[#5a6e5a] text-[13px] sm:text-[15.5px] leading-relaxed font-serif text-left bg-white border border-[#ddd5c5] rounded-xl p-5 sm:p-9 lg:p-10 shadow-sm">
+              <p className="mb-4">
                 The San Juan Public Market is the center of daily commerce for the municipality — a vibrant hub serving hundreds of families who depend on it for their livelihood and daily needs.
               </p>
-              <p style={{ marginBottom: 16 }}>
-                However, stall payment delinquency rose from <strong style={{ color: "#1a2e1a" }}>13.94% in 2023</strong> to <strong style={{ color: "#b34a2a" }}>20.01% in 2024</strong>, threatening the LGU's revenue and its capacity to fund essential public services for all citizens of San Juan.
+              <p className="mb-4">
+                However, stall payment delinquency rose from <strong className="text-[#1a2e1a]">13.94% in 2023</strong> to <strong className="text-[#b34a2a]">{realStats?.delinquencyRate ?? 20.01}% currently</strong>, threatening the LGU&apos;s revenue and its capacity to fund essential public services for all citizens of San Juan.
               </p>
               <p>
                 PALENG-CLICK addresses this by offering accessible online payments, staggered installment options, automated reminders, and comprehensive administrative tools — creating a more resilient and transparent public market.
@@ -243,77 +259,76 @@ const LandingPage = () => {
       </section>
 
       {/* ── CTA BANNER ────────────────────────────────────────────────────────── */}
-      <section style={{ position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "relative", minHeight: 380, display: "flex", alignItems: "center" }}>
-          <img src="/market.jpg" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }} />
-          <div style={{ position: "absolute", inset: 0, background: "rgba(10,25,12,0.88)" }} />
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #c9a84c, transparent)" }} />
-          <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "64px 24px", textAlign: "center", width: "100%" }}>
+      <section className="relative overflow-hidden">
+        <div className="relative min-h-[300px] sm:min-h-[380px] flex items-center py-16 px-4">
+          <img src="/market.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-[center_30%]" />
+          <div className="absolute inset-0 bg-[#0a190c]/90" />
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#c9a84c] to-transparent" />
+          <div className="relative z-10 max-w-[1200px] mx-auto text-center w-full">
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }}>
-              <motion.p variants={fadeUp} custom={0} style={{ color: "#c9a84c", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontFamily: "Georgia, serif", marginBottom: 16 }}>Ready to Get Started?</motion.p>
-              <motion.h2 variants={fadeUp} custom={1} style={{ color: "#f0e6c8", fontFamily: "Georgia, serif", fontSize: "clamp(1.8rem, 4vw, 3rem)", fontWeight: 700, marginBottom: 20, lineHeight: 1.2 }}>Join San Juan's Digital Market</motion.h2>
-              <motion.p variants={fadeUp} custom={2} style={{ color: "rgba(240,230,200,0.7)", fontFamily: "Georgia, serif", fontSize: 15, marginBottom: 36, maxWidth: 500, margin: "0 auto 36px" }}>
+              <motion.p variants={fadeUp} custom={0} className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase font-serif mb-3 sm:mb-4">Ready to Get Started?</motion.p>
+              <motion.h2 variants={fadeUp} custom={1} className="text-[#f0e6c8] font-serif text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-5 leading-tight">Join San Juan&apos;s Digital Market</motion.h2>
+              <motion.p variants={fadeUp} custom={2} className="text-[#f0e6c8]/70 font-serif text-[12.5px] sm:text-[15px] mb-8 max-w-[500px] mx-auto">
                 Stallholders and municipal staff — log in to start managing payments the modern way.
               </motion.p>
               <motion.div variants={fadeUp} custom={3}>
-                <Link to="/login">
-                  <button style={{ background: "linear-gradient(135deg, #c9a84c, #e8c86e)", color: "#1a2e1a", border: "none", borderRadius: 6, padding: "16px 40px", fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: 0.5, display: "inline-flex", alignItems: "center", gap: 10, fontFamily: "Georgia, serif", boxShadow: "0 4px 24px rgba(201,168,76,0.4)" }}>
+                <Link to="/login" className="inline-block w-full sm:w-auto">
+                  <button className="w-full sm:w-auto flex items-center justify-center gap-2.5 bg-gradient-to-br from-[#c9a84c] to-[#e8c86e] text-[#1a2e1a] border-none rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[15px] font-bold cursor-pointer tracking-wide font-serif shadow-[0_4px_24px_rgba(201,168,76,0.4)] hover:shadow-[0_6px_32px_rgba(201,168,76,0.5)] transition-all">
                     Login to PALENG-CLICK <ArrowRight size={16} />
                   </button>
                 </Link>
               </motion.div>
             </motion.div>
           </div>
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #c9a84c, transparent)" }} />
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#c9a84c] to-transparent" />
         </div>
       </section>
 
       {/* ── FOOTER ────────────────────────────────────────────────────────────── */}
-      <footer style={{ background: "#0f1e0f", padding: "48px 24px 32px", borderTop: "1px solid rgba(201,168,76,0.2)" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 40, marginBottom: 48 }}>
+      <footer className="bg-[#0f1e0f] pt-12 pb-8 px-5 sm:px-6 border-t border-[#c9a84c]/20">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10 mb-10">
             {/* Brand */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                {/* favicon.png footer logo */}
-                <div style={{ width: 36, height: 36, borderRadius: 7, overflow: "hidden", flexShrink: 0 }}>
-                  <img src="/favicon.png" alt="PALENG-CLICK" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-md overflow-hidden flex-shrink-0">
+                  <img src="/favicon.png" alt="PALENG-CLICK" className="w-full h-full object-contain" loading="lazy" />
                 </div>
-                <span style={{ color: "#f0e6c8", fontWeight: 700, fontFamily: "Georgia, serif", fontSize: 15 }}>PALENG-CLICK</span>
+                <span className="text-[#f0e6c8] font-bold font-serif text-[14px] sm:text-[15px]">PALENG-CLICK</span>
               </div>
-              <p style={{ color: "rgba(240,230,200,0.5)", fontSize: 13, fontFamily: "Georgia, serif", lineHeight: 1.7 }}>
+              <p className="text-[#f0e6c8]/50 text-[12px] sm:text-[13px] font-serif leading-relaxed">
                 Digital payment system for San Juan Public Market stallholders.
               </p>
             </div>
             {/* Contact */}
             <div>
-              <h4 style={{ color: "#c9a84c", fontFamily: "Georgia, serif", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16 }}>Contact</h4>
+              <h4 className="text-[#c9a84c] font-serif text-[11px] sm:text-[12px] tracking-[2px] uppercase mb-4">Contact</h4>
               {[
                 { icon: MapPin, text: "San Juan Public Market, San Juan, Batangas" },
-                { icon: Phone, text: "Municipal Treasurer's Office" },
-                { icon: Mail,  text: "Municipality of San Juan, Batangas" },
+                { icon: Phone, text: "Municipal Treasurer&apos;s Office" },
+                { icon: Mail, text: "Municipality of San Juan, Batangas" },
               ].map(({ icon: Icon, text }) => (
-                <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
-                  <Icon size={13} color="#c9a84c" style={{ marginTop: 2, flexShrink: 0 }} />
-                  <span style={{ color: "rgba(240,230,200,0.55)", fontSize: 13, fontFamily: "Georgia, serif", lineHeight: 1.6 }}>{text}</span>
+                <div key={text} className="flex items-start gap-2.5 mb-3">
+                  <Icon className="text-[#c9a84c] mt-0.5 flex-shrink-0 w-[12px] h-[12px] sm:w-[13px] sm:h-[13px]" />
+                  <span className="text-[#f0e6c8]/55 text-[12px] sm:text-[13px] font-serif leading-snug">{text}</span>
                 </div>
               ))}
             </div>
             {/* Quick links */}
             <div>
-              <h4 style={{ color: "#c9a84c", fontFamily: "Georgia, serif", fontSize: 12, letterSpacing: 2, textTransform: "uppercase", marginBottom: 16 }}>Quick Links</h4>
-              {[["Login","login"],["Features","#features"],["About","#about"]].map(([label, href]) => (
-                <div key={label} style={{ marginBottom: 10 }}>
+              <h4 className="text-[#c9a84c] font-serif text-[11px] sm:text-[12px] tracking-[2px] uppercase mb-4">Quick Links</h4>
+              {[["Login", "login"], ["Features", "#features"], ["About", "#about"]].map(([label, href]) => (
+                <div key={label} className="mb-2.5">
                   {href.startsWith("#")
-                    ? <a href={href} style={{ color: "rgba(240,230,200,0.55)", fontSize: 13, fontFamily: "Georgia, serif", textDecoration: "none" }}>{label}</a>
-                    : <Link to={`/${href}`} style={{ color: "rgba(240,230,200,0.55)", fontSize: 13, fontFamily: "Georgia, serif", textDecoration: "none" }}>{label}</Link>}
+                    ? <a href={href} className="text-[#f0e6c8]/55 hover:text-[#c9a84c] text-[12px] sm:text-[13px] font-serif no-underline transition-colors">{label}</a>
+                    : <Link to={`/${href}`} className="text-[#f0e6c8]/55 hover:text-[#c9a84c] text-[12px] sm:text-[13px] font-serif no-underline transition-colors">{label}</Link>}
                 </div>
               ))}
             </div>
           </div>
-          <div style={{ borderTop: "1px solid rgba(201,168,76,0.15)", paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            <p style={{ color: "rgba(240,230,200,0.35)", fontSize: 12, fontFamily: "Georgia, serif" }}>© 2026 Municipality of San Juan, Batangas. All rights reserved.</p>
-            <p style={{ color: "rgba(240,230,200,0.25)", fontSize: 11, fontFamily: "Georgia, serif", letterSpacing: 1 }}>PALENG-CLICK SYSTEM · LGU SAN JUAN</p>
+          <div className="border-t border-[#c9a84c]/15 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-[#f0e6c8]/35 text-[10px] sm:text-[12px] font-serif text-center sm:text-left">© 2026 Municipality of San Juan, Batangas. All rights reserved.</p>
+            <p className="text-[#f0e6c8]/25 text-[9px] sm:text-[11px] font-serif tracking-[1px] text-center sm:text-right">PALENG-CLICK SYSTEM · LGU SAN JUAN</p>
           </div>
         </div>
       </footer>

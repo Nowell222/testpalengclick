@@ -177,6 +177,15 @@
     100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
   }
   .pulse-green { animation: pulse-ring 2s ease-out infinite; }
+
+  /* ── Hide scrollbar utility ─────────────────────────────────────────────── */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* ── Mobile responsive overrides ──────────────────────────────────────────── */

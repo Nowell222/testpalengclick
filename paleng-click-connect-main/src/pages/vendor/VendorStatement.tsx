@@ -153,7 +153,8 @@ const VendorStatement = () => {
     const isOverdue = m < currentMonth;
     const baseDue = getMonthFee(m);
     // Flat 25% surcharge for overdue unpaid balances
-    const penalty = isOverdue && ((rawPaidMap[m] || 0) + carryOver < baseDue) ? baseDue * 0.25 : 0;
+    // const penalty = isOverdue && ((rawPaidMap[m] || 0) + carryOver < baseDue) ? baseDue * 0.25 : 0;
+    const penalty = 0; // Penalty temporarily disabled
     const totalDue = baseDue + penalty;
 
     const credited = (rawPaidMap[m] || 0) + carryOver;
@@ -173,7 +174,8 @@ const VendorStatement = () => {
     if (m > currentMonth) return sum;
     const baseDue = getMonthFee(m);
     const isOverdue = m < currentMonth;
-    const penalty = isOverdue && ((displayPaidMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
+    // const penalty = isOverdue && ((displayPaidMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
+    const penalty = 0; // Penalty temporarily disabled
     const totalDue = baseDue + penalty;
     const paid = displayPaidMap[m] || 0;
     return sum + Math.max(0, totalDue - paid);
@@ -190,7 +192,8 @@ const VendorStatement = () => {
     const isOverdue = m < currentMonth;
     const credited = displayPaidMap[m] || 0;
 
-    const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    // const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
+    const penalty = 0; // Penalty temporarily disabled
     const totalDue = baseDue + penalty;
 
     const displayPaid = Math.min(credited, totalDue);
@@ -430,7 +433,7 @@ const VendorStatement = () => {
                   <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
                     <td className="px-4 py-2.5 font-medium text-foreground">
                       {r.month} {currentYear}
-                      {r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span>}
+                      {/* r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span> */}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
                     <td className="px-4 py-2.5 text-right font-mono">

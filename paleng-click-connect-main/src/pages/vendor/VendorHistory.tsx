@@ -310,8 +310,8 @@ const VendorHistory = () => {
         .order("created_at", { ascending: false });
 
       // Fetch pending online submissions (not yet accepted by cashier)
-      const { data: submissions } = await (supabase
-        .from("payment_submissions" as any) as any)
+      const { data: submissions } = await supabase
+        .from("payment_submissions")
         .select("*")
         .eq("vendor_id", vendor.id)
         .in("status", ["pending", "rejected"])

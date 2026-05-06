@@ -373,7 +373,7 @@ const AdminNews = () => {
       } else if (overdueMonths.length >= 3) {
         const monthList = overdueMonths.slice(0, 5).join(", ");
         autoMsg = `⚠️ PENALTY NOTICE\n\nDear ${activeThread.vendor_name},\n\nOur records show that your stall fee payments for the following month(s) are OVERDUE:\n📌 ${monthList}\n\nTotal Outstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nAs per market regulations, delayed payments are subject to penalty charges. You are hereby required to settle your outstanding balance immediately to avoid further penalties and possible stall suspension.\n\nPlease visit the Municipal Treasurer's Office or pay online through the PALENG-CLICK system.\n\nThank you.`;
-        autoType = "penalty";
+        // autoType = "penalty";
       } else if (partialMonths.length > 0 || overdueMonths.length > 0) {
         const dueList = overdueMonths.slice(0, 3).join(", ");
         autoMsg = `🔔 PAYMENT REMINDER\n\nDear ${activeThread.vendor_name},\n\nThis is a friendly reminder that your stall fee for ${dueList || currentMonthName} has not been fully settled yet.\n\nOutstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nPlease settle your balance at your earliest convenience either by visiting the cashier or paying online through the PALENG-CLICK app.\n\nThank you for your cooperation.`;
@@ -880,7 +880,7 @@ const AdminNews = () => {
                     {sendingSOA ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"/> Generating SOA…</> : <><FileText className="h-4 w-4"/> Send Statement of Account (SOA)</>}
                   </button>
                   <div className="flex gap-1.5 flex-wrap">
-                    {(["message","penalty","reminder"] as const).map(t => {
+                    {(["message"/*,"penalty"*/,"reminder"] as const).map(t => {
                       const cfg = MSG_TYPE_CONFIG[t];
                       return (
                         <button key={t} onClick={() => setMsgType(t)}

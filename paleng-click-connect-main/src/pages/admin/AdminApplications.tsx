@@ -55,7 +55,7 @@ const AdminApplications = () => {
     queryKey: ["vendor-applications"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vendor_applications" as any)
+        .from("vendor_applications")
         .select("*")
         .order("applied_at", { ascending: false });
       if (error) {
@@ -125,7 +125,7 @@ const AdminApplications = () => {
 
       // 2. Update Application Status
       const { error: updateErr } = await supabase
-        .from("vendor_applications" as any)
+        .from("vendor_applications")
         .update({ 
           status: "approved", 
           reviewed_at: new Date().toISOString(),
@@ -166,7 +166,7 @@ const AdminApplications = () => {
   const rejectMutation = useMutation({
     mutationFn: async () => {
       const { error: updateErr } = await supabase
-        .from("vendor_applications" as any)
+        .from("vendor_applications")
         .update({ 
           status: "rejected", 
           reviewed_at: new Date().toISOString(),

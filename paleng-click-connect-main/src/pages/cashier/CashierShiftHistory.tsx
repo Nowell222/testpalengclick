@@ -13,25 +13,44 @@ const CashierShiftHistory = () => {
   const [selectedShift, setSelectedShift] = useState<any>(null);
 
   const { data: shifts = [], isLoading } = useQuery({
-    queryKey: ["cashier-shifts-history", session?.user?.id],
-    enabled: !!session?.user?.id,
+    queryKey: ["cashier-shifts-history"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cashier_shifts" as any)
-        .select(`
-          *,
-          payments ( id, amount )
-        `)
-        .eq("cashier_id", session?.user?.id)
+      // 1. Fetch all shifts
+      const { data: shiftsData, error: shiftsError } = await supabase
+        .from("cashier_shifts")
+        .select(`*`)
         .order("opened_at", { ascending: false });
 
-      if (error) throw error;
+      if (shiftsError) throw shiftsError;
+      if (!shiftsData || shiftsData.length === 0) return [];
 
-      return data.map((shift: any) => {
-        // compute system total from linked payments
-        const system_computed_cash = shift.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+      const shiftIds = shiftsData.map((s: any) => s.id);
+      const cashierIds = [...new Set(shiftsData.map((s: any) => s.cashier_id))];
+
+      // 2. Fetch payments for all these shifts to compute system cash
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("payments")
+        .select("id, amount, shift_id")
+        .in("shift_id", shiftIds);
+
+      if (paymentsError) console.error("Error fetching payments for shifts:", paymentsError);
+
+      // 3. Fetch cashier profiles to display their names
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", cashierIds);
+
+      return shiftsData.map((shift: any) => {
+        const shiftPayments = paymentsData?.filter((p: any) => p.shift_id === shift.id) || [];
+        const system_computed_cash = shiftPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+
+        const profile = profilesData?.find((p: any) => p.user_id === shift.cashier_id);
+        const cashier_name = profile ? `${profile.first_name} ${profile.last_name}` : "Unknown Cashier";
+
         return {
           ...shift,
+          cashier_name,
           system_computed_cash,
           discrepancy: shift.actual_ending_cash !== null ? shift.actual_ending_cash - (shift.starting_cash + system_computed_cash) : 0
         };
@@ -83,6 +102,8 @@ const CashierShiftHistory = () => {
                       </p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Clock className="h-3 w-3" /> {openDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <span className="mx-1">•</span>
+                        <span className="truncate max-w-[100px]">{shift.cashier_name}</span>
                       </p>
                     </div>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider ${isClosed ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700 animate-pulse"
@@ -118,7 +139,7 @@ const CashierShiftHistory = () => {
               <div className="border-b bg-slate-50 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-foreground">Shift Details</h3>
-                  <p className="text-xs text-muted-foreground">ID: {selectedShift.id}</p>
+                  <p className="text-xs text-muted-foreground">ID: {selectedShift.id} • Cashier: {selectedShift.cashier_name}</p>
                 </div>
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider ${selectedShift.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-700"
                   }`}>

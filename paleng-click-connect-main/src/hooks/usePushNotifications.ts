@@ -38,7 +38,7 @@ export const usePushNotifications = () => {
   const registerServiceWorker = async () => {
     try {
       const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      console.log("[Push] Service worker registered:", reg.scope);
+      // console.log("[Push] Service worker registered:", reg.scope);
     } catch (err) {
       console.error("[Push] SW registration failed:", err);
     }

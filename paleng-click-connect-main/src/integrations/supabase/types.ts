@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -38,6 +38,75 @@ export type Database = {
           published_by?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id: string
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      cashier_shifts: {
+        Row: {
+          actual_ending_cash: number | null
+          cashier_id: string
+          closed_at: string | null
+          id: string
+          notes: string | null
+          opened_at: string
+          starting_cash: number
+          status: string
+          system_computed_cash: number | null
+        }
+        Insert: {
+          actual_ending_cash?: number | null
+          cashier_id: string
+          closed_at?: string | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          starting_cash?: number
+          status?: string
+          system_computed_cash?: number | null
+        }
+        Update: {
+          actual_ending_cash?: number | null
+          cashier_id?: string
+          closed_at?: string | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          starting_cash?: number
+          status?: string
+          system_computed_cash?: number | null
         }
         Relationships: []
       }
@@ -217,6 +286,84 @@ export type Database = {
           },
         ]
       }
+      payment_submissions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          ocr_amount: number | null
+          ocr_datetime: string | null
+          ocr_raw: string | null
+          ocr_recipient: string | null
+          ocr_reference: string | null
+          payment_id: string | null
+          payment_method: string
+          payment_type: string
+          period_month: number
+          period_year: number
+          processed_at: string | null
+          processed_by: string | null
+          receipt_path: string
+          receipt_url: string
+          rejection_reason: string | null
+          stall_id: string | null
+          status: string
+          updated_at: string
+          vendor_id: string
+          vendor_user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          ocr_amount?: number | null
+          ocr_datetime?: string | null
+          ocr_raw?: string | null
+          ocr_recipient?: string | null
+          ocr_reference?: string | null
+          payment_id?: string | null
+          payment_method?: string
+          payment_type?: string
+          period_month: number
+          period_year: number
+          processed_at?: string | null
+          processed_by?: string | null
+          receipt_path: string
+          receipt_url: string
+          rejection_reason?: string | null
+          stall_id?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id: string
+          vendor_user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          ocr_amount?: number | null
+          ocr_datetime?: string | null
+          ocr_raw?: string | null
+          ocr_recipient?: string | null
+          ocr_reference?: string | null
+          payment_id?: string | null
+          payment_method?: string
+          payment_type?: string
+          period_month?: number
+          period_year?: number
+          processed_at?: string | null
+          processed_by?: string | null
+          receipt_path?: string
+          receipt_url?: string
+          rejection_reason?: string | null
+          stall_id?: string | null
+          status?: string
+          updated_at?: string
+          vendor_id?: string
+          vendor_user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -231,6 +378,7 @@ export type Database = {
           processed_by: string | null
           receipt_number: string | null
           reference_number: string | null
+          shift_id: string | null
           stall_id: string | null
           status: string
           updated_at: string
@@ -249,6 +397,7 @@ export type Database = {
           processed_by?: string | null
           receipt_number?: string | null
           reference_number?: string | null
+          shift_id?: string | null
           stall_id?: string | null
           status?: string
           updated_at?: string
@@ -267,6 +416,7 @@ export type Database = {
           processed_by?: string | null
           receipt_number?: string | null
           reference_number?: string | null
+          shift_id?: string | null
           stall_id?: string | null
           status?: string
           updated_at?: string
@@ -324,6 +474,30 @@ export type Database = {
           middle_name?: string | null
           status?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          subscription: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          subscription: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          subscription?: Json
           user_id?: string
         }
         Relationships: []
@@ -493,6 +667,101 @@ export type Database = {
             columns: ["stall_id"]
             isOneToOne: false
             referencedRelation: "stalls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_applications: {
+        Row: {
+          admin_notes: string | null
+          applicant_user_id: string | null
+          application_date: string
+          applied_at: string
+          business_name: string | null
+          documents: Json | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone_number: string | null
+          preferred_section: string | null
+          reviewed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          applicant_user_id?: string | null
+          application_date?: string
+          applied_at?: string
+          business_name?: string | null
+          documents?: Json | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          phone_number?: string | null
+          preferred_section?: string | null
+          reviewed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          applicant_user_id?: string | null
+          application_date?: string
+          applied_at?: string
+          business_name?: string | null
+          documents?: Json | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone_number?: string | null
+          preferred_section?: string | null
+          reviewed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vendor_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          expiry_date: string | null
+          file_url: string
+          id: string
+          status: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          expiry_date?: string | null
+          file_url: string
+          id?: string
+          status?: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          expiry_date?: string | null
+          file_url?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_documents_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]

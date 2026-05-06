@@ -591,7 +591,7 @@ const CashierAcceptPayment = () => {
     enabled: !!user?.id,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cashier_shifts" as any)
+        .from("cashier_shifts")
         .select("*")
         .eq("cashier_id", user?.id)
         .eq("status", "open")
@@ -630,7 +630,7 @@ const CashierAcceptPayment = () => {
     queryKey: ["cashier-submissions"],
     refetchInterval: 15000,
     queryFn: async () => {
-      const { data: subs } = await (supabase.from("payment_submissions" as any) as any)
+      const { data: subs } = await supabase.from("payment_submissions")
         .select("*")
         .eq("status", "pending")
         .order("created_at", { ascending: false });
@@ -684,7 +684,7 @@ const CashierAcceptPayment = () => {
       if (payErr) throw payErr;
 
       // 2. Update submission status
-      await (supabase.from("payment_submissions" as any) as any)
+      await supabase.from("payment_submissions")
         .update({
           status: "accepted",
           payment_id: payment.id,
@@ -724,7 +724,7 @@ const CashierAcceptPayment = () => {
   const rejectSubmission = useMutation({
     mutationFn: async ({ s, reason }: { s: any; reason: string }) => {
       // 1. Update submission status
-      await (supabase.from("payment_submissions" as any) as any)
+      await supabase.from("payment_submissions")
         .update({
           status: "rejected",
           rejection_reason: reason || "Payment could not be verified.",

@@ -19,7 +19,7 @@ const AdminAuditLogs = () => {
     queryFn: async () => {
       // 1. Fetch the latest 100 audit logs
       const { data: auditData, error } = await supabase
-        .from("audit_logs" as any)
+        .from("audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(100);

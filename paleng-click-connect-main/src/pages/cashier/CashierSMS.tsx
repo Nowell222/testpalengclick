@@ -263,7 +263,7 @@ const CashierSMS = () => {
                 </div>
                 <div className="border-t p-4 space-y-2">
                   <div className="flex gap-1.5">
-                    {(["message","reminder","penalty"] as const).map(t => {
+                    {(["message","reminder"/*,"penalty"*/] as const).map(t => {
                       const cfg = MSG_TYPE_CONFIG[t];
                       return (
                         <button key={t} onClick={() => setMsgType(t)}
@@ -309,7 +309,7 @@ const CashierSMS = () => {
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Message Type</label>
               <div className="flex gap-2 flex-wrap">
-                {(["reminder","penalty","message"] as const).map(t => {
+                {(["reminder"/*,"penalty"*/,"message"] as const).map(t => {
                   const cfg = MSG_TYPE_CONFIG[t];
                   return (
                     <button key={t} onClick={() => setBulkType(t)}

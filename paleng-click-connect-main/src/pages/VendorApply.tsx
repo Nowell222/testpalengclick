@@ -39,7 +39,7 @@ const VendorApply = () => {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("vendor_applications" as any).insert({
+      const { error } = await supabase.from("vendor_applications").insert({
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
