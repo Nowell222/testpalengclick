@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import {
   QrCode, MapPin, User, Calendar, Loader2, Edit3, Save, X,
   Download, Phone, Home, CheckCircle2, Mail, Lock, Eye, EyeOff,
-  UserCircle, AlertCircle, LogOut,
+  UserCircle, AlertCircle, LogOut, ChevronDown, ChevronUp, TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -49,11 +49,13 @@ const VendorStallInfo = () => {
   const [showNewPwd,   setShowNewPwd]   = useState(false);
   const [showConfPwd,  setShowConfPwd]  = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
+  const [expandedYear, setExpandedYear] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     first_name: "", middle_name: "", last_name: "",
     contact_number: "", address: "", email: "",
     current_password: "", new_password: "", confirm_password: "",
+    area_measurement: "",
   });
 
   const { data, isLoading } = useQuery({
@@ -77,6 +79,7 @@ const VendorStallInfo = () => {
         contact_number: data.profile?.contact_number  || "",
         address:        data.profile?.address         || "",
         email:          data.email                    || "",
+        area_measurement: data.stall?.area_measurement || "",
         current_password: "", new_password: "", confirm_password: "",
       }));
       setEmailChanged(false);
@@ -102,22 +105,28 @@ const VendorStallInfo = () => {
         .eq("user_id", user!.id);
       if (profileErr) errors.push(`Profile: ${profileErr.message}`);
 
-      if (form.email.trim() && form.email.trim() !== data?.email) {
-        const { error: emailErr } = await supabase.auth.updateUser({ email: form.email.trim() });
-        if (emailErr) errors.push(`Email: ${emailErr.message}`);
-        else setEmailChanged(true);
+      if (stall?.id) {
+        const { error: stallErr } = await supabase.rpc("update_stall_area", {
+          p_stall_id: stall.id,
+          p_area_measurement: form.area_measurement.trim() || null
+        });
+        if (stallErr) errors.push(`Stall: ${stallErr.message}`);
       }
 
-      if (form.new_password) {
-        if (!form.current_password) throw new Error("Enter your current password to change it.");
-        if (form.new_password.length < 6) throw new Error("New password must be at least 6 characters.");
-        if (form.new_password !== form.confirm_password) throw new Error("New passwords do not match.");
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email: data?.email || "", password: form.current_password,
+      const trimmedEmail = form.email.trim().toLowerCase();
+      if ((trimmedEmail && trimmedEmail !== data?.email?.toLowerCase()) || form.new_password) {
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke("create-user", {
+          body: {
+            _action: "update-self",
+            email: trimmedEmail !== data?.email?.toLowerCase() ? trimmedEmail : undefined,
+            password: form.new_password || undefined,
+          },
         });
-        if (signInErr) throw new Error("Current password is incorrect.");
-        const { error: pwdErr } = await supabase.auth.updateUser({ password: form.new_password });
-        if (pwdErr) errors.push(`Password: ${pwdErr.message}`);
+        if (edgeError || (edgeData && edgeData.error)) {
+          errors.push(`Account: ${edgeError?.message || edgeData?.error}`);
+        } else {
+          setEmailChanged(false); // We don't need email confirmation anymore
+        }
       }
 
       if (errors.length) throw new Error(errors.join(" | "));
@@ -144,6 +153,7 @@ const VendorStallInfo = () => {
         contact_number: data.profile?.contact_number  || "",
         address:        data.profile?.address         || "",
         email:          data.email                    || "",
+        area_measurement: data.stall?.area_measurement || "",
         current_password: "", new_password: "", confirm_password: "",
       });
     }
@@ -254,7 +264,7 @@ const VendorStallInfo = () => {
                   </div>
                 ))}
                 {[
-                  { label: "Monthly Rate", value: stall?.monthly_rate ? `₱${Number(stall.monthly_rate).toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—", color: "#16a34a", mono: true },
+                  { label: "Area", value: stall?.area_measurement ? `${stall.area_measurement} sqm` : "—", isArea: true },
                   { label: "Status", value: isActive ? "Active" : "Suspended", color: isActive ? "#16a34a" : "#dc2626", dot: true },
                   { label: "Award Date", value: vendor?.award_date ? new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—" },
                 ].map((f, i) => (
@@ -262,10 +272,81 @@ const VendorStallInfo = () => {
                     <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {f.dot && <div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color, flexShrink: 0 }} />}
-                      <p style={{ fontSize: 15, fontWeight: 700, color: f.color || "#0f172a", fontFamily: (f as any).mono ? "'JetBrains Mono', monospace" : "inherit" }}>{f.value}</p>
+                      {editing && f.isArea ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <Input className="h-8 w-24 rounded-lg text-sm px-2" value={form.area_measurement} onChange={set("area_measurement")} placeholder="e.g. 12.8" />
+                          <span style={{ fontSize: 13, color: "#64748b" }}>sqm</span>
+                        </div>
+                      ) : (
+                        <p style={{ fontSize: 15, fontWeight: 700, color: f.color || "#0f172a" }}>{f.value}</p>
+                      )}
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Monthly Rates by Year — Desktop */}
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <TrendingUp size={15} color="#16a34a" />
+                </div>
+                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Monthly Rates by Year</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+                {[2026, 2027, 2028].map((year, i) => {
+                  const rateKey = `monthly_rate_${year}` as string;
+                  const yearRate = (stall as any)?.[rateKey] ? Number((stall as any)[rateKey]) : null;
+                  const area = stall?.area_measurement ? parseFloat(stall.area_measurement) : null;
+                  const baseRate = (yearRate && area && area > 0) ? (yearRate / (area * 30)) : null;
+                  const isExpanded = expandedYear === year;
+                  return (
+                    <div key={year} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", cursor: yearRate ? "pointer" : "default" }}
+                      onClick={() => yearRate && setExpandedYear(isExpanded ? null : year)}>
+                      <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{year} Rate</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <p style={{ fontSize: 20, fontWeight: 800, color: yearRate ? "#16a34a" : "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                          {yearRate ? fmt(yearRate) : "Not set"}
+                        </p>
+                        {yearRate && (
+                          isExpanded
+                            ? <ChevronUp size={14} color="#94a3b8" />
+                            : <ChevronDown size={14} color="#94a3b8" />
+                        )}
+                      </div>
+                      {isExpanded && yearRate && (
+                        <div style={{ marginTop: 12, padding: "12px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+                          {baseRate && area ? (
+                            <>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Base Rate:</span>
+                                <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>₱{baseRate.toFixed(2)} / sqm</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Area:</span>
+                                <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{area} sqm</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingBottom: 8, borderBottom: "1px dashed #cbd5e1" }}>
+                                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Days:</span>
+                                <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>30</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 800 }}>Total Monthly:</span>
+                                <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(yearRate)}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ textAlign: "center", padding: "4px 0" }}>
+                              <p style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>Breakdown unavailable</p>
+                              <p style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Area measurement is not set for this stall.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -521,10 +602,17 @@ const VendorStallInfo = () => {
               <p className="text-lg font-black text-slate-900 mt-1">{stall?.section || "General"}</p>
             </div>
             <div className="p-4 border-r border-slate-50">
-              <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Monthly Rate</p>
-              <p className="text-lg font-black text-green-600 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                {fmt(stall?.monthly_rate || 1450)}
-              </p>
+              <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Area</p>
+              {editing ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <Input className="h-8 w-20 rounded-md text-sm px-2 font-black" style={{ fontFamily: "'JetBrains Mono', monospace" }} value={form.area_measurement} onChange={set("area_measurement")} placeholder="12.8" />
+                  <span className="text-xs font-bold text-slate-500">sqm</span>
+                </div>
+              ) : (
+                <p className="text-lg font-black text-slate-900 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {stall?.area_measurement ? `${stall.area_measurement} sqm` : "—"}
+                </p>
+              )}
             </div>
             <div className="p-4">
               <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Status</p>
@@ -549,6 +637,73 @@ const VendorStallInfo = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Monthly Rates by Year — Mobile */}
+        <div className="rounded-2xl bg-white overflow-hidden"
+          style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#dcfce7" }}>
+              <TrendingUp className="h-4 w-4" style={{ color: "#16a34a" }} />
+            </div>
+            <span className="font-bold text-slate-900">Monthly Rates by Year</span>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {[2026, 2027, 2028].map((year) => {
+              const rateKey = `monthly_rate_${year}` as string;
+              const yearRate = (stall as any)?.[rateKey] ? Number((stall as any)[rateKey]) : null;
+              const area = stall?.area_measurement ? parseFloat(stall.area_measurement) : null;
+              const baseRate = (yearRate && area && area > 0) ? (yearRate / (area * 30)) : null;
+              const isExpanded = expandedYear === year;
+              return (
+                <div key={year} className="px-4 py-3" style={{ cursor: yearRate ? "pointer" : "default" }}
+                  onClick={() => yearRate && setExpandedYear(isExpanded ? null : year)}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{year} Rate</p>
+                      <p className="text-lg font-black mt-0.5" style={{ color: yearRate ? "#16a34a" : "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                        {yearRate ? fmt(yearRate) : "Not set"}
+                      </p>
+                    </div>
+                    {yearRate && (
+                      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                      </div>
+                    )}
+                  </div>
+                  {isExpanded && yearRate && (
+                    <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      {baseRate && area ? (
+                        <>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Base Rate</span>
+                            <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>₱{baseRate.toFixed(2)} / sqm</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Area</span>
+                            <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{area} sqm</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-slate-300">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Days</span>
+                            <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>30</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-green-600 font-black uppercase tracking-wide">Total Monthly</span>
+                            <span className="text-sm text-green-600 font-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{fmt(yearRate)}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-1">
+                          <p className="text-[11px] text-red-600 font-bold">Breakdown unavailable</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Area measurement is not set for this stall.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* QR Code Card */}

@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const MSG_TYPE_CONFIG = {
   message:  { label: "Message",  icon: MessageSquare, color: "bg-primary/10 text-primary"  },
-  penalty:  { label: "Penalty",  icon: AlertTriangle, color: "bg-accent/10 text-accent"    },
+  penalty:  { label: "Urgent",   icon: AlertTriangle, color: "bg-accent/10 text-accent"    },
   reminder: { label: "Reminder", icon: Bell,          color: "bg-amber-100 text-amber-700" },
 };
 
@@ -114,7 +114,7 @@ const CashierSMS = () => {
       if (!msgBody.trim() || !activeThread) throw new Error("Empty");
       await supabase.from("messages").insert({ thread_id: activeThread.id, sender_id: user!.id, recipient_id: activeThread.vendor_id, body: msgBody.trim(), type: msgType });
       await supabase.from("message_threads").update({ last_message: msgBody.trim(), last_at: new Date().toISOString() }).eq("id", activeThread.id);
-      await supabase.from("notifications").insert({ user_id: activeThread.vendor_id, title: msgType === "penalty" ? "⚠️ Penalty Notice" : msgType === "reminder" ? "🔔 Payment Reminder" : "New Message from Cashier", message: msgBody.trim().slice(0,200), type: msgType === "penalty" ? "overdue" : msgType === "reminder" ? "reminder" : "info" });
+      await supabase.from("notifications").insert({ user_id: activeThread.vendor_id, title: msgType === "penalty" ? "⚠️ Urgent Notice" : msgType === "reminder" ? "🔔 Payment Reminder" : "New Message from Cashier", message: msgBody.trim().slice(0,200), type: msgType === "penalty" ? "overdue" : msgType === "reminder" ? "reminder" : "info" });
     },
     onSuccess: () => { setMsgBody(""); queryClient.invalidateQueries({ queryKey: ["cashier-messages", activeThread?.id] }); queryClient.invalidateQueries({ queryKey: ["cashier-threads"] }); },
     onError: (e: any) => toast.error(e.message),
@@ -132,7 +132,7 @@ const CashierSMS = () => {
       // Send notification to each vendor
       const notifications = targetVendors.map((v: any) => ({
         user_id: v.user_id,
-        title:   bulkType === "penalty" ? "⚠️ Penalty Notice" : bulkType === "reminder" ? "🔔 Payment Reminder" : "Message from Cashier",
+        title:   bulkType === "penalty" ? "⚠️ Urgent Notice" : bulkType === "reminder" ? "🔔 Payment Reminder" : "Message from Cashier",
         message: bulkMsg.trim(),
         type:    bulkType === "penalty" ? "overdue" : bulkType === "reminder" ? "reminder" : "info",
       }));
@@ -324,7 +324,7 @@ const CashierSMS = () => {
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Message</label>
               <Textarea
-                placeholder={bulkType === "reminder" ? "e.g. This is a reminder that your stall fee for March 2026 is due. Please settle at the cashier or pay online." : bulkType === "penalty" ? "e.g. Your stall has an outstanding penalty due to late payment. Please settle immediately." : "Type your message…"}
+                placeholder={bulkType === "reminder" ? "e.g. This is a reminder that your stall fee for March 2026 is due. Please settle at the cashier or pay online." : bulkType === "penalty" ? "e.g. Your stall has an outstanding balance. Please settle immediately." : "Type your message…"}
                 className="min-h-[100px] rounded-xl resize-none"
                 value={bulkMsg}
                 onChange={e => setBulkMsg(e.target.value)}
@@ -335,7 +335,7 @@ const CashierSMS = () => {
             {bulkMsg && (
               <div className="rounded-xl border border-primary/10 bg-primary/5 p-4 text-sm">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Preview notification</p>
-                <p className="font-semibold text-foreground">{bulkType === "penalty" ? "⚠️ Penalty Notice" : bulkType === "reminder" ? "🔔 Payment Reminder" : "Message from Cashier"}</p>
+                <p className="font-semibold text-foreground">{bulkType === "penalty" ? "⚠️ Urgent Notice" : bulkType === "reminder" ? "🔔 Payment Reminder" : "Message from Cashier"}</p>
                 <p className="text-muted-foreground mt-0.5">{bulkMsg.slice(0, 120)}{bulkMsg.length > 120 ? "…" : ""}</p>
               </div>
             )}

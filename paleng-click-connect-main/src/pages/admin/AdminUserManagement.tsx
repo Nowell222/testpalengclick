@@ -72,7 +72,8 @@ const emptyForm = {
   email: "", password: "", role: "vendor" as "vendor" | "cashier",
   first_name: "", middle_name: "", last_name: "",
   address: "", contact_number: "",
-  stall_number: "", section: "Vegetable Section - Extension", location: "", monthly_rate: "",
+  stall_number: "", section: "Vegetable Section - Extension", location: "", monthly_rate: "", area_measurement: "",
+  monthly_rate_2026: "", monthly_rate_2027: "", monthly_rate_2028: "",
 };
 const emptyEdit = {
   first_name: "", middle_name: "", last_name: "",
@@ -100,6 +101,11 @@ const AdminUserManagement = () => {
   const [delinquentReason, setDelinquentReason] = useState("");
   // NEW: separate state for documents modal
   const [docsTarget, setDocsTarget] = useState<any>(null);
+  // NEW: Bulk delete state
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isBulkDelete, setIsBulkDelete] = useState(false);
 
   // ── CSV Import state ──────────────────────────────────────────────────────
   const [showImport, setShowImport] = useState(false);
@@ -162,14 +168,19 @@ const AdminUserManagement = () => {
       if (!form.first_name.trim()) throw new Error("First name is required");
       if (!form.last_name.trim()) throw new Error("Last name is required");
       if (form.role === "vendor" && !form.stall_number.trim()) throw new Error("Stall number is required");
-      if (form.role === "vendor" && (!form.monthly_rate || Number(form.monthly_rate) <= 0)) throw new Error("Monthly fee is required for vendors");
+      if (form.role === "vendor" && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
       const res = await supabase.functions.invoke("create-user", {
         body: {
           email: form.email.trim(), password: form.password,
           first_name: form.first_name.trim(), middle_name: form.middle_name.trim(), last_name: form.last_name.trim(),
           contact_number: form.contact_number.trim(), address: form.address.trim(),
           role: form.role, stall_number: form.stall_number.trim(),
-          section: form.section, location: form.location.trim(), monthly_rate: Number(form.monthly_rate),
+          section: form.section, location: form.location.trim(),
+          monthly_rate: Number(form.monthly_rate_2026),
+          monthly_rate_2026: form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
+          monthly_rate_2027: form.monthly_rate_2027 ? Number(form.monthly_rate_2027) : undefined,
+          monthly_rate_2028: form.monthly_rate_2028 ? Number(form.monthly_rate_2028) : undefined,
+          area_measurement: form.area_measurement.trim(),
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -277,6 +288,47 @@ const AdminUserManagement = () => {
     onError: () => toast.error("Failed to reactivate account"),
   });
 
+  const deleteUsers = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await supabase.functions.invoke("create-user", {
+        body: { _action: "delete-user", user_id: ids },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: (data, ids) => {
+      const successCount = data.results.filter((r: any) => r.status === "success").length;
+      const failCount = data.results.filter((r: any) => r.status === "error").length;
+      
+      if (successCount > 0) {
+        toast.success(`Successfully deleted ${successCount} user${successCount !== 1 ? "s" : ""}.`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to delete ${failCount} user${failCount !== 1 ? "s" : ""}.`);
+      }
+      
+      setSelectedUsers([]);
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+      setIsBulkDelete(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleSelectAll = () => {
+    if (selectedUsers.length === filtered.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filtered.map((u: any) => u.id));
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
   // ── CSV helpers ───────────────────────────────────────────────────────────
   const parseCSV = (text: string) => {
     const lines = text.trim().split(/\r?\n/);
@@ -312,6 +364,22 @@ const AdminUserManagement = () => {
       "contact": "contact_number",
       "phone": "contact_number",
       "mobile": "contact_number",
+      "area_measurement": "area_measurement",
+      "area measurement": "area_measurement",
+      "area": "area_measurement",
+      "monthly_rate_2026": "monthly_rate_2026",
+      "monthly rate 2026": "monthly_rate_2026",
+      "rate_2026": "monthly_rate_2026",
+      "rate 2026": "monthly_rate_2026",
+      "monthly_rate_2027": "monthly_rate_2027",
+      "monthly rate 2027": "monthly_rate_2027",
+      "rate_2027": "monthly_rate_2027",
+      "rate 2027": "monthly_rate_2027",
+      "monthly_rate_2028": "monthly_rate_2028",
+      "monthly rate 2028": "monthly_rate_2028",
+      "rate_2028": "monthly_rate_2028",
+      "rate 2028": "monthly_rate_2028",
+      "size": "area_measurement",
     };
 
     const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
@@ -382,9 +450,21 @@ const AdminUserManagement = () => {
             stall_number: (row.stall_number || "").trim(),
             section: (row.section || "Vegetable Section - Extension").trim(),
             location: (row.location || "").trim(),
-            monthly_rate: row.monthly_rate !== undefined && row.monthly_rate !== ""
-              ? Number(String(row.monthly_rate).replace(/,/g, ".").trim())
+            monthly_rate: row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
+              ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
+              : row.monthly_rate !== undefined && row.monthly_rate !== ""
+                ? Number(String(row.monthly_rate).replace(/,/g, ".").trim())
+                : undefined,
+            monthly_rate_2026: row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
+              ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
               : undefined,
+            monthly_rate_2027: row.monthly_rate_2027 !== undefined && row.monthly_rate_2027 !== ""
+              ? Number(String(row.monthly_rate_2027).replace(/,/g, ".").trim())
+              : undefined,
+            monthly_rate_2028: row.monthly_rate_2028 !== undefined && row.monthly_rate_2028 !== ""
+              ? Number(String(row.monthly_rate_2028).replace(/,/g, ".").trim())
+              : undefined,
+            area_measurement: (row.area_measurement || "").trim(),
           },
         });
         // res.data contains the actual error message from the edge function body
@@ -411,9 +491,9 @@ const AdminUserManagement = () => {
   };
 
   const downloadSampleCSV = () => {
-    const header = "email,password,first_name,middle_name,last_name,contact_number,address,role,stall_number,section,location,monthly_rate";
-    const row1 = "juan@example.com,abc123,Juan,,Dela Cruz,09171234567,Lipa City,vendor,VSE-001,Vegetable Section - Extension,Near gate,1200";
-    const row2 = "maria@example.com,abc123,Maria,Santos,Reyes,09181234567,Batangas City,cashier,,,,";
+    const header = "email,password,first_name,middle_name,last_name,contact_number,address,role,stall_number,section,location,area_measurement,monthly_rate_2026,monthly_rate_2027,monthly_rate_2028";
+    const row1 = "juan@example.com,abc123,Juan,,Dela Cruz,09171234567,Lipa City,vendor,VSE-001,Vegetable Section - Extension,Near gate,12.8,3840,4608,5760";
+    const row2 = "maria@example.com,abc123,Maria,Santos,Reyes,09181234567,Batangas City,cashier,,,,,,,";
     const blob = new Blob([header + "\n" + row1 + "\n" + row2], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "sample-users.csv"; a.click();
@@ -445,6 +525,64 @@ const AdminUserManagement = () => {
 
   return (
     <div className="space-y-5">
+
+      {/* ── Bulk Delete confirmation modal ─────────────────────────────── */}
+      {(deleteTarget || isBulkDelete) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => { setDeleteTarget(null); setIsBulkDelete(false); setDeleteConfirmText(""); }}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-card rounded-2xl border shadow-2xl w-full max-w-md overflow-hidden" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 shrink-0">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">
+                    {isBulkDelete ? `Delete ${selectedUsers.length} Accounts?` : `Delete Account?`}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isBulkDelete 
+                      ? "This will permanently remove all selected users and their associated data (payments, messages, history). Assigned stalls will be automatically vacated."
+                      : <>Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action is permanent and cannot be undone.</>}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-red-100 bg-red-50/50 p-4 space-y-3">
+                <p className="text-[11px] font-bold text-red-700 uppercase tracking-wider">Safety Confirmation</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-red-800">Type <span className="font-mono font-bold">DELETE</span> to confirm</Label>
+                  <Input 
+                    placeholder="Type DELETE here..." 
+                    className="h-10 rounded-lg border-red-200 bg-white focus:ring-red-200 uppercase"
+                    value={deleteConfirmText}
+                    onChange={e => setDeleteConfirmText(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button 
+                  variant="destructive" className="flex-1 rounded-xl h-11 font-bold"
+                  disabled={deleteConfirmText.toUpperCase() !== "DELETE" || deleteUsers.isPending}
+                  onClick={() => deleteUsers.mutate(isBulkDelete ? selectedUsers : [deleteTarget.id])}
+                >
+                  {deleteUsers.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-2" /> Confirm Deletion</>}
+                </Button>
+                <Button 
+                  variant="outline" className="flex-1 rounded-xl h-11"
+                  onClick={() => { setDeleteTarget(null); setIsBulkDelete(false); setDeleteConfirmText(""); }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* ── NEW: Mark as Delinquent confirm modal ──────────────────────────── */}
       {delinquentTarget && (
@@ -615,6 +753,12 @@ const AdminUserManagement = () => {
               className="gap-2 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 border">
               <FileUp className="h-4 w-4" /> Import CSV
             </Button>
+            {selectedUsers.length > 0 && (
+              <Button onClick={() => { setIsBulkDelete(true); setDeleteConfirmText(""); }}
+                className="gap-2 rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-900/20 animate-in zoom-in-95 duration-200">
+                <XCircle className="h-4 w-4" /> Delete ({selectedUsers.length})
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -686,7 +830,11 @@ const AdminUserManagement = () => {
                         { col: "last_name", req: true }, { col: "role", req: true, note: "vendor / cashier" },
                         { col: "middle_name", req: false }, { col: "contact_number", req: false }, { col: "address", req: false },
                         { col: "stall_number", req: false, note: "vendors only" }, { col: "section", req: false, note: "vendors only" },
-                        { col: "location", req: false }, { col: "monthly_rate", req: false, note: "vendors only" },
+                        { col: "location", req: false },
+                        { col: "area_measurement", req: false, note: "vendors only (e.g. 12.8)" },
+                        { col: "monthly_rate_2026", req: false, note: "vendors" },
+                        { col: "monthly_rate_2027", req: false, note: "vendors" },
+                        { col: "monthly_rate_2028", req: false, note: "vendors" },
                       ].map(({ col, req, note }) => (
                         <div key={col} className="flex items-center gap-1.5">
                           <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${req ? "bg-emerald-500" : "bg-slate-300"}`} />
@@ -747,12 +895,12 @@ const AdminUserManagement = () => {
                   {showPreview && csvRows.length > 0 && !isImporting && (
                     <div className="rounded-xl border overflow-hidden">
                       {/* Warn if any vendor row is missing monthly_rate */}
-                      {csvRows.some((r: any) => (r.role || "vendor") === "vendor" && (!r.monthly_rate || r.monthly_rate === "")) && (
+                      {csvRows.some((r: any) => (r.role || "vendor") === "vendor" && (!r.monthly_rate_2026 || r.monthly_rate_2026 === "") && (!r.monthly_rate || r.monthly_rate === "")) && (
                         <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border-b border-amber-200">
                           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                           <p className="text-xs text-amber-800">
-                            <strong>Warning:</strong> Some vendor rows are missing a <code className="bg-amber-100 px-1 rounded font-mono">monthly_rate</code> value — those rows will fail.
-                            Your CSV column must be named <strong>monthly_rate</strong>, <strong>rate</strong>, or <strong>monthly_fee</strong>.
+                            <strong>Warning:</strong> Some vendor rows are missing a <code className="bg-amber-100 px-1 rounded font-mono">monthly_rate_2026</code> value — those rows will fail.
+                            Use columns <strong>monthly_rate_2026</strong>, <strong>monthly_rate_2027</strong>, <strong>monthly_rate_2028</strong>.
                           </p>
                         </div>
                       )}
@@ -760,7 +908,7 @@ const AdminUserManagement = () => {
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="border-b bg-secondary/60">
-                              {["#", "Email", "Name", "Role", "Stall", "Section", "Rate"].map(h => (
+                              {["#", "Email", "Name", "Role", "Stall", "Section", "Rate 2026", "Rate 2027", "Rate 2028"].map(h => (
                                 <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                               ))}
                             </tr>
@@ -768,7 +916,8 @@ const AdminUserManagement = () => {
                           <tbody className="divide-y">
                             {csvRows.map((r: any, i: number) => {
                               const isVendor = (r.role || "vendor") === "vendor";
-                              const missingRate = isVendor && (!r.monthly_rate || r.monthly_rate === "");
+                              const missingRate = isVendor && (!r.monthly_rate_2026 || r.monthly_rate_2026 === "") && (!r.monthly_rate || r.monthly_rate === "");
+                              const fmtRate = (v: any) => v ? `₱${Number(String(v).replace(/,/g, ".")).toLocaleString("en-PH")}` : "—";
                               return (
                                 <tr key={i} className={`hover:bg-secondary/30 ${missingRate ? "bg-amber-50/50" : ""}`}>
                                   <td className="px-3 py-2 text-muted-foreground font-mono">{i + 1}</td>
@@ -782,12 +931,14 @@ const AdminUserManagement = () => {
                                   <td className="px-3 py-2 font-mono">{r.stall_number || "—"}</td>
                                   <td className="px-3 py-2 max-w-[120px] truncate text-muted-foreground">{r.section || "—"}</td>
                                   <td className={`px-3 py-2 font-mono font-semibold ${missingRate ? "text-amber-600" : "text-foreground"}`}>
-                                    {r.monthly_rate
-                                      ? `₱${Number(String(r.monthly_rate).replace(/,/g, ".")).toLocaleString("en-PH")}`
+                                    {(r.monthly_rate_2026 || r.monthly_rate)
+                                      ? fmtRate(r.monthly_rate_2026 || r.monthly_rate)
                                       : isVendor
                                         ? <span className="flex items-center gap-1 text-amber-600"><AlertCircle className="h-3 w-3" /> Missing</span>
                                         : "—"}
                                   </td>
+                                  <td className="px-3 py-2 font-mono text-foreground">{fmtRate(r.monthly_rate_2027)}</td>
+                                  <td className="px-3 py-2 font-mono text-foreground">{fmtRate(r.monthly_rate_2028)}</td>
                                 </tr>
                               );
                             })}
@@ -964,11 +1115,40 @@ const AdminUserManagement = () => {
                     </div>
                     <div className="space-y-1.5"><Label>Location / Remarks</Label><Input placeholder="e.g. Near entrance" className="h-11 rounded-xl" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
                     <div className="space-y-1.5">
-                      <Label>Monthly Fee (₱) <span className="text-accent">*</span></Label>
+                      <Label>Area Measurement (sqm)</Label>
+                      <Input placeholder="e.g. 12.8" className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                    <div className="space-y-1.5">
+                      <Label>Monthly Rate 2026 (₱) <span className="text-accent">*</span></Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                        <Input type="number" placeholder="e.g. 1200.50" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate} onChange={e => setForm(f => ({ ...f, monthly_rate: e.target.value }))} />
+                        <Input type="number" placeholder="e.g. 3840" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2026} onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} />
                       </div>
+                      {form.area_measurement && form.monthly_rate_2026 && Number(form.area_measurement) > 0 && (
+                        <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2026) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Monthly Rate 2027 (₱)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                        <Input type="number" placeholder="e.g. 4608" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2027} onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} />
+                      </div>
+                      {form.area_measurement && form.monthly_rate_2027 && Number(form.area_measurement) > 0 && (
+                        <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2027) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Monthly Rate 2028 (₱)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                        <Input type="number" placeholder="e.g. 5760" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2028} onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} />
+                      </div>
+                      {form.area_measurement && form.monthly_rate_2028 && Number(form.area_measurement) > 0 && (
+                        <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2028) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1022,6 +1202,14 @@ const AdminUserManagement = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
+                  <th className="px-4 py-3.5 w-10">
+                    <input 
+                      type="checkbox" 
+                      className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500" 
+                      checked={filtered.length > 0 && selectedUsers.length === filtered.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   {["Account", "Role", "Stall", "Contact", "Status", "Actions"].map(h => (
                     <th key={h} className="px-4 py-3.5 text-left font-semibold text-emerald-100 text-xs uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
@@ -1037,7 +1225,15 @@ const AdminUserManagement = () => {
                   const isSuspended = u.status === "suspended";
 
                   return (
-                    <tr key={u.id} className="hover:bg-emerald-50/40 transition-colors">
+                    <tr key={u.id} className={`hover:bg-emerald-50/40 transition-colors ${selectedUsers.includes(u.id) ? "bg-emerald-50/60" : ""}`}>
+                      <td className="px-4 py-3">
+                        <input 
+                          type="checkbox" 
+                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500" 
+                          checked={selectedUsers.includes(u.id)}
+                          onChange={() => toggleSelectUser(u.id)}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${roleCfg.color}`}><RoleIcon className="h-4 w-4" /></div>
@@ -1121,6 +1317,14 @@ const AdminUserManagement = () => {
                               Activate
                             </Button>
                           )}
+
+                          <Button 
+                            size="sm" variant="outline" 
+                            className="h-7 gap-1 rounded-lg text-xs border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => { setDeleteTarget(u); setDeleteConfirmText(""); setIsBulkDelete(false); }}
+                          >
+                            <XCircle className="h-3 w-3" /> Delete
+                          </Button>
                         </div>
                       </td>
                     </tr>

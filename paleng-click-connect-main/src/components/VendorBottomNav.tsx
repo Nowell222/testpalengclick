@@ -25,10 +25,10 @@ type ActiveTab = "home" | "inbox" | "qr" | "payments" | "news";
 
 const TABS = [
   { id: "home",     label: "Home",     icon: LayoutDashboard, to: "/vendor"               },
-  { id: "inbox",    label: "Inbox",    icon: Bell,            to: "/vendor/notifications" },
+  { id: "inbox",    label: "Alerts",    icon: Bell,            to: "/vendor/notifications" },
   { id: "qr",       label: "My QR",   icon: QrCode,          to: "/vendor/stall"         },
   { id: "payments", label: "Payments", icon: List,            to: "/vendor/history"       },
-  { id: "news",     label: "News",     icon: Newspaper,       to: "/vendor/news"          },
+  { id: "news",     label: "Inbox",     icon: Newspaper,       to: "/vendor/news"          },
 ] as const;
 
 interface Props {

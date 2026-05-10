@@ -582,30 +582,42 @@ export type Database = {
           id: string
           location: string | null
           monthly_rate: number
+          monthly_rate_2026: number | null
+          monthly_rate_2027: number | null
+          monthly_rate_2028: number | null
           section: string
           stall_number: string
           status: string
           updated_at: string
+          area_measurement: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           location?: string | null
           monthly_rate?: number
+          monthly_rate_2026?: number | null
+          monthly_rate_2027?: number | null
+          monthly_rate_2028?: number | null
           section?: string
           stall_number: string
           status?: string
           updated_at?: string
+          area_measurement?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           location?: string | null
           monthly_rate?: number
+          monthly_rate_2026?: number | null
+          monthly_rate_2027?: number | null
+          monthly_rate_2028?: number | null
           section?: string
           stall_number?: string
           status?: string
           updated_at?: string
+          area_measurement?: string | null
         }
         Relationships: []
       }
@@ -771,6 +783,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_landing_page_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -782,6 +798,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      update_stall_area: {
+        Args: { p_stall_id: string; p_area_measurement: string | null }
+        Returns: undefined
       }
     }
     Enums: {

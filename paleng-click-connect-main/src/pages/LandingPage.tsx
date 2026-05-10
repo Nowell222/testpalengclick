@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, Variants } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ const features = [
   { icon: Users, title: "Admin Dashboard", description: "Real-time analytics for collections, delinquency tracking, and vendor management." },
 ];
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 32 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
@@ -41,7 +41,7 @@ const LandingPage = () => {
         return { vendorCount: 955, delinquencyRate: 20.01 };
       }
 
-      return data as { vendorCount: number, delinquencyRate: number };
+      return (data as unknown) as { vendorCount: number, delinquencyRate: number };
     }
   });
 
@@ -50,7 +50,9 @@ const LandingPage = () => {
     { label: "Current Delinquency", value: realStats?.delinquencyRate ?? "20.01", suffix: "%" },
     { label: "Target Reduction", value: "50", suffix: "%" },
     { label: "Payment Methods", value: "4", suffix: "+" },
-  ]; return (
+  ]; 
+  
+  return (
     <div className="min-h-screen overflow-x-hidden font-serif bg-[#f8f5f0]">
       {/* ── NAV ─────────────────────────────────────────────────────────────── */}
       <nav className="bg-[#f8f5f0]/95 backdrop-blur-md border-b border-[#d4c9b8] sticky top-0 z-50">

@@ -106,14 +106,24 @@ const VendorStatement = () => {
   const thisYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(thisYear);
 
-  const availableYears = Array.from({ length: 4 }, (_, i) => thisYear - i);
+  // Reset selected year when user changes (switching accounts)
+  const prevUserId = useRef(user?.id);
+  if (user?.id !== prevUserId.current) {
+    prevUserId.current = user?.id;
+    setSelectedYear(thisYear);
+  }
+
+  const availableYears = [2026, 2027, 2028];
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-statement", user?.id, selectedYear],
     enabled: !!user,
+    staleTime: 0,
+    gcTime: 30_000,
     refetchInterval: 5000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, location)").eq("user_id", user!.id).single();
+      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, location, area_measurement)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
       const [paymentsRes, schedulesRes] = await Promise.all([
         supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true }),
@@ -133,7 +143,9 @@ const VendorStatement = () => {
   const profile = data?.profile;
   const payments = data?.payments || [];
   const schedules = data?.schedules || [];
-  const defaultRate = stall?.monthly_rate || 1450;
+  // Use year-specific rate, fallback to generic monthly_rate
+  const yearRateKey = `monthly_rate_${selectedYear}` as string;
+  const defaultRate = ((stall as any)?.[yearRateKey] ? Number((stall as any)[yearRateKey]) : null) || stall?.monthly_rate || 1450;
   const getMonthFee = (month: number) => {
     const s = schedules.find((s: any) => s.month === month);
     return s ? Number(s.amount) : defaultRate;

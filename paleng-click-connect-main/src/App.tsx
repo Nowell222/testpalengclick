@@ -20,6 +20,7 @@ import AdminNews from "./pages/admin/AdminNews";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminFeeSchedules from "./pages/admin/AdminFeeSchedules";
 import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 import VendorDashboardHome from "./pages/vendor/VendorDashboardHome";
 import VendorPayOnline from "./pages/vendor/VendorPayOnline";
@@ -40,6 +41,7 @@ import CashierSOA from "./pages/cashier/CashierSOA";
 import CashierSMS from "./pages/cashier/CashierSMS";
 import CashierShiftHistory from "./pages/cashier/CashierShiftHistory";
 import CashierReports from "./pages/cashier/CashierReports";
+import CashierSettings from "./pages/cashier/CashierSettings";
 
 import VendorApply from "./pages/VendorApply";
 import NotFound from "./pages/NotFound";
@@ -75,6 +77,7 @@ const App = () => (
               <Route path="fee-schedules" element={<AdminFeeSchedules />} />
               <Route path="audit-logs" element={<AdminAuditLogs />} />
               <Route path="messages" element={<AdminMessages />} />
+              <Route path="settings" element={<AdminSettings />} />
             </Route>
 
             {/* Vendor routes */}
@@ -107,6 +110,7 @@ const App = () => (
               <Route path="sms" element={<CashierSMS />} />
               <Route path="shifts" element={<CashierShiftHistory />} />
               <Route path="reports" element={<CashierReports />} />
+              <Route path="settings" element={<CashierSettings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

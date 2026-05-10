@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard, Users, CreditCard, QrCode, MessageSquare, Newspaper,
   FileBarChart, LogOut, Menu, X, Wallet, History, FileText, Store, Bell,
-  Search, Receipt, Send, DollarSign, ChevronRight, ClipboardList, type LucideIcon,
+  Search, Receipt, Send, DollarSign, ChevronRight, ClipboardList, Settings, type LucideIcon,
 } from "lucide-react";
 import PushNotificationBanner from "@/components/PushNotificationBanner";
 import VendorBottomNav from "@/components/VendorBottomNav";
@@ -18,18 +18,18 @@ const adminNav: NavItem[] = [
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "QR Code", path: "/admin/qr-codes", icon: QrCode },
   { label: "SMS", path: "/admin/sms", icon: MessageSquare },
-  { label: "News / Updates", path: "/admin/news", icon: Newspaper },
+  { label: "News & Inbox", path: "/admin/news", icon: Newspaper },
   { label: "Reports", path: "/admin/reports", icon: FileBarChart },
-  { label: "Messages", path: "/admin/messages", icon: MessageSquare },
   { label: "Fee Schedules", path: "/admin/fee-schedules", icon: DollarSign },
   { label: "Audit Logs", path: "/admin/audit-logs", icon: ClipboardList },
+  { label: "Settings", path: "/admin/settings", icon: Settings },
 ];
 const adminBottomNav: NavItem[] = [
   { label: "Home", path: "/admin", icon: LayoutDashboard },
   { label: "Users", path: "/admin/users", icon: Users },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "Reports", path: "/admin/reports", icon: FileBarChart },
-  { label: "More", path: "/admin/news", icon: Newspaper },
+  { label: "Inbox", path: "/admin/news", icon: Newspaper },
 ];
 const vendorNav: NavItem[] = [
   { label: "Dashboard", path: "/vendor", icon: LayoutDashboard },
@@ -38,8 +38,7 @@ const vendorNav: NavItem[] = [
   { label: "Statement", path: "/vendor/statement", icon: FileText },
   { label: "Stall Info", path: "/vendor/stall", icon: Store },
   { label: "Notifications", path: "/vendor/notifications", icon: Bell },
-  { label: "Messages", path: "/vendor/messages", icon: MessageSquare },
-  { label: "News", path: "/vendor/news", icon: Newspaper },
+  { label: "News & Inbox", path: "/vendor/news", icon: Newspaper },
 ];
 const vendorBottomNav: NavItem[] = [
   { label: "Home", path: "/vendor", icon: LayoutDashboard },
@@ -57,6 +56,7 @@ const cashierNav: NavItem[] = [
   { label: "SMS Reminders", path: "/cashier/sms", icon: Send },
   { label: "Shift History", path: "/cashier/shifts", icon: History },
   { label: "Reports", path: "/cashier/reports", icon: FileBarChart },
+  { label: "Settings", path: "/cashier/settings", icon: Settings },
 ];
 const cashierBottomNav: NavItem[] = [
   { label: "Home", path: "/cashier", icon: LayoutDashboard },

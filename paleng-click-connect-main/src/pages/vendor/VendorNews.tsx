@@ -19,7 +19,7 @@ const DS = {
 
 const MSG_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   message:      { label: "Message",      color: "bg-blue-50 text-blue-700"    },
-  penalty:      { label: "⚠️ Penalty",   color: "bg-red-100 text-red-700"     },
+  penalty:      { label: "⚠️ Urgent Notice", color: "bg-red-100 text-red-700"     },
   reminder:     { label: "🔔 Reminder",  color: "bg-amber-100 text-amber-700" },
   announcement: { label: "Announcement", color: "bg-slate-100 text-slate-700" },
 };
@@ -311,7 +311,7 @@ const VendorNews = () => {
       {/* ── Mobile header ─────────────────────────────────────────────────── */}
       <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-3">
-          <h1 className="text-2xl font-black text-white">News & Messages</h1>
+          <h1 className="text-2xl font-black text-white">News & Inbox</h1>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Announcements from the Treasurer's Office</p>
           {urgentNews.length > 0 && (
             <div style={{ marginTop: 10, background: "rgba(220,38,38,0.25)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
@@ -325,7 +325,7 @@ const VendorNews = () => {
       {/* ── Desktop header ─────────────────────────────────────────────────── */}
       <div className="hidden lg:flex items-start justify-between px-8 pt-6 pb-2">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Market News & Announcements</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>News & Inbox</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Stay informed with the latest updates from the market administration</p>
         </div>
         {urgentNews.length > 0 && (

@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // ── Constants ──────────────────────────────────────────────────────────────────
 const MSG_TYPE_CONFIG = {
   message:      { label: "Message",      icon: MessageSquare, color: "bg-green-700/10 text-green-700"   },
-  penalty:      { label: "Penalty",      icon: AlertTriangle, color: "bg-accent/10 text-accent"         },
+  penalty:      { label: "Urgent",       icon: AlertTriangle, color: "bg-accent/10 text-accent"         },
   reminder:     { label: "Reminder",     icon: Bell,          color: "bg-amber-100 text-amber-700"      },
   announcement: { label: "Announcement", icon: Megaphone,     color: "bg-secondary text-foreground"     },
 };
@@ -236,7 +236,7 @@ const AdminNews = () => {
       const { error } = await supabase.from("messages").insert({ thread_id: activeThread.id, sender_id: user!.id, recipient_id: activeThread.vendor_id, body: msgBody.trim(), type: msgType });
       if (error) throw error;
       await supabase.from("message_threads").update({ last_message: msgBody.trim(), last_at: new Date().toISOString() }).eq("id", activeThread.id);
-      const notifTitle = msgType === "penalty" ? "⚠️ Penalty Notice" : msgType === "reminder" ? "🔔 Payment Reminder" : "💬 New Message from Admin";
+      const notifTitle = msgType === "penalty" ? "⚠️ Urgent Notice" : msgType === "reminder" ? "🔔 Payment Reminder" : "💬 New Message from Admin";
       await supabase.from("notifications").insert({ user_id: activeThread.vendor_id, title: notifTitle, message: msgBody.trim().slice(0, 200), type: msgType === "penalty" ? "overdue" : msgType === "reminder" ? "reminder" : "info" });
       await sendMessagePush(activeThread.vendor_id, notifTitle, msgBody.trim().slice(0, 120));
     },
@@ -372,8 +372,8 @@ const AdminNews = () => {
         autoType = "message";
       } else if (overdueMonths.length >= 3) {
         const monthList = overdueMonths.slice(0, 5).join(", ");
-        autoMsg = `⚠️ PENALTY NOTICE\n\nDear ${activeThread.vendor_name},\n\nOur records show that your stall fee payments for the following month(s) are OVERDUE:\n📌 ${monthList}\n\nTotal Outstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nAs per market regulations, delayed payments are subject to penalty charges. You are hereby required to settle your outstanding balance immediately to avoid further penalties and possible stall suspension.\n\nPlease visit the Municipal Treasurer's Office or pay online through the PALENG-CLICK system.\n\nThank you.`;
-        // autoType = "penalty";
+        autoMsg = `⚠️ URGENT PAYMENT NOTICE\n\nDear ${activeThread.vendor_name},\n\nOur records show that your stall fee payments for the following month(s) are OVERDUE:\n📌 ${monthList}\n\nTotal Outstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nYou are hereby required to settle your outstanding balance immediately to avoid possible stall suspension.\n\nPlease visit the Municipal Treasurer's Office or pay online through the PALENG-CLICK system.\n\nThank you.`;
+        autoType = "penalty";
       } else if (partialMonths.length > 0 || overdueMonths.length > 0) {
         const dueList = overdueMonths.slice(0, 3).join(", ");
         autoMsg = `🔔 PAYMENT REMINDER\n\nDear ${activeThread.vendor_name},\n\nThis is a friendly reminder that your stall fee for ${dueList || currentMonthName} has not been fully settled yet.\n\nOutstanding Balance: ₱${totalOut.toLocaleString("en-PH",{minimumFractionDigits:2})}\n\nPlease settle your balance at your earliest convenience either by visiting the cashier or paying online through the PALENG-CLICK app.\n\nThank you for your cooperation.`;
@@ -394,7 +394,7 @@ const AdminNews = () => {
           .update({ last_message: autoMsg.slice(0, 60) + "...", last_at: new Date().toISOString() })
           .eq("id", activeThread.id);
         const autoNotifTitle =
-          autoType === "penalty"  ? "⚠️ Penalty Notice — Action Required" :
+          autoType === "penalty"  ? "⚠️ Urgent Notice — Action Required" :
           autoType === "reminder" ? "🔔 Payment Reminder" :
                                     "✅ Payments Up to Date";
         await supabase.from("notifications").insert({
@@ -444,7 +444,7 @@ const AdminNews = () => {
           <div style={{position:"absolute",inset:0,opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
           <div className="relative">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>Admin Portal</p>
-            <h1 className="text-2xl font-bold text-white">News & Messages</h1>
+            <h1 className="text-2xl font-bold text-white">News & Inbox</h1>
             <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Publish announcements and send direct messages to vendors</p>
           </div>
           <div className="relative flex items-center gap-2">
@@ -892,7 +892,7 @@ const AdminNews = () => {
                   </div>
                   <div className="flex gap-2">
                     <Input
-                      placeholder={msgType === "penalty" ? "Describe the penalty…" : msgType === "reminder" ? "Payment reminder message…" : "Type a message…"}
+                      placeholder={msgType === "penalty" ? "Describe the urgent notice…" : msgType === "reminder" ? "Payment reminder message…" : "Type a message…"}
                       className="h-10 rounded-xl flex-1" value={msgBody} onChange={e => setMsgBody(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage.mutate()}/>
                     <Button size="icon" className="h-10 w-10 rounded-xl shrink-0"

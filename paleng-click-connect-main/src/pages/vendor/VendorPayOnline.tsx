@@ -1,5 +1,6 @@
 import VendorBottomNav from "@/components/VendorBottomNav";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createWorker } from "tesseract.js";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -115,6 +116,10 @@ const VendorPayOnline = () => {
   const [ocrData,         setOcrData]        = useState<any | null>(null);
   const [ocrLoading,      setOcrLoading]     = useState(false);
   const [submissionId,    setSubmissionId]   = useState<string | null>(null);
+  
+  // Manual overrides for OCR or direct entry
+  const [refNum,          setRefNum]         = useState("");
+  const [paidAmount,      setPaidAmount]     = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-pay-info", user?.id],
@@ -188,6 +193,8 @@ const VendorPayOnline = () => {
   const handleFileSelect = async (file: File) => {
     setReceiptFile(file);
     setOcrData(null);
+    setRefNum("");
+    setPaidAmount("");
 
     const reader = new FileReader();
     reader.onload = e => setReceiptPreview(e.target?.result as string);
@@ -195,40 +202,66 @@ const VendorPayOnline = () => {
 
     setOcrLoading(true);
     try {
-      const b64Reader = new FileReader();
-      b64Reader.onload = async (e) => {
-        const dataUrl   = e.target?.result as string;
-        const base64    = dataUrl.split(",")[1];
-        const mediaType = file.type || "image/jpeg";
+      const worker = await createWorker('eng');
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
 
-        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ocr-receipt`, {
-          method: "POST",
-          headers: {
-            "Content-Type":  "application/json",
-            "Authorization": `Bearer ${anonKey}`,
-            "apikey":        anonKey,
-          },
-          body: JSON.stringify({ image_base64: base64, media_type: mediaType }),
-        });
+      console.log("OCR Text:", text);
 
-        if (res.ok) {
-          const result = await res.json();
-          setOcrData(result.extracted || null);
-          if (result.extracted?.confidence === "high") {
-            toast.success("Receipt scanned successfully!");
-          } else {
-            toast.info("Receipt scanned — please verify the details.");
-          }
+      // Clean text for better matching (ignore newlines and extra spaces)
+      const cleanText = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
+
+      // 1. Hunt for Reference Number (Supports BN-2026... or 13-digit GCash)
+      // Prioritize labels like "Reference Number", "Reference no." or "Ref #"
+      const refRegex = /(?:Reference\s*Number|Reference\s*no|Ref\s*no|Ref\s*#|Trace|Ref)\s*[:\.]?\s*([A-Z0-9-]{6,25})/i;
+      const refMatch = cleanText.match(refRegex);
+      
+      let extractedRef = refMatch ? refMatch[1] : null;
+
+      if (!extractedRef) {
+        // Fallback: Hunt for patterns directly
+        // 1. Look for BN- style
+        const bnPattern = cleanText.match(/\b[A-Z]{2}-\d{8}-\d{8,}\b/i);
+        // 2. Look for spaced sequences (e.g. 0038 622 447340)
+        const spacedPattern = cleanText.match(/\b\d{4}\s\d{3,4}\s\d{4,}\b/);
+        
+        if (bnPattern) {
+          extractedRef = bnPattern[0];
+        } else if (spacedPattern) {
+          extractedRef = spacedPattern[0];
         } else {
-          toast.error("Could not scan receipt. You can still submit manually.");
+          // Find 10-13 digit numbers, but exclude Philippine mobile numbers (starting with 09)
+          const digitMatches = cleanText.match(/\b\d{10,13}\b/g);
+          extractedRef = digitMatches?.find(m => !m.startsWith("09")) || null;
         }
-        setOcrLoading(false);
+      }
+      
+      // 2. Hunt for Amount (Use cleanText as well)
+      // Flexible amount regex that allows optional words like "Sent" or "Amount" between the label and number
+      const amountRegex = /(?:Total\s*Amount(?:\s*Sent)?|Amount\s*Sent|Total|Amount|PHP|P|₱)\s*[:\.]?\s*(?:PHP|P|₱)?\s*([\d,]+\.\d{2})/i;
+      const amountMatch = cleanText.match(amountRegex);
+      const extractedAmount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
+
+      const results = {
+        reference_number: extractedRef,
+        amount: extractedAmount,
+        confidence: extractedRef ? "medium" : "low"
       };
-      b64Reader.readAsDataURL(file);
-    } catch {
+
+      setOcrData(results);
+      if (extractedRef) setRefNum(extractedRef);
+      if (extractedAmount) setPaidAmount(extractedAmount);
+
+      if (extractedRef) {
+        toast.success("Receipt scanned! Please verify the details.");
+      } else {
+        toast.info("Could not auto-detect reference number. Please type it manually.");
+      }
+    } catch (err) {
+      console.error("Tesseract Error:", err);
+      toast.error("Scan failed. Please enter details manually.");
+    } finally {
       setOcrLoading(false);
-      toast.error("Scan failed. You can still submit.");
     }
   };
 
@@ -262,8 +295,8 @@ const VendorPayOnline = () => {
           payment_type:   payType === "full" ? "due" : "staggered",
           receipt_url:    receiptUrl,
           receipt_path:   filePath,
-          ocr_reference:  ocrData?.reference_number || null,
-          ocr_amount:     ocrData?.amount           || null,
+          ocr_reference:  refNum || null,
+          ocr_amount:     (paidAmount && !isNaN(Number(paidAmount))) ? Number(paidAmount) : null,
           ocr_datetime:   ocrData?.datetime         || null,
           ocr_recipient:  ocrData?.recipient        || null,
           ocr_raw:        ocrData ? JSON.stringify(ocrData) : null,
@@ -284,7 +317,7 @@ const VendorPayOnline = () => {
           cashiers.map((c: any) => ({
             user_id: c.user_id,
             title:   `📋 New Online Payment — ${fmt(payAmount)}`,
-            message: `Vendor ${vendorName} submitted a payment receipt for ${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}.\n• Amount: ${fmt(payAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${ocrData?.reference_number || "—"}\n\nPlease review and verify in Accept Payment.`,
+            message: `Vendor ${vendorName} submitted a payment receipt for ${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}.\n• Amount: ${fmt(payAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`,
             type:    "info",
           }))
         );
@@ -351,7 +384,7 @@ const VendorPayOnline = () => {
             { label: "Stall",      value: `${stall?.stall_number} — ${stall?.section}` },
             { label: "Period",     value: `${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}` },
             { label: "Amount",     value: fmt(payAmount) },
-            { label: "Reference",  value: ocrData?.reference_number || "—" },
+            { label: "Reference",  value: refNum || "—" },
             { label: "Status",     value: "⏳ Pending cashier review" },
           ].map(r => (
             <div key={r.label} className="flex justify-between">
@@ -369,6 +402,7 @@ const VendorPayOnline = () => {
         <Button variant="outline" className="w-full" onClick={() => {
           setStep(1); setReceiptFile(null); setReceiptPreview(null);
           setOcrData(null); setStaggeredAmount(""); setSubmissionId(null);
+          setRefNum(""); setPaidAmount("");
         }}>
           Submit Another Payment
         </Button>
@@ -633,11 +667,49 @@ const VendorPayOnline = () => {
                     </div>
                   )}
 
-                  {!ocrLoading && ocrData && <OCRResult data={ocrData} />}
+                  {!ocrLoading && (
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference Number <span className="text-red-500">*</span></Label>
+                          <Input 
+                            placeholder="e.g. 0012 3456 789"
+                            value={refNum}
+                            onChange={(e) => setRefNum(e.target.value)}
+                            className="h-11 rounded-xl font-mono text-base"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actual Amount Paid (₱) <span className="text-red-500">*</span></Label>
+                          <Input 
+                            type="number"
+                            placeholder="0.00"
+                            value={paidAmount}
+                            onChange={(e) => setPaidAmount(e.target.value)}
+                            className="h-11 rounded-xl font-mono text-base"
+                          />
+                        </div>
+                      </div>
+
+                      {ocrData && (
+                        <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-[11px] text-green-800 flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>We've pre-filled these from your receipt. Please double-check they are exactly correct.</span>
+                        </div>
+                      )}
+
+                      {!ocrData && !ocrLoading && (
+                        <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-[11px] text-slate-600 flex items-start gap-2">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>We couldn't auto-read the receipt. Please type the details manually.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <button
                     onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 pt-2">
                     <Image className="h-3.5 w-3.5" /> Change image
                   </button>
                 </div>
@@ -663,7 +735,7 @@ const VendorPayOnline = () => {
             <button
               className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm rounded-2xl py-4 transition-all disabled:opacity-50"
               style={{ background: DS.gradientCard, boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
-              disabled={!receiptFile || ocrLoading || submitReceipt.isPending}
+              disabled={!receiptFile || !refNum || !paidAmount || ocrLoading || submitReceipt.isPending}
               onClick={() => submitReceipt.mutate()}>
               {submitReceipt.isPending ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Submitting…</>
