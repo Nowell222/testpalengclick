@@ -202,50 +202,60 @@ const VendorPayOnline = () => {
 
     setOcrLoading(true);
     try {
+      // ── Step 1: Initialize Tesseract ────────────────────────────────
       const worker = await createWorker('eng');
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
       console.log("OCR Text:", text);
 
-      // Clean text for better matching (ignore newlines and extra spaces)
+      // Clean text for better matching
       const cleanText = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
 
-      // 1. Hunt for Reference Number (Supports BN-2026... or 13-digit GCash)
-      // Prioritize labels like "Reference Number", "Reference no." or "Ref #"
-      const refRegex = /(?:Reference\s*Number|Reference\s*no|Ref\s*no|Ref\s*#|Trace|Ref)\s*[:\.]?\s*([A-Z0-9-]{6,25})/i;
+      // ── Step 2: Extract Reference Number ────────────────────────────
+      // Expanded keywords for modern Gcash, Paymaya, and Bank apps
+      const refKeywords = [
+        "Reference Number", "Reference no", "Ref no", "Ref #", "Trace", "Ref", 
+        "Transaction ID", "Trans ID", "Transaction No", "InstaPay Ref", "Reference"
+      ].join("|");
+      
+      const refRegex = new RegExp(`(?:${refKeywords})\\s*[:\\.]?\\s*([A-Z0-9-]{6,25})`, "i");
       const refMatch = cleanText.match(refRegex);
       
       let extractedRef = refMatch ? refMatch[1] : null;
 
       if (!extractedRef) {
-        // Fallback: Hunt for patterns directly
-        // 1. Look for BN- style
+        // Fallback: Hunt for specific platform patterns
+        // 1. GCash (usually 13 digits starting with 0, 1, or 9)
+        const gcashPattern = cleanText.match(/\b[019]\d{12}\b/);
+        // 2. Paymaya / Maya (12 digits or alphanumeric sequences)
+        const mayaPattern = cleanText.match(/\b\d{12}\b/);
+        // 3. BN- style (Common in some merchant systems)
         const bnPattern = cleanText.match(/\b[A-Z]{2}-\d{8}-\d{8,}\b/i);
-        // 2. Look for spaced sequences (e.g. 0038 622 447340)
-        const spacedPattern = cleanText.match(/\b\d{4}\s\d{3,4}\s\d{4,}\b/);
         
-        if (bnPattern) {
-          extractedRef = bnPattern[0];
-        } else if (spacedPattern) {
-          extractedRef = spacedPattern[0];
-        } else {
-          // Find 10-13 digit numbers, but exclude Philippine mobile numbers (starting with 09)
-          const digitMatches = cleanText.match(/\b\d{10,13}\b/g);
+        if (gcashPattern) extractedRef = gcashPattern[0];
+        else if (mayaPattern) extractedRef = mayaPattern[0];
+        else if (bnPattern) extractedRef = bnPattern[0];
+        else {
+          // Find 10-16 digit numbers, but exclude Philippine mobile numbers (starting with 09)
+          const digitMatches = cleanText.match(/\b\d{10,16}\b/g);
           extractedRef = digitMatches?.find(m => !m.startsWith("09")) || null;
         }
       }
       
-      // 2. Hunt for Amount (Use cleanText as well)
-      // Flexible amount regex that allows optional words like "Sent" or "Amount" between the label and number
-      const amountRegex = /(?:Total\s*Amount(?:\s*Sent)?|Amount\s*Sent|Total|Amount|PHP|P|₱)\s*[:\.]?\s*(?:PHP|P|₱)?\s*([\d,]+\.\d{2})/i;
+      // ── Step 3: Extract Amount ──────────────────────────────────────
+      // Look for currency labels followed by numbers
+      const amountRegex = /(?:Total\s*Amount(?:\s*Sent)?|Amount\s*Sent|Total|Amount|PHP|P|₱|Amount Paid)\s*[:\.]?\s*(?:PHP|P|₱)?\s*([\d,]+\.\d{2})/i;
       const amountMatch = cleanText.match(amountRegex);
-      const extractedAmount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
+      
+      // Sanitation: Remove commas and currency symbols
+      let extractedAmount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
 
+      // Final Check: Confidence level
       const results = {
         reference_number: extractedRef,
         amount: extractedAmount,
-        confidence: extractedRef ? "medium" : "low"
+        confidence: extractedRef && extractedAmount ? "high" : extractedRef ? "medium" : "low"
       };
 
       setOcrData(results);
@@ -255,11 +265,11 @@ const VendorPayOnline = () => {
       if (extractedRef) {
         toast.success("Receipt scanned! Please verify the details.");
       } else {
-        toast.info("Could not auto-detect reference number. Please type it manually.");
+        toast.info("Reference number not detected. Please type it below.");
       }
     } catch (err) {
       console.error("Tesseract Error:", err);
-      toast.error("Scan failed. Please enter details manually.");
+      toast.error("Scanning service unavailable. Please enter details manually.");
     } finally {
       setOcrLoading(false);
     }
@@ -661,9 +671,17 @@ const VendorPayOnline = () => {
                   </div>
 
                   {ocrLoading && (
-                    <div className="flex items-center gap-2 text-sm" style={{ color: DS.blue600 }}>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Scanning receipt…
+                    <div className="flex flex-col gap-3 py-2">
+                      <div className="flex items-center gap-2 text-sm" style={{ color: DS.blue600 }}>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Scanning receipt…
+                      </div>
+                      <Button 
+                        variant="secondary" size="sm" className="h-9 rounded-xl text-xs gap-1.5"
+                        onClick={(e) => { e.stopPropagation(); setOcrLoading(false); }}
+                      >
+                        <FileText className="h-3.5 w-3.5" /> Skip & Enter Manually
+                      </Button>
                     </div>
                   )}
 
@@ -707,11 +725,20 @@ const VendorPayOnline = () => {
                     </div>
                   )}
 
-                  <button
-                    onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
-                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 pt-2">
-                    <Image className="h-3.5 w-3.5" /> Change image
-                  </button>
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-[11px] gap-1.5 text-muted-foreground"
+                      onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
+                    >
+                      <Image className="h-3.5 w-3.5" /> Change Image
+                    </Button>
+                    <Button
+                      variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-[11px] gap-1.5 text-muted-foreground"
+                      onClick={e => { e.stopPropagation(); setReceiptFile(null); setReceiptPreview(null); setOcrData(null); fileRef.current?.click(); }}
+                    >
+                      <Scan className="h-3.5 w-3.5" /> Retake Photo
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
