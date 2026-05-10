@@ -202,8 +202,13 @@ const VendorPayOnline = () => {
 
     setOcrLoading(true);
     try {
-      // ── Step 1: Initialize Tesseract ────────────────────────────────
-      const worker = await createWorker('eng');
+      // ── Step 1: Initialize Tesseract (Using Local Files for Zero Trust)
+      const worker = await createWorker('eng', 1, {
+        workerPath: '/tesseract/worker.min.js',
+        corePath: '/tesseract/tesseract-core.wasm.js',
+        langPath: '/tesseract',
+        gzip: true, // eng.traineddata was downloaded as .gz
+      });
       const { data: { text } } = await worker.recognize(file);
       await worker.terminate();
 
