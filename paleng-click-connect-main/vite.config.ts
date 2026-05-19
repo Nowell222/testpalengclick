@@ -23,6 +23,9 @@ export default defineConfig(({ mode }) => ({
         // Raise the limit to 6 MiB to accommodate larger assets like tesseract
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
+      devOptions: {
+        enabled: true
+      },
       manifest: {
         name: 'Paleng-Click Connect',
         short_name: 'PalengClick',
@@ -30,14 +33,16 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#ffffff',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'favicon.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'favicon.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           }
         ]
       }

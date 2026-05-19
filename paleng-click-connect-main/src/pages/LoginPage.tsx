@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, MapPin, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -183,6 +184,8 @@ const LoginPage = () => {
               <div style={{ fontSize: 10, color: "#7a8a7a", letterSpacing: 2, textTransform: "uppercase" }}>San Juan, Batangas</div>
             </div>
           </div>
+
+          <PWAInstallBanner className="w-full mb-6" />
 
           {/* Form card */}
           <div style={{ background: "#ffffff", border: "1px solid #ddd5c5", borderRadius: 16, padding: "44px 40px", boxShadow: "0 8px 40px rgba(26,46,26,0.08), 0 2px 8px rgba(26,46,26,0.04)" }}>

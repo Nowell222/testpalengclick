@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform, Variants } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useRef } from "react";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -90,6 +91,10 @@ const LandingPage = () => {
         </div>
       </nav>
 
+      <div className="lg:hidden">
+        <PWAInstallBanner variant="banner" className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 mt-4" />
+      </div>
+
       {/* ── HERO ─────────────────────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative min-h-[85vh] sm:min-h-[92vh] flex items-center overflow-hidden pb-12 sm:pb-0">
         <motion.div className="absolute inset-0" style={{ y: heroY }}>
@@ -98,6 +103,8 @@ const LandingPage = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a1e0f]/60 to-transparent h-3/5 top-auto" />
         </motion.div>
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#c9a84c] to-transparent" />
+
+        <PWAInstallBanner variant="floater" />
 
         <motion.div style={{ opacity: heroOpacity }} className="relative z-10 w-full max-w-[1200px] mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-16 sm:pb-20">
           <motion.div initial="hidden" animate="visible">
