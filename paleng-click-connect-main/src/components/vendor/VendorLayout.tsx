@@ -135,7 +135,9 @@ const VendorLayout = () => {
           <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, width: 280, background: VENDOR_SIDEBAR_BG, borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "-6px 0 24px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "16px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff", letterSpacing: -1 }}>PC</div>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <img src="/favicon.png" alt="PC Logo" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                </div>
                 <div><div style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>PALENG-CLICK</div><div style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div></div>
               </div>
               <button onClick={() => setOpen(false)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 8px", cursor: "pointer", display: "flex", color: "rgba(255,255,255,0.7)" }}><X size={15} /></button>
@@ -149,8 +151,9 @@ const VendorLayout = () => {
       {/* Mobile header */}
       <header className="v-mobile-only" style={{ position: "sticky", top: 0, zIndex: 40, background: VENDOR_TOPNAV_BG, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: 64, boxShadow: "0 2px 12px rgba(13,34,64,0.35)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => setOpen(true)} style={{ background: "none", border: "none", color: "#fff", padding: 0, cursor: "pointer" }}><Menu size={24} /></button>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff" }}>PC</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <img src="/favicon.png" alt="PC Logo" style={{ width: 24, height: 24, objectFit: "contain" }} />
+          </div>
           <div><div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>PALENG-CLICK</div><div style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div></div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 12px 6px 6px", borderRadius: 10, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }} onClick={() => navigate("/vendor/stall")}>
@@ -169,7 +172,9 @@ const VendorLayout = () => {
       <div className="v-desktop-only" style={{ display: "flex", minHeight: "100vh" }}>
         <aside style={{ width: 240, flexShrink: 0, background: VENDOR_SIDEBAR_BG, display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh" }}>
           <div style={{ height: 64, background: VENDOR_TOPNAV_BG, display: "flex", alignItems: "center", padding: "0 16px", gap: 10, flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 13, color: "#fff", flexShrink: 0 }}>PC</div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <img src="/favicon.png" alt="PC Logo" style={{ width: 24, height: 24, objectFit: "contain" }} />
+            </div>
             <div><div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>PALENG-CLICK</div><div style={{ color: "rgba(255,255,255,0.4)", fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Vendor Portal</div></div>
           </div>
           <VendorNavList />
@@ -196,7 +201,11 @@ const VendorLayout = () => {
           </header>
           <main style={{ flex: 1, overflowY: "auto", background: "#f1f5f9" }}>
             <PushNotificationBanner />
-            <div style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ 
+              padding: location.pathname === "/vendor" || location.pathname === "/vendor/" ? "0" : "24px", 
+              maxWidth: location.pathname === "/vendor" || location.pathname === "/vendor/" ? "none" : 1200, 
+              margin: "0 auto" 
+            }}>
               <Outlet />
             </div>
           </main>

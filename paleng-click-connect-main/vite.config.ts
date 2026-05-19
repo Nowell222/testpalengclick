@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         // Raise the limit to 6 MiB to accommodate larger assets like tesseract
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        importScripts: ['/push-sw.js'],
       },
       devOptions: {
         enabled: true

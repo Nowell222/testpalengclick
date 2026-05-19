@@ -170,7 +170,9 @@ const CashierLayout = () => {
           <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, width: 280, background: CASHIER_SIDEBAR_BG, borderLeft: "1px solid rgba(16,185,129,0.12)", boxShadow: "-6px 0 32px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: CASHIER_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: "#fff", flexShrink: 0 }}>PC</div>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: CASHIER_GRAD, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <img src="/favicon.png" alt="PC Logo" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                </div>
                 <div><div style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>PALENG-CLICK</div><div style={{ color: "rgba(255,255,255,0.3)", fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>Cashier Terminal</div></div>
               </div>
               <button onClick={() => setOpen(false)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 7px", cursor: "pointer", display: "flex", color: "rgba(255,255,255,0.6)" }}><X size={15} /></button>
@@ -186,7 +188,9 @@ const CashierLayout = () => {
         <aside style={{ width: 240, flexShrink: 0, background: CASHIER_SIDEBAR_BG, display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh" }}>
           <div style={{ height: 64, padding: "0 20px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", flexShrink: 0 }}>
             <Link to="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: CASHIER_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, color: "#fff", flexShrink: 0 }}>PC</div>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: CASHIER_GRAD, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <img src="/favicon.png" alt="PC Logo" style={{ width: 22, height: 22, objectFit: "contain" }} />
+              </div>
               <div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 13, letterSpacing: 0.3 }}>PALENG-CLICK</div>
                 <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>Cashier Terminal</div>
@@ -223,7 +227,9 @@ const CashierLayout = () => {
       {/* Mobile header */}
       <header className="ac-mobile-only" style={{ position: "sticky", top: 0, zIndex: 40, background: CASHIER_GRAD, borderBottom: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: 56, color: "#fff" }}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: CASHIER_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 11, color: "#fff" }}>PC</div>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: CASHIER_GRAD, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <img src="/favicon.png" alt="PC Logo" style={{ width: 20, height: 20, objectFit: "contain" }} />
+          </div>
           <div>
             <div style={{ color: "#111827", fontWeight: 700, fontSize: 13, letterSpacing: 0.3 }}>PALENG-CLICK</div>
             <div style={{ color: ROLE_COLORS.muted, fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Cashier</div>
