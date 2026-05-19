@@ -3,7 +3,7 @@ import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard, Wallet, History, FileText, Store, Bell, Newspaper,
-  LogOut, Menu, X, Loader2, type LucideIcon
+  LogOut, Menu, X, Loader2, Download, type LucideIcon
 } from "lucide-react";
 import PushNotificationBanner from "@/components/PushNotificationBanner";
 import VendorBottomNav from "@/components/VendorBottomNav";
@@ -18,6 +18,7 @@ const vendorNav: NavItem[] = [
   { label: "Stall Info", path: "/vendor/stall", icon: Store },
   { label: "Notifications", path: "/vendor/notifications", icon: Bell },
   { label: "News & Inbox", path: "/vendor/news", icon: Newspaper },
+  { label: "Install App", path: "/install", icon: Download },
 ];
 
 const VENDOR_SIDEBAR_BG = "#0f172a";

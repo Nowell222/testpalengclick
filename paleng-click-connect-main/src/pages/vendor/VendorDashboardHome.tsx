@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard, QrCode, CheckCircle2, AlertCircle, Loader2,
   ArrowRight, Clock, FileText, Bell, Newspaper, Store,
-  History, TrendingUp, Calendar, ChevronDown, ChevronUp, X,
+  History, TrendingUp, Calendar, ChevronDown, ChevronUp, X, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -216,6 +216,7 @@ const VendorDashboardHome = () => {
     { label: "Stall Info", to: "/vendor/stall", icon: Store },
     { label: "Alerts", to: "/vendor/notifications", icon: Bell, badge: d.unreadNotifs.length },
     { label: "News", to: "/vendor/news", icon: Newspaper },
+    { label: "Install App", to: "/install", icon: Download },
   ];
 
   const quickLinks = [
@@ -225,6 +226,7 @@ const VendorDashboardHome = () => {
     { label: "Stall Information", to: "/vendor/stall", icon: Store },
     { label: "Notifications", to: "/vendor/notifications", icon: Bell, badge: d.unreadNotifs.length },
     { label: "News & Updates", to: "/vendor/news", icon: Newspaper },
+    { label: "Install Application", to: "/install", icon: Download },
   ];
 
   const tabs = [

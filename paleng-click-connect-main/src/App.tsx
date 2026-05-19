@@ -46,6 +46,7 @@ import CashierReports from "./pages/cashier/CashierReports";
 import CashierSettings from "./pages/cashier/CashierSettings";
 
 import VendorApply from "./pages/VendorApply";
+import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/apply" element={<VendorApply />} />
+            <Route path="/install" element={<InstallPage />} />
 
             {/* Admin routes */}
             <Route path="/admin" element={

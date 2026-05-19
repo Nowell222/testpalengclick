@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, MapPin, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, MapPin, Loader2, Smartphone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import LoadingOverlay from "@/components/LoadingOverlay";
@@ -270,6 +270,14 @@ const LoginPage = () => {
               Having trouble logging in?<br />
               Contact the <strong style={{ color: "#2d7a4f" }}>Municipal Treasurer's Office</strong>.
             </p>
+
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 24, borderTop: "1.5px dashed #ede5d5", paddingTop: 20 }}>
+              <Link to="/install" style={{ display: "flex", alignItems: "center", gap: 6, color: "#1a4a2e", textDecoration: "none", fontSize: 12.5, fontWeight: 700, border: "1.5px solid #1a4a2e", padding: "8px 18px", borderRadius: 8, transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(26, 74, 46, 0.06)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                <Smartphone size={14} /> Install Portal App
+              </Link>
+            </div>
           </div>
 
           {/* Bottom note */}
