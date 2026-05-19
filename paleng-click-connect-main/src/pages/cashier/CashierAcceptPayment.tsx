@@ -124,7 +124,7 @@ const doPrint = (d: any) => {
 };
 
 // ─── Receipt Card component (shared across all tabs) ──────────────────────────
-const ReceiptCard = ({ data, onNew }: { data: any; onNew: () => void }) => (
+const ReceiptCard = ({ data, onNew, onSameVendor }: { data: any; onNew: () => void; onSameVendor?: () => void }) => (
   <div className="max-w-sm mx-auto space-y-4">
     {/* Success header */}
     <div className="flex flex-col items-center text-center py-4 gap-2">
@@ -200,13 +200,20 @@ const ReceiptCard = ({ data, onNew }: { data: any; onNew: () => void }) => (
     </div>
 
     {/* Actions */}
-    <div className="flex gap-3">
-      <Button variant="hero" className="flex-1 gap-2 rounded-xl" onClick={() => doPrint(data)}>
+    <div className="flex flex-col gap-2">
+      <Button variant="hero" className="w-full gap-2 rounded-xl" onClick={() => doPrint(data)}>
         <Printer className="h-4 w-4" /> Print Receipt
       </Button>
-      <Button variant="outline" className="flex-1 gap-2 rounded-xl" onClick={onNew}>
-        <Receipt className="h-4 w-4" /> New Payment
-      </Button>
+      <div className="flex gap-2">
+        {onSameVendor && (
+          <Button variant="outline" className="flex-1 gap-1.5 rounded-xl text-xs" onClick={onSameVendor}>
+            <User className="h-3.5 w-3.5" /> Same Vendor
+          </Button>
+        )}
+        <Button variant="outline" className={onSameVendor ? "flex-1 gap-1.5 rounded-xl text-xs" : "w-full gap-2 rounded-xl"} onClick={onNew}>
+          {onSameVendor ? <Search className="h-3.5 w-3.5" /> : <Receipt className="h-4 w-4" />} {onSameVendor ? "New Search" : "New Payment"}
+        </Button>
+      </div>
     </div>
   </div>
 );
@@ -221,6 +228,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [vendor, setVendor] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [periodMonth, setPeriodMonth] = useState(new Date().getMonth() + 1);
   const [periodYear, setPeriodYear] = useState(new Date().getFullYear());
   const [payType, setPayType] = useState<"full" | "partial">("full");
@@ -239,7 +247,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
         ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", v.stall_id).eq("year", currentYear)
         : Promise.resolve({ data: [] }),
     ]);
-    const stall = v.stalls as any;
+    const stall = (v.stalls || v.stall) as any;
     const profile = profileRes.data;
     const payments = paymentsRes.data || [];
     const schedules = schedulesRes.data || [];
@@ -279,20 +287,83 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
 
   const searchVendor = async () => {
     if (!searchTerm.trim()) return;
-    setSearching(true); setVendor(null);
-    const { data: stalls } = await supabase.from("stalls").select("id").ilike("stall_number", `%${searchTerm.trim()}%`);
-    if (stalls?.length) {
-      const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("stall_id", stalls[0].id).single();
-      if (v) { await loadVendorData(v); setSearching(false); return; }
+    setSearching(true);
+    setVendor(null);
+    setSearchResults([]);
+
+    try {
+      // 1. Search stalls by stall_number or section
+      const { data: stalls } = await supabase
+        .from("stalls")
+        .select("id, stall_number, section")
+        .or(`stall_number.ilike.%${searchTerm.trim()}%,section.ilike.%${searchTerm.trim()}%`);
+
+      // 2. Search profiles by first_name or last_name
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, contact_number")
+        .or(`first_name.ilike.%${searchTerm.trim()}%,last_name.ilike.%${searchTerm.trim()}%`);
+
+      const conditions: string[] = [];
+      if (stalls && stalls.length > 0) {
+        const stallIds = stalls.map(s => s.id);
+        conditions.push(`stall_id.in.(${stallIds.join(",")})`);
+      }
+      if (profiles && profiles.length > 0) {
+        const userIds = profiles.map(p => p.user_id);
+        conditions.push(`user_id.in.(${userIds.join(",")})`);
+      }
+
+      if (conditions.length === 0) {
+        toast.error("No vendor found. Try stall number, section, or vendor name.");
+        setSearching(false);
+        return;
+      }
+
+      // Query matched vendors
+      const { data: vendorsList, error: vendorErr } = await supabase
+        .from("vendors")
+        .select("id, user_id, stall_id, award_date, stalls(*)")
+        .or(conditions.join(","));
+
+      if (vendorErr) throw vendorErr;
+
+      if (!vendorsList || vendorsList.length === 0) {
+        toast.error("No vendor found. Try stall number, section, or vendor name.");
+        setSearching(false);
+        return;
+      }
+
+      // Resolve profiles for all matched vendors to show correct details
+      const uniqueUserIds = [...new Set(vendorsList.map(v => v.user_id))];
+      const { data: profilesList, error: profileErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("user_id", uniqueUserIds);
+
+      if (profileErr) throw profileErr;
+
+      const formattedResults = vendorsList.map(v => {
+        const profile = profilesList?.find(p => p.user_id === v.user_id);
+        return {
+          ...v,
+          profile,
+          stall: v.stalls as any
+        };
+      });
+
+      // Handle selection or multiple duplicate results
+      if (formattedResults.length === 1) {
+        await loadVendorData(formattedResults[0]);
+      } else {
+        setSearchResults(formattedResults);
+      }
+    } catch (err: any) {
+      console.error("Search error:", err);
+      toast.error("An error occurred during search.");
+    } finally {
+      setSearching(false);
     }
-    const { data: profiles } = await supabase.from("profiles").select("user_id")
-      .or(`first_name.ilike.%${searchTerm.trim()}%,last_name.ilike.%${searchTerm.trim()}%`);
-    if (profiles?.length) {
-      const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("user_id", profiles[0].user_id).single();
-      if (v) { await loadVendorData(v); setSearching(false); return; }
-    }
-    toast.error("No vendor found. Try stall number (e.g. G-001) or name.");
-    setSearching(false);
   };
 
   const monthFee = vendor ? vendor.getMonthFee(periodMonth) : 1450;
@@ -348,7 +419,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       });
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       const cn = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
       setReceiptData({
         vendorName: `${vendor.profile?.first_name} ${vendor.profile?.last_name}`,
@@ -365,16 +436,20 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       });
       ["vendor-statement", "vendor-pay-info", "vendor-history", "cashier-dashboard", "cashier-payment-status", "admin-payments", "admin-dashboard"]
         .forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
+
+      // Reload vendor data instantly so that month tiles immediately refresh to paid!
+      await loadVendorData(vendor);
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const reset = () => {
     setVendor(null); setSearchTerm(""); setAmount("");
+    setSearchResults([]);
     setReceiptData(null); setPeriodMonth(currentMonth); setPeriodYear(currentYear); setPayType("full");
   };
 
-  if (receiptData) return <ReceiptCard data={receiptData} onNew={reset} />;
+  if (receiptData) return <ReceiptCard data={receiptData} onNew={reset} onSameVendor={() => setReceiptData(null)} />;
 
   return (
     <div className="space-y-4">
@@ -383,7 +458,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by stall number (G-001) or vendor name…"
+          <Input placeholder="Search by stall, section, or vendor name…"
             className="h-11 pl-10 rounded-xl"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -392,7 +467,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
         <Button onClick={searchVendor} disabled={searching || !searchTerm.trim()} className="rounded-xl px-5 gap-1.5">
           {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </Button>
-        {vendor && (
+        {(vendor || searchResults.length > 0) && (
           <Button variant="outline" size="icon" className="rounded-xl shrink-0" onClick={reset} title="Clear">
             <X className="h-4 w-4" />
           </Button>
@@ -400,6 +475,51 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       </div>
 
       {searching && !vendor && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}
+
+      {/* Multiple accounts selection list */}
+      {!searching && searchResults.length > 0 && !vendor && (
+        <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-3">
+          <div className="flex justify-between items-center pb-2 border-b">
+            <h3 className="font-semibold text-foreground text-xs uppercase tracking-wider text-muted-foreground">
+              Search Results ({searchResults.length} accounts found)
+            </h3>
+            <Button variant="ghost" size="sm" onClick={() => setSearchResults([])} className="text-xs text-muted-foreground hover:text-foreground">
+              Clear Results
+            </Button>
+          </div>
+          <div className="divide-y max-h-[320px] overflow-y-auto pr-1">
+            {searchResults.map((res) => (
+              <div key={res.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <User className="h-4.5 w-4.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-foreground">
+                      {res.profile?.first_name} {res.profile?.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Stall <span className="font-mono font-semibold text-foreground">{res.stall?.stall_number || "—"}</span>
+                      {" · "}<span className="font-semibold text-primary">{res.stall?.section || "General"}</span>
+                      {res.profile?.contact_number && ` · ${res.profile.contact_number}`}
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    setSearchResults([]);
+                    loadVendorData(res);
+                  }}
+                  className="rounded-xl px-4 text-xs font-semibold shrink-0"
+                >
+                  Select Account
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {vendor && (
         <>

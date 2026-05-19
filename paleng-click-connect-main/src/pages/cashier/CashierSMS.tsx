@@ -17,7 +17,21 @@ const MSG_TYPE_CONFIG = {
   reminder: { label: "Reminder", icon: Bell,          color: "bg-amber-100 text-amber-700" },
 };
 
-const SECTIONS = ["All Vendors","General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
+const SECTIONS = [
+  "All Vendors",
+  "Vegetable Section - Extension",
+  "Eatery 2nd Floor",
+  "Vegetable Section",
+  "Egg and Dried Fish",
+  "Fish Stalls",
+  "Meat Stalls",
+  "New Building - Kalayaan",
+  "New Building - Mojica",
+  "Fruit Stalls and Refreshments",
+  "Bldg 1 & 2 Bolante",
+  "Building II - 2nd Floor",
+  "Building I - 2nd Floor",
+];
 
 const CashierSMS = () => {
   const { user } = useAuth();

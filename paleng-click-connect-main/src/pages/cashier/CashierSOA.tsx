@@ -261,7 +261,21 @@ const CashierSOA = () => {
   const [bulkPrinting, setBulkPrinting] = useState(false);
   const printFrameRef = useRef<HTMLIFrameElement>(null);
 
-  const SECTIONS = ["All", "General", "Fish", "Meat", "Vegetables", "Dry Goods", "Bolante"];
+  const SECTIONS = [
+    "All",
+    "Vegetable Section - Extension",
+    "Eatery 2nd Floor",
+    "Vegetable Section",
+    "Egg and Dried Fish",
+    "Fish Stalls",
+    "Meat Stalls",
+    "New Building - Kalayaan",
+    "New Building - Mojica",
+    "Fruit Stalls and Refreshments",
+    "Bldg 1 & 2 Bolante",
+    "Building II - 2nd Floor",
+    "Building I - 2nd Floor",
+  ];
 
   // Fetch ALL vendors at once for instant search
   const { data: allVendors = [], isLoading } = useQuery({
