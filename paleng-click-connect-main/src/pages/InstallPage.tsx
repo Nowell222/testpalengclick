@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Download, ArrowLeft, Smartphone, Share2, MoreVertical, Compass, Monitor, Check } from "lucide-react";
+import { Download, ArrowLeft, Smartphone, Share2, MoreVertical, Compass, Monitor, Check, X } from "lucide-react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
