@@ -9,10 +9,11 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
-  profile: { first_name: string; last_name: string; middle_name?: string; contact_number?: string } | null;
+  profile: { first_name: string; last_name: string; middle_name?: string; contact_number?: string; avatar_url?: string; status?: string; address?: string } | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null; blockedStatus?: AccountStatus }>;
   signOut: () => Promise<void>;
+  refetchProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,10 +28,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchRoleAndProfile = async (userId: string) => {
     const [roleRes, profileRes] = await Promise.all([
       supabase.rpc("get_user_role", { _user_id: userId }),
-      supabase.from("profiles").select("first_name, last_name, middle_name, contact_number").eq("user_id", userId).single(),
+      supabase.from("profiles").select("first_name, last_name, middle_name, contact_number, avatar_url, status, address").eq("user_id", userId).single(),
     ]);
     if (roleRes.data) setRole(roleRes.data as AppRole);
     if (profileRes.data) setProfile(profileRes.data);
+  };
+
+  const refetchProfile = async () => {
+    if (user?.id) {
+      await fetchRoleAndProfile(user.id);
+    }
   };
 
   const clearAuth = async () => {
@@ -118,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, profile, loading, signIn, signOut, refetchProfile }}>
       {children}
     </AuthContext.Provider>
   );

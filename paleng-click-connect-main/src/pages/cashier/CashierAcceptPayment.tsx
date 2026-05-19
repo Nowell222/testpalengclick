@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 import { saveOfflinePayment, syncOfflinePayments, getUnsyncedCount } from "@/lib/offlineSync";
 
@@ -377,6 +378,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
 
   return (
     <div className="space-y-4">
+      {recordPayment.isPending && <LoadingOverlay role="cashier" message="Recording payment & notifying vendor..." />}
       {/* Search bar */}
       <div className="flex gap-2">
         <div className="relative flex-1">

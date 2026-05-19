@@ -8,7 +8,9 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
-import DashboardLayout from "./components/DashboardLayout";
+import AdminLayout from "./components/admin/AdminLayout";
+import CashierLayout from "./components/cashier/CashierLayout";
+import VendorLayout from "./components/vendor/VendorLayout";
 
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import AdminUserManagement from "./pages/admin/AdminUserManagement";
@@ -63,7 +65,7 @@ const App = () => (
             {/* Admin routes */}
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={["admin"]}>
-                <DashboardLayout role="admin" />
+                <AdminLayout />
               </ProtectedRoute>
             }>
               <Route index element={<AdminDashboardHome />} />
@@ -83,7 +85,7 @@ const App = () => (
             {/* Vendor routes */}
             <Route path="/vendor" element={
               <ProtectedRoute allowedRoles={["vendor"]}>
-                <DashboardLayout role="vendor" />
+                <VendorLayout />
               </ProtectedRoute>
             }>
               <Route index element={<VendorDashboardHome />} />
@@ -99,7 +101,7 @@ const App = () => (
             {/* Cashier routes */}
             <Route path="/cashier" element={
               <ProtectedRoute allowedRoles={["cashier"]}>
-                <DashboardLayout role="cashier" />
+                <CashierLayout />
               </ProtectedRoute>
             }>
               <Route index element={<CashierDashboardHome />} />

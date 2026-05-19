@@ -20,6 +20,7 @@ const VendorApply = () => {
     phone: "",
     businessName: "",
     preferredSection: "",
+    website: "", // Honeypot field
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,6 +33,15 @@ const VendorApply = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Honeypot check: If the 'website' field is filled, it's likely a bot
+    if (formData.website) {
+      console.warn("Honeypot triggered - bot detected");
+      // We simulate success so the bot thinks it won, but we don't save anything to the database
+      setSuccess(true);
+      return;
+    }
+
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.preferredSection) {
       toast.error("Please fill in all required fields");
       return;
@@ -166,6 +176,19 @@ const VendorApply = () => {
                   value={formData.businessName} onChange={handleChange} 
                   className="rounded-xl bg-slate-50 border-slate-200 h-11"
                   disabled={isSubmitting}
+                />
+              </div>
+
+              {/* Honeypot field - Hidden from users but visible to bots */}
+              <div className="hidden" aria-hidden="true">
+                <Input
+                  id="website"
+                  name="website"
+                  type="text"
+                  value={formData.website}
+                  onChange={handleChange}
+                  tabIndex={-1}
+                  autoComplete="off"
                 />
               </div>
 

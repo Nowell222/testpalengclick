@@ -171,11 +171,24 @@ const AdminFeeSchedules = () => {
   const [filterSection, setFilterSection] = useState("all");
   const [year,          setYear]          = useState(new Date().getFullYear());
   const [editVendor,    setEditVendor]    = useState<any>(null);
-  const [bulkSection,   setBulkSection]   = useState("General");
+  const [bulkSection,   setBulkSection]   = useState("Vegetable Section");
   const [bulkRate,      setBulkRate]      = useState("");
   const [bulkApplying,  setBulkApplying]  = useState(false);
   const queryClient = useQueryClient();
-  const SECTIONS = ["General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
+  const SECTIONS = [
+    "Vegetable Section - Extension",
+    "Eatery 2nd Floor",
+    "Vegetable Section",
+    "Egg and Dried Fish",
+    "Fish Stalls",
+    "Meat Stalls",
+    "New Building - Kalayaan",
+    "New Building - Mojica",
+    "Fruit Stalls and Refreshments",
+    "Bldg 1 & 2 Bolante",
+    "Building II - 2nd Floor",
+    "Building I - 2nd Floor",
+  ];
 
   const { data: vendors = [], isLoading, refetch } = useQuery({
     queryKey: ["admin-fee-vendors"],

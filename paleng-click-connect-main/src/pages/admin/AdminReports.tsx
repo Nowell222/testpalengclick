@@ -80,7 +80,20 @@ const AdminReports = () => {
   const [search,        setSearch]        = useState("");
 
   const today = new Date().toISOString().split("T")[0];
-  const SECTIONS = ["General","Fish","Meat","Vegetables","Dry Goods","Bolante"];
+  const SECTIONS = [
+    "Vegetable Section - Extension",
+    "Eatery 2nd Floor",
+    "Vegetable Section",
+    "Egg and Dried Fish",
+    "Fish Stalls",
+    "Meat Stalls",
+    "New Building - Kalayaan",
+    "New Building - Mojica",
+    "Fruit Stalls and Refreshments",
+    "Bldg 1 & 2 Bolante",
+    "Building II - 2nd Floor",
+    "Building I - 2nd Floor",
+  ];
 
   const setQuick = (type: string) => {
     const now = new Date(), t = now.toISOString().split("T")[0];

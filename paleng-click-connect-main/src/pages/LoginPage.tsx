@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, MapPin, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 const LoginPage = () => {
   const navigate     = useNavigate();
@@ -44,6 +45,7 @@ const LoginPage = () => {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", fontFamily: "'Georgia', 'Times New Roman', serif", background: "#f8f5f0", position: "relative", overflow: "hidden" }}>
+      {isLoading && <LoadingOverlay message="Authenticating your account..." />}
 
       {/* ── Account Blocked Modal ────────────────────────────────────────────── */}
       {blockedStatus && (

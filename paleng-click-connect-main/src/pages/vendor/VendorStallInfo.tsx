@@ -4,7 +4,9 @@ import {
   QrCode, MapPin, User, Calendar, Loader2, Edit3, Save, X,
   Download, Phone, Home, CheckCircle2, Mail, Lock, Eye, EyeOff,
   UserCircle, AlertCircle, LogOut, ChevronDown, ChevronUp, TrendingUp,
+  Camera,
 } from "lucide-react";
+import { useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +42,7 @@ const FieldRow = ({ icon: Icon, label, value }: { icon: any; label: string; valu
 );
 
 const VendorStallInfo = () => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refetchProfile } = useAuth();
   const navigate    = useNavigate();
   const queryClient = useQueryClient();
 
@@ -50,6 +52,8 @@ const VendorStallInfo = () => {
   const [showConfPwd,  setShowConfPwd]  = useState(false);
   const [emailChanged, setEmailChanged] = useState(false);
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     first_name: "", middle_name: "", last_name: "",
@@ -144,6 +148,51 @@ const VendorStallInfo = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("File size must be less than 2MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Profile picture updated!");
+      await refetchProfile();
+      queryClient.invalidateQueries({ queryKey: ["vendor-stall-info"] });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const cancelEdit = () => {
     if (data) {
       setForm({
@@ -188,11 +237,29 @@ const VendorStallInfo = () => {
       <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="flex flex-col items-center px-5 pt-8 pb-10">
           {/* Avatar */}
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3"
-            style={{ background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.4)" }}>
-            <span className="text-3xl font-black text-white">
-              {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
-            </span>
+          <div className="relative group">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3 overflow-hidden relative"
+              style={{ background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.4)" }}>
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl font-black text-white">
+                  {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
+                </span>
+              )}
+              {uploading && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-2 right-0 bg-white text-blue-600 p-1.5 rounded-full shadow-lg border border-blue-100"
+            >
+              <Camera size={14} />
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
           </div>
           <p className="text-xl font-black text-white">
             {profile?.first_name} {profile?.last_name}
@@ -528,10 +595,28 @@ const VendorStallInfo = () => {
 
             {/* Profile summary card */}
             <div style={{ background: DS.gradientHeader, borderRadius: 16, padding: "24px 20px", textAlign: "center", color: "#fff" }}>
-              <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-                <span style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>
-                  {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
-                </span>
+              <div className="relative group mx-auto mb-3">
+                <div className="w-[72px] h-[72px] rounded-full flex items-center justify-center overflow-hidden relative"
+                  style={{ background: "rgba(255,255,255,0.2)", border: "3px solid rgba(255,255,255,0.35)" }}>
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span style={{ fontSize: 24, fontWeight: 900, color: "#fff" }}>
+                      {(profile?.first_name?.[0] || "")}{(profile?.last_name?.[0] || "")}
+                    </span>
+                  )}
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 text-white animate-spin" />
+                    </div>
+                  )}
+                </div>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 bg-white text-blue-600 p-1.5 rounded-full shadow-lg border border-blue-100 hover:scale-110 transition-transform"
+                >
+                  <Camera size={12} />
+                </button>
               </div>
               <p style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>{profile?.first_name} {profile?.last_name}</p>
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 3 }}>Stall #{stall?.stall_number} · {stall?.section || "General"} Section</p>
