@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       workbox: {
-        // Raise the limit to 3 MiB to accommodate the main bundle
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // Raise the limit to 6 MiB to accommodate larger assets like tesseract
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
       manifest: {
         name: 'Paleng-Click Connect',
