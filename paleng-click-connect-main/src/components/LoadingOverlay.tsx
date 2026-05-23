@@ -3,15 +3,15 @@ import { Loader2 } from "lucide-react";
 
 interface LoadingOverlayProps {
   message?: string;
-  role?: "admin" | "vendor" | "cashier";
+  role?: "admin" | "vendor" | "cashier" | "bplo";
 }
 
 const LoadingOverlay = ({ message = "Processing...", role = "admin" }: LoadingOverlayProps) => {
-  const isVendor = role === "vendor";
+  const isBlueTheme = role === "vendor" || role === "bplo";
   
   // Design based on the user's screenshot
-  // Green for Admin/Cashier, Blue for Vendor
-  const circleColor = isVendor ? "#2563eb" : "#065f46"; 
+  // Green for Admin/Cashier, Blue for Vendor/BPLO
+  const circleColor = isBlueTheme ? "#2563eb" : "#065f46"; 
   
   return (
     <div style={{

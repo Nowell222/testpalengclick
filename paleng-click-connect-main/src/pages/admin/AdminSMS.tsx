@@ -34,9 +34,10 @@ const TEMPLATES: Record<string, string> = {
 };
 
 const AdminSMS = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isReadOnly = role === "eemo";
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<"send" | "bulk" | "logs">("send");
+  const [tab, setTab] = useState<"send" | "bulk" | "logs">(isReadOnly ? "logs" : "send");
   const [recipient, setRecipient] = useState("");
   const [messageType, setMessageType] = useState("reminder");
   const [message, setMessage] = useState(TEMPLATES.reminder);
@@ -73,11 +74,13 @@ const AdminSMS = () => {
     failed:    logs.filter((l: any) => l.status === "failed").length,
   };
 
-  const TABS = [
-    { key: "send",  label: "Single SMS",  icon: Send         },
-    { key: "bulk",  label: "Bulk SMS",    icon: Users        },
-    { key: "logs",  label: "SMS Logs",    icon: MessageSquare },
-  ] as const;
+  const TABS: { key: "send" | "bulk" | "logs"; label: string; icon: any }[] = isReadOnly 
+    ? [{ key: "logs",  label: "SMS Logs",    icon: MessageSquare }]
+    : [
+        { key: "send",  label: "Single SMS",  icon: Send         },
+        { key: "bulk",  label: "Bulk SMS",    icon: Users        },
+        { key: "logs",  label: "SMS Logs",    icon: MessageSquare },
+      ];
 
   return (
     <div className="space-y-5">

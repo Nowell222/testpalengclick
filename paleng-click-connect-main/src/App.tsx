@@ -11,6 +11,9 @@ import LoginPage from "./pages/LoginPage";
 import AdminLayout from "./components/admin/AdminLayout";
 import CashierLayout from "./components/cashier/CashierLayout";
 import VendorLayout from "./components/vendor/VendorLayout";
+import BploLayout from "./components/bplo/BploLayout";
+import BploDashboard from "./pages/bplo/BploDashboard";
+import BploSettings from "./pages/bplo/BploSettings";
 
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import AdminUserManagement from "./pages/admin/AdminUserManagement";
@@ -44,6 +47,7 @@ import CashierSMS from "./pages/cashier/CashierSMS";
 import CashierShiftHistory from "./pages/cashier/CashierShiftHistory";
 import CashierReports from "./pages/cashier/CashierReports";
 import CashierSettings from "./pages/cashier/CashierSettings";
+import CashierFeeSchedules from "./pages/cashier/CashierFeeSchedules";
 
 import VendorApply from "./pages/VendorApply";
 import InstallPage from "./pages/InstallPage";
@@ -66,7 +70,7 @@ const App = () => (
 
             {/* Admin routes */}
             <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["admin", "eemo"]}>
                 <AdminLayout />
               </ProtectedRoute>
             }>
@@ -114,7 +118,18 @@ const App = () => (
               <Route path="sms" element={<CashierSMS />} />
               <Route path="shifts" element={<CashierShiftHistory />} />
               <Route path="reports" element={<CashierReports />} />
+              <Route path="fee-schedules" element={<CashierFeeSchedules />} />
               <Route path="settings" element={<CashierSettings />} />
+            </Route>
+
+            {/* BPLO routes */}
+            <Route path="/bplo" element={
+              <ProtectedRoute allowedRoles={["bplo"]}>
+                <BploLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<BploDashboard />} />
+              <Route path="settings" element={<BploSettings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

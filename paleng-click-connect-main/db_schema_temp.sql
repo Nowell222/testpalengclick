@@ -4,7 +4,7 @@
 -- =============================================
 
 -- 1. ENUMS
-CREATE TYPE public.app_role AS ENUM ('admin', 'cashier', 'vendor');
+CREATE TYPE public.app_role AS ENUM ('admin', 'cashier', 'vendor', 'bplo');
 
 -- 2. CORE TABLES
 CREATE TABLE public.profiles (
@@ -45,6 +45,9 @@ CREATE TABLE public.vendors (
   qr_code TEXT,
   tax_id TEXT,
   award_date DATE,
+  business_permit_number TEXT,
+  award_receipt_number TEXT,
+  award_payment_date DATE,
   documents TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
@@ -89,6 +90,8 @@ const printTable = (payments: any[], title: string, subtitle: string) => {
 };
 
 const AdminPayments = () => {
+  const { role } = useAuth();
+  const isReadOnly = role === "eemo";
   const queryClient = useQueryClient();
   const [search,       setSearch]       = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -441,7 +444,7 @@ const AdminPayments = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {p.status === "pending" ? (
+                      {p.status === "pending" && !isReadOnly ? (
                         <Button size="sm"
                           className="h-7 text-xs bg-success hover:bg-success/90 text-white rounded-lg gap-1"
                           disabled={confirmPayment.isPending}

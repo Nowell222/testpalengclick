@@ -15,7 +15,7 @@ const LoginPage = () => {
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
   const [isLoading,   setIsLoading]   = useState(false);
-  const [blockedStatus, setBlockedStatus] = useState<"suspended" | "delinquent" | null>(null);
+  const [blockedStatus, setBlockedStatus] = useState<"suspended" | "delinquent" | "active" | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,9 +35,10 @@ const LoginPage = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: user.id });
-          if (roleData === "admin")    navigate("/admin");
+          if (roleData === "admin" || roleData === "eemo")    navigate("/admin");
           else if (roleData === "vendor")  navigate("/vendor");
           else if (roleData === "cashier") navigate("/cashier");
+          else if (roleData === "bplo") navigate("/bplo");
           else navigate("/");
         }
       }, 200);

@@ -261,9 +261,11 @@ const VendorDashboardHome = () => {
             <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginTop: 2 }}>
               {stall?.stall_number || "—"} · {stall?.section || "General"} Section
             </div>
-            {stall?.area_measurement && (
+            {(stall?.area_measurement || vendor?.business_permit_number) && (
               <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
-                Size: {stall.area_measurement}
+                {stall?.area_measurement ? `Size: ${stall.area_measurement} sqm` : ""}
+                {stall?.area_measurement && vendor?.business_permit_number ? " · " : ""}
+                {vendor?.business_permit_number ? `Permit No: ${vendor.business_permit_number}` : ""}
               </div>
             )}
           </div>
@@ -607,8 +609,12 @@ const VendorDashboardHome = () => {
               style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
               <p className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.6)" }}>Your Stall</p>
               <p className="text-white text-sm font-bold">{stall?.stall_number || "—"} · {stall?.section || "General"}</p>
-              {stall?.area_measurement && (
-                <p className="text-white text-[10px] font-semibold mt-0.5 opacity-80">Size: {stall.area_measurement} sqm</p>
+              {(stall?.area_measurement || vendor?.business_permit_number) && (
+                <p className="text-white text-[10px] font-semibold mt-0.5 opacity-80">
+                  {stall?.area_measurement ? `Size: ${stall.area_measurement} sqm` : ""}
+                  {stall?.area_measurement && vendor?.business_permit_number ? " · " : ""}
+                  {vendor?.business_permit_number ? `Permit: ${vendor.business_permit_number}` : ""}
+                </p>
               )}
             </div>
           </div>

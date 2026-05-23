@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { 
   FileText, Store, Search, CheckCircle2, XCircle, Clock, Loader2, 
@@ -35,6 +36,8 @@ const STATUS_CONFIG = {
 };
 
 const AdminApplications = () => {
+  const { role } = useAuth();
+  const isReadOnly = role === "eemo";
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
@@ -399,7 +402,7 @@ const AdminApplications = () => {
                 )}
 
                 {/* Actions */}
-                {selectedApp.status === "pending" && (
+                {selectedApp.status === "pending" && !isReadOnly && (
                   <div className="pt-6 border-t flex gap-3 mt-auto">
                     <Button 
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12"

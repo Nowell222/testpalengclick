@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,8 @@ const DOCUMENT_TYPES = [
 ];
 
 export default function VendorDocumentsManager({ userId }: VendorDocumentsManagerProps) {
+  const { role } = useAuth();
+  const isReadOnly = role === "eemo";
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState("Business Permit");
@@ -117,50 +120,52 @@ export default function VendorDocumentsManager({ userId }: VendorDocumentsManage
   return (
     <div className="space-y-6">
       {/* Upload Section */}
-      <div className="rounded-xl border bg-secondary/20 p-4 space-y-4">
-        <h4 className="font-semibold text-sm flex items-center gap-2">
-          <FileUp className="h-4 w-4 text-blue-500" />
-          Upload New Document
-        </h4>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Document Type</Label>
-            <select
-              className="w-full h-9 rounded-lg border bg-background px-3 text-sm"
-              value={docType}
-              onChange={e => setDocType(e.target.value)}
-            >
-              {DOCUMENT_TYPES.map(t => <option key={t}>{t}</option>)}
-            </select>
+      {!isReadOnly && (
+        <div className="rounded-xl border bg-secondary/20 p-4 space-y-4">
+          <h4 className="font-semibold text-sm flex items-center gap-2">
+            <FileUp className="h-4 w-4 text-blue-500" />
+            Upload New Document
+          </h4>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Document Type</Label>
+              <select
+                className="w-full h-9 rounded-lg border bg-background px-3 text-sm"
+                value={docType}
+                onChange={e => setDocType(e.target.value)}
+              >
+                {DOCUMENT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Expiry Date (optional)</Label>
+              <Input
+                type="date"
+                className="h-9 rounded-lg text-sm"
+                value={expiryDate}
+                onChange={e => setExpiryDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs">File</Label>
+              <Input
+                type="file"
+                className="h-9 rounded-lg text-sm"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={e => setFile(e.target.files?.[0] || null)}
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Expiry Date (optional)</Label>
-            <Input
-              type="date"
-              className="h-9 rounded-lg text-sm"
-              value={expiryDate}
-              onChange={e => setExpiryDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs">File</Label>
-            <Input
-              type="file"
-              className="h-9 rounded-lg text-sm"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={e => setFile(e.target.files?.[0] || null)}
-            />
-          </div>
+          <Button
+            className="w-full sm:w-auto"
+            disabled={!file || uploadMutation.isPending}
+            onClick={() => uploadMutation.mutate()}
+          >
+            {uploadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Upload Document
+          </Button>
         </div>
-        <Button
-          className="w-full sm:w-auto"
-          disabled={!file || uploadMutation.isPending}
-          onClick={() => uploadMutation.mutate()}
-        >
-          {uploadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          Upload Document
-        </Button>
-      </div>
+      )}
 
       {/* Document List */}
       <div>
@@ -200,7 +205,7 @@ export default function VendorDocumentsManager({ userId }: VendorDocumentsManage
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {doc.status === "valid" && !isExpired && (
+                    {doc.status === "valid" && !isExpired && !isReadOnly && (
                       <Button
                         size="sm"
                         variant="outline"

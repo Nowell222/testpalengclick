@@ -89,7 +89,8 @@ const useMessages = (threadId: string | null) => useQuery({
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 const AdminNews = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isReadOnly = role === "eemo";
   const queryClient = useQueryClient();
 
   const [tab,          setTab]          = useState<"announcements" | "messages">("announcements");
@@ -151,12 +152,12 @@ const AdminNews = () => {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
-    if (activeThread && user) {
+    if (activeThread && user && !isReadOnly) {
       supabase.from("messages").update({ read_at: new Date().toISOString() })
         .eq("thread_id", activeThread.id).eq("recipient_id", user.id).is("read_at", null)
         .then(() => queryClient.invalidateQueries({ queryKey: ["admin-threads"] }));
     }
-  }, [activeThread?.id]);
+  }, [activeThread?.id, isReadOnly]);
 
   // ── Derived stats ─────────────────────────────────────────────────────────────
   const totalReach = allVendors.length || 0;
@@ -448,12 +449,12 @@ const AdminNews = () => {
             <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Publish announcements and send direct messages to vendors</p>
           </div>
           <div className="relative flex items-center gap-2">
-            {tab === "announcements" && (
+            {tab === "announcements" && !isReadOnly && (
               <Button onClick={() => setShowCreate(true)} className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
                 <Plus className="h-4 w-4" /> New Announcement
               </Button>
             )}
-            {tab === "messages" && (
+            {tab === "messages" && !isReadOnly && (
               <Button onClick={() => setShowNewMsg(true)} className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
                 <MessageSquare className="h-4 w-4" /> New Message
               </Button>
@@ -701,10 +702,14 @@ const AdminNews = () => {
 
                       {/* Actions */}
                       <div className="pt-0.5 flex justify-center">
-                        <button onClick={() => deleteNews.mutate(n.id)}
-                          className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:text-accent transition-colors">
-                          <Trash2 className="h-3.5 w-3.5"/>
-                        </button>
+                        {!isReadOnly ? (
+                          <button onClick={() => deleteNews.mutate(n.id)}
+                            className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:text-accent transition-colors">
+                            <Trash2 className="h-3.5 w-3.5"/>
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -874,33 +879,39 @@ const AdminNews = () => {
                 </div>
 
                 {/* Input area */}
-                <div className="border-t p-4 space-y-3">
-                  <button onClick={sendSOA} disabled={sendingSOA}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm font-medium text-accent hover:bg-accent/10 transition-colors disabled:opacity-50">
-                    {sendingSOA ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"/> Generating SOA…</> : <><FileText className="h-4 w-4"/> Send Statement of Account (SOA)</>}
-                  </button>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {(["message"/*,"penalty"*/,"reminder"] as const).map(t => {
-                      const cfg = MSG_TYPE_CONFIG[t];
-                      return (
-                        <button key={t} onClick={() => setMsgType(t)}
-                          className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all ${msgType === t ? `${cfg.color} border-current` : "border-border text-muted-foreground hover:bg-secondary"}`}>
-                          <cfg.icon className="h-3 w-3"/> {cfg.label}
-                        </button>
-                      );
-                    })}
+                {!isReadOnly ? (
+                  <div className="border-t p-4 space-y-3">
+                    <button onClick={sendSOA} disabled={sendingSOA}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5 text-sm font-medium text-accent hover:bg-accent/10 transition-colors disabled:opacity-50">
+                      {sendingSOA ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"/> Generating SOA…</> : <><FileText className="h-4 w-4"/> Send Statement of Account (SOA)</>}
+                    </button>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {(["message"/*,"penalty"*/,"reminder"] as const).map(t => {
+                        const cfg = MSG_TYPE_CONFIG[t];
+                        return (
+                          <button key={t} onClick={() => setMsgType(t)}
+                            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all ${msgType === t ? `${cfg.color} border-current` : "border-border text-muted-foreground hover:bg-secondary"}`}>
+                            <cfg.icon className="h-3 w-3"/> {cfg.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={msgType === "penalty" ? "Describe the urgent notice…" : msgType === "reminder" ? "Payment reminder message…" : "Type a message…"}
+                        className="h-10 rounded-xl flex-1" value={msgBody} onChange={e => setMsgBody(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage.mutate()}/>
+                      <Button size="icon" className="h-10 w-10 rounded-xl shrink-0"
+                        disabled={!msgBody.trim() || sendMessage.isPending} onClick={() => sendMessage.mutate()}>
+                        {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={msgType === "penalty" ? "Describe the urgent notice…" : msgType === "reminder" ? "Payment reminder message…" : "Type a message…"}
-                      className="h-10 rounded-xl flex-1" value={msgBody} onChange={e => setMsgBody(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage.mutate()}/>
-                    <Button size="icon" className="h-10 w-10 rounded-xl shrink-0"
-                      disabled={!msgBody.trim() || sendMessage.isPending} onClick={() => sendMessage.mutate()}>
-                      {sendMessage.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
-                    </Button>
+                ) : (
+                  <div className="border-t p-4 text-center text-xs text-muted-foreground bg-secondary/10">
+                    Viewing mode. Sending messages and Statement of Account is disabled.
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>

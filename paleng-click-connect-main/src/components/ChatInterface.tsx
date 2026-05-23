@@ -27,7 +27,7 @@ async function generateThreadId(user1: string, user2: string) {
 }
 
 export default function ChatInterface({ recipientId, recipientName, recipientRole, onClose }: ChatInterfaceProps) {
-  const { session } = useAuth();
+  const { session, role } = useAuth();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export default function ChatInterface({ recipientId, recipientName, recipientRol
 
   // Mark as read when messages load
   useEffect(() => {
-    if (messages && messages.length > 0 && currentUserId) {
+    if (messages && messages.length > 0 && currentUserId && role !== "eemo") {
       const unread = messages.filter(m => m.recipient_id === currentUserId && !m.read_at);
       if (unread.length > 0) {
         supabase
@@ -69,7 +69,7 @@ export default function ChatInterface({ recipientId, recipientName, recipientRol
           .then(() => queryClient.invalidateQueries({ queryKey: ["messages", threadId] }));
       }
     }
-  }, [messages, currentUserId, queryClient, threadId]);
+  }, [messages, currentUserId, queryClient, threadId, role]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -167,24 +167,30 @@ export default function ChatInterface({ recipientId, recipientName, recipientRol
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-background border-t">
-        <form onSubmit={handleSend} className="flex gap-2">
-          <Input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 rounded-full bg-secondary/50 border-transparent focus-visible:ring-primary focus-visible:bg-background"
-          />
-          <Button
-            type="submit"
-            size="icon"
-            className="rounded-full h-10 w-10 shrink-0"
-            disabled={!message.trim() || sendMutation.isPending}
-          >
-            {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
-          </Button>
-        </form>
-      </div>
+      {role === "eemo" ? (
+        <div className="p-4 bg-secondary/20 border-t text-center text-xs text-muted-foreground">
+          Viewing chat thread as read-only.
+        </div>
+      ) : (
+        <div className="p-4 bg-background border-t">
+          <form onSubmit={handleSend} className="flex gap-2">
+            <Input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 rounded-full bg-secondary/50 border-transparent focus-visible:ring-primary focus-visible:bg-background"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              className="rounded-full h-10 w-10 shrink-0"
+              disabled={!message.trim() || sendMutation.isPending}
+            >
+              {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
+            </Button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

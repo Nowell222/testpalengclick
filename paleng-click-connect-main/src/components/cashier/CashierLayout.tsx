@@ -3,7 +3,7 @@ import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard, CreditCard, Search, Receipt, FileText, Send, History, 
-  FileBarChart, Settings, LogOut, Menu, X, Loader2, type LucideIcon
+  FileBarChart, Settings, LogOut, Menu, X, Loader2, DollarSign, type LucideIcon
 } from "lucide-react";
 import PushNotificationBanner from "@/components/PushNotificationBanner";
 
@@ -18,6 +18,7 @@ const cashierNav: NavItem[] = [
   { label: "SMS Reminders", path: "/cashier/sms", icon: Send },
   { label: "Shift History", path: "/cashier/shifts", icon: History },
   { label: "Reports", path: "/cashier/reports", icon: FileBarChart },
+  { label: "Fee Schedules", path: "/cashier/fee-schedules", icon: DollarSign },
   { label: "Settings", path: "/cashier/settings", icon: Settings },
 ];
 

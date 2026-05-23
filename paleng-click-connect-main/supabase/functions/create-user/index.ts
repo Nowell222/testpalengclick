@@ -1,11 +1,14 @@
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+declare const Deno: any;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -47,9 +50,17 @@ Deno.serve(async (req) => {
         })
       }
 
+      const { data: roleRes } = await supabaseAdmin.from('user_roles').select('role').eq('user_id', caller.id).single();
+      const callerRole = roleRes?.role;
+
+      if (_action === 'update-self' && callerRole === 'vendor' && email) {
+        return new Response(JSON.stringify({ error: 'Vendors are not allowed to update their email address' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       if (_action === 'reset-password') {
-        const { data: adminRole } = await supabaseAdmin.from('user_roles').select('role').eq('user_id', caller.id).eq('role', 'admin').single();
-        if (!adminRole) {
+        if (callerRole !== 'admin') {
           return new Response(JSON.stringify({ error: 'Unauthorized: Admin only' }), {
             status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -62,6 +73,41 @@ Deno.serve(async (req) => {
       if (email) updates.email_confirm = true; // Bypasses SMTP confirmation
 
       const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(targetId, updates);
+
+      if (updateError) {
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      return new Response(JSON.stringify({ success: true, user: updatedUser }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // ── Handle BPLO/Admin updating user email ─────────────────────────
+    if (_action === 'update-user-email') {
+      const { data: roleRes } = await supabaseAdmin.from('user_roles').select('role').eq('user_id', caller.id).single();
+      const callerRole = roleRes?.role;
+
+      if (callerRole !== 'admin' && callerRole !== 'bplo') {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Admin or BPLO only' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      if (!user_id || !email) {
+        return new Response(JSON.stringify({ error: 'User ID and Email are required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      const updates: any = {
+        email: email.trim().toLowerCase(),
+        email_confirm: true, // Bypasses SMTP confirmation
+      };
+
+      const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user_id, updates);
 
       if (updateError) {
         return new Response(JSON.stringify({ error: updateError.message }), {
@@ -215,7 +261,8 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const err = error as any;
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }

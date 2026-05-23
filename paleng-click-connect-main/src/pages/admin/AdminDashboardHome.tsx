@@ -356,7 +356,7 @@ const AdminDashboardHome = () => {
             <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">{d.unpaidVendors + d.partialVendors} vendors</span>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/admin/payments" onClick={e => e.stopPropagation()}
+            <Link to="/admin/reports?tab=vendors" onClick={e => e.stopPropagation()}
               className="flex items-center gap-1.5 text-[11px] font-bold px-3.5 py-1.5 rounded-lg transition-all hover:shadow-md group"
               style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)", textDecoration: "none" }}>
               View all<ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />

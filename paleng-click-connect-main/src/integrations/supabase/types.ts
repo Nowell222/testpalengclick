@@ -653,6 +653,9 @@ export type Database = {
           tax_id: string | null
           updated_at: string
           user_id: string
+          business_permit_number: string | null
+          award_receipt_number: string | null
+          award_payment_date: string | null
         }
         Insert: {
           award_date?: string | null
@@ -664,6 +667,9 @@ export type Database = {
           tax_id?: string | null
           updated_at?: string
           user_id: string
+          business_permit_number?: string | null
+          award_receipt_number?: string | null
+          award_payment_date?: string | null
         }
         Update: {
           award_date?: string | null
@@ -675,6 +681,9 @@ export type Database = {
           tax_id?: string | null
           updated_at?: string
           user_id?: string
+          business_permit_number?: string | null
+          award_receipt_number?: string | null
+          award_payment_date?: string | null
         }
         Relationships: [
           {
@@ -808,7 +817,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "cashier" | "vendor"
+      app_role: "admin" | "cashier" | "vendor" | "bplo" | "eemo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -936,7 +945,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "cashier", "vendor"],
+      app_role: ["admin", "cashier", "vendor", "bplo", "eemo"],
     },
   },
 } as const

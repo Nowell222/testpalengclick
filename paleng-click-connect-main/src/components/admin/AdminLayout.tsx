@@ -57,7 +57,7 @@ const AdminLayout = () => {
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, role } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
   const currentItem = adminNav.find(item => item.path === location.pathname);
@@ -91,7 +91,7 @@ const AdminLayout = () => {
               </div>
               <h3 style={{ fontSize: 24, fontWeight: 800, color: "#111827", marginBottom: 12, letterSpacing: "-0.02em" }}>Sign Out Confirmation</h3>
               <p style={{ color: "#4b5563", fontSize: 15, lineHeight: 1.6, marginBottom: 36 }}>
-                Are you sure you want to sign out? You will need to re-authenticate to access your admin portal.
+                Are you sure you want to sign out? You will need to re-authenticate to access your {role === "eemo" ? "viewer" : "admin"} portal.
               </p>
               <div style={{ display: "flex", gap: 16 }}>
                 <button
@@ -156,7 +156,7 @@ const AdminLayout = () => {
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ color: "#d1fae5", fontWeight: 600, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{displayName}</div>
-          <div style={{ color: "rgba(110,231,183,0.5)", fontSize: 8.5, letterSpacing: 1.5, textTransform: "uppercase" }}>Admin</div>
+          <div style={{ color: "rgba(110,231,183,0.5)", fontSize: 8.5, letterSpacing: 1.5, textTransform: "uppercase" }}>{role === "eemo" ? "Viewer" : "Admin"}</div>
         </div>
       </div>
       <button onClick={confirmLogout} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9, color: "rgba(255,100,100,0.65)", fontSize: 12, fontWeight: 600, background: "none", border: "none", cursor: "pointer", transition: "all 0.12s" }}
@@ -182,7 +182,7 @@ const AdminLayout = () => {
                 <div style={{ width: 32, height: 32, borderRadius: 9, background: ADMIN_GRAD, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <img src="/favicon.png" alt="PC Logo" style={{ width: 22, height: 22, objectFit: "contain" }} />
                 </div>
-                <div><div style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>PALENG-CLICK</div><div style={{ color: "rgba(255,255,255,0.3)", fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>Admin Portal</div></div>
+                <div><div style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>PALENG-CLICK</div><div style={{ color: "rgba(255,255,255,0.3)", fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>{role === "eemo" ? "Viewer Portal" : "Admin Portal"}</div></div>
               </div>
               <button onClick={() => setOpen(false)} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 7px", cursor: "pointer", display: "flex", color: "rgba(255,255,255,0.6)" }}><X size={15} /></button>
             </div>
@@ -202,7 +202,7 @@ const AdminLayout = () => {
               </div>
               <div>
                 <div style={{ color: "#fff", fontWeight: 800, fontSize: 13, letterSpacing: 0.3 }}>PALENG-CLICK</div>
-                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>Admin Portal</div>
+                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 8, letterSpacing: 2, textTransform: "uppercase" }}>{role === "eemo" ? "Viewer Portal" : "Admin Portal"}</div>
               </div>
             </Link>
           </div>
@@ -220,7 +220,7 @@ const AdminLayout = () => {
             </div>
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
               <span style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 20, padding: "3px 14px", fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>
-                Admin
+                {role === "eemo" ? "Viewer" : "Admin"}
               </span>
             </div>
           </header>
@@ -241,13 +241,13 @@ const AdminLayout = () => {
           </div>
           <div>
             <div style={{ color: "#111827", fontWeight: 700, fontSize: 13, letterSpacing: 0.3 }}>PALENG-CLICK</div>
-            <div style={{ color: ADMIN_COLORS.muted, fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>Admin</div>
+            <div style={{ color: ADMIN_COLORS.muted, fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase" }}>{role === "eemo" ? "Viewer" : "Admin"}</div>
           </div>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>{firstName}</div>
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 8, letterSpacing: 1.5, textTransform: "uppercase" }}>Admin</div>
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 8, letterSpacing: 1.5, textTransform: "uppercase" }}>{role === "eemo" ? "Viewer" : "Admin"}</div>
           </div>
           <button onClick={() => setOpen(true)} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 9, padding: "7px 9px", cursor: "pointer", display: "flex", color: "#fff" }}>
             <Menu size={17} />

@@ -51,8 +51,8 @@ const LandingPage = () => {
     { label: "Current Delinquency", value: realStats?.delinquencyRate ?? "20.01", suffix: "%" },
     { label: "Target Reduction", value: "50", suffix: "%" },
     { label: "Payment Methods", value: "4", suffix: "+" },
-  ]; 
-  
+  ];
+
   return (
     <div className="min-h-screen overflow-x-hidden font-serif bg-[#f8f5f0]">
       {/* ── NAV ─────────────────────────────────────────────────────────────── */}
@@ -107,48 +107,60 @@ const LandingPage = () => {
         <PWAInstallBanner variant="floater" />
 
         <motion.div style={{ opacity: heroOpacity }} className="relative z-10 w-full max-w-[1200px] mx-auto px-4 sm:px-6 pt-16 sm:pt-20 pb-16 sm:pb-20">
-          <motion.div initial="hidden" animate="visible">
-            <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 sm:gap-2.5 bg-[#c9a84c]/15 border border-[#c9a84c]/40 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 mb-6 sm:mb-7">
-              <MapPin size={12} className="text-[#c9a84c] flex-shrink-0 sm:w-[13px] sm:h-[13px]" />
-              <span className="text-[#e8c86e] text-[9px] sm:text-[11px] tracking-[1.5px] uppercase font-serif text-left">Pamilihang Bayan ng San Juan, Batangas</span>
-            </motion.div>
-            <motion.h1 variants={fadeUp} custom={1} className="text-[#f0e6c8] text-4xl sm:text-5xl lg:text-7xl font-bold leading-[1.08] font-serif max-w-[780px] mb-2 sm:mb-3">
-              Your Stall,<br className="sm:hidden" />{" "}<span className="text-[#e8c86e] italic">Dignified.</span>
-            </motion.h1>
-            <motion.p variants={fadeUp} custom={2} className="text-[#c9a84c]/80 text-[10px] sm:text-[12px] tracking-[2px] sm:tracking-[3px] uppercase mb-4 sm:mb-6 font-serif">
-              Para sa mga Magtitinda ng San Juan
-            </motion.p>
-            <motion.p variants={fadeUp} custom={3} className="text-[#f0e6c8]/80 text-[13px] sm:text-[16px] lg:text-[18px] leading-relaxed max-w-[580px] mb-8 sm:mb-10 font-serif">
-              A modern digital platform that empowers San Juan&apos;s 955 stallholders — streamlining stall fee payments through secure, accessible, and transparent technology.
-            </motion.p>
+          <motion.div initial="hidden" animate="visible" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div className="lg:col-span-7 flex flex-col items-start">
+              <motion.div variants={fadeUp} custom={0.2} className="inline-flex items-center gap-2 sm:gap-2.5 bg-[#c9a84c]/15 border border-[#c9a84c]/40 rounded-full px-3 sm:px-4 py-1.5 sm:py-2 mb-4 sm:mb-5">
+                <MapPin size={12} className="text-[#c9a84c] flex-shrink-0 sm:w-[13px] sm:h-[13px]" />
+                <span className="text-[#e8c86e] text-[9px] sm:text-[11px] tracking-[1.5px] uppercase font-serif text-left">Pamilihang Bayan ng San Juan, Batangas</span>
+              </motion.div>
+              <motion.div variants={fadeUp} custom={0.5} className="text-[#e8c86e] text-3xl sm:text-4xl lg:text-6xl font-extrabold tracking-[2px] mb-4 font-serif">
+                Paleng-Click
+              </motion.div>
+              <motion.h1 variants={fadeUp} custom={1} className="text-[#f0e6c8] text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] font-serif max-w-[780px] mb-2 sm:mb-3">
+                Your Stall,<br className="sm:hidden" />{" "}<span className="text-[#e8c86e] italic">Dignified.</span>
+              </motion.h1>
+              <motion.p variants={fadeUp} custom={2} className="text-[#c9a84c]/80 text-[10px] sm:text-[12px] tracking-[2px] sm:tracking-[3px] uppercase mb-4 sm:mb-6 font-serif">
+                Para sa mga Magtitinda ng San Juan
+              </motion.p>
+              <motion.p variants={fadeUp} custom={3} className="text-[#f0e6c8]/80 text-[13px] sm:text-[16px] lg:text-[18px] leading-relaxed max-w-[580px] mb-8 sm:mb-10 font-serif">
+                A modern digital platform that empowers San Juan&apos;s 955 stallholders — streamlining stall fee payments through secure, accessible, and transparent technology.
+              </motion.p>
 
-            <motion.div variants={fadeUp} custom={4} className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-[400px] sm:max-w-none mb-10 sm:mb-12">
-              <Link to="/login" className="block w-full sm:w-auto">
-                <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#c9a84c] to-[#e8c86e] text-[#1a2e1a] rounded-md py-3 sm:py-3.5 px-6 sm:px-8 font-bold text-[14px] sm:text-[15px] tracking-wide shadow-lg hover:shadow-xl transition-all font-serif">
-                  Login to Portal <ArrowRight size={16} />
-                </button>
-              </Link>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
-                <Link to="/apply" className="block w-full sm:w-auto">
-                  <button className="w-full flex items-center justify-center bg-transparent text-[#f0e6c8] border border-[#f0e6c8]/30 rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[14px] tracking-wide hover:bg-[#f0e6c8]/10 transition-all font-serif">
-                    Apply for a Stall
+              <motion.div variants={fadeUp} custom={4} className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-[400px] sm:max-w-none mb-10 sm:mb-12">
+                <Link to="/login" className="block w-full sm:w-auto">
+                  <button className="w-full flex items-center justify-center gap-2 bg-gradient-to-br from-[#c9a84c] to-[#e8c86e] text-[#1a2e1a] rounded-md py-3 sm:py-3.5 px-6 sm:px-8 font-bold text-[14px] sm:text-[15px] tracking-wide shadow-lg hover:shadow-xl transition-all font-serif">
+                    Login to Portal <ArrowRight size={16} />
                   </button>
                 </Link>
-                <a href="#features" className="block w-full sm:w-auto">
-                  <button className="w-full flex items-center justify-center bg-transparent text-[#f0e6c8] border border-[#f0e6c8]/30 rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[14px] tracking-wide hover:bg-[#f0e6c8]/10 transition-all font-serif">
-                    Learn More
-                  </button>
-                </a>
-              </div>
-            </motion.div>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
+                  <Link to="/apply" className="block w-full sm:w-auto">
+                    <button className="w-full flex items-center justify-center bg-transparent text-[#f0e6c8] border border-[#f0e6c8]/30 rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[14px] tracking-wide hover:bg-[#f0e6c8]/10 transition-all font-serif">
+                      Apply for a Stall
+                    </button>
+                  </Link>
+                  <a href="#features" className="block w-full sm:w-auto">
+                    <button className="w-full flex items-center justify-center bg-transparent text-[#f0e6c8] border border-[#f0e6c8]/30 rounded-md py-3 sm:py-3.5 px-6 sm:px-8 text-[13px] sm:text-[14px] tracking-wide hover:bg-[#f0e6c8]/10 transition-all font-serif">
+                      Learn More
+                    </button>
+                  </a>
+                </div>
+              </motion.div>
 
-            <motion.div variants={fadeUp} custom={5} className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-6">
-              {["Free for vendors", "Secure payments", "SMS alerts", "LGU-powered"].map(t => (
-                <span key={t} className="flex items-center gap-1.5 sm:gap-2 text-[#e8c86e]/90 text-[11px] sm:text-[13px] font-serif">
-                  <CheckCircle2 size={13} className="text-[#c9a84c] flex-shrink-0 sm:w-[14px] sm:h-[14px]" /> {t}
-                </span>
-              ))}
-            </motion.div>
+              <motion.div variants={fadeUp} custom={5} className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-6">
+                {["Free for vendors", "Secure payments", "SMS alerts", "LGU-powered"].map(t => (
+                  <span key={t} className="flex items-center gap-1.5 sm:gap-2 text-[#e8c86e]/90 text-[11px] sm:text-[13px] font-serif">
+                    <CheckCircle2 size={13} className="text-[#c9a84c] flex-shrink-0 sm:w-[14px] sm:h-[14px]" /> {t}
+                  </span>
+                ))}
+              </motion.div>
+            </div>
+
+            <div className="lg:col-span-5 flex items-center justify-center mt-10 lg:mt-0">
+              <motion.div variants={fadeUp} custom={0} className="flex flex-row items-center justify-center gap-6 sm:gap-8">
+                <img src="/san-juan-logo.png" alt="San Juan Logo" className="h-[140px] sm:h-[180px] lg:h-[200px] w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform duration-300" />
+                <img src="/dap-logo.png" alt="DAP Logo" className="h-[140px] sm:h-[180px] lg:h-[200px] w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform duration-300" />
+              </motion.div>
+            </div>
           </motion.div>
         </motion.div>
         <div className="absolute bottom-0 left-0 right-0 h-20 sm:h-32 bg-gradient-to-b from-transparent to-[#f8f5f0]" />
@@ -212,7 +224,10 @@ const LandingPage = () => {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(45,122,79,0.15)_0%,transparent_60%),radial-gradient(circle_at_80%_20%,rgba(201,168,76,0.08)_0%,transparent_50%)]" />
         <div className="max-w-[1200px] mx-auto relative">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-10 sm:mb-16">
-            <motion.p variants={fadeUp} custom={0} className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase font-serif mb-2 sm:mb-3">Platform Features</motion.p>
+            <motion.p variants={fadeUp} custom={0} className="text-[#c9a84c] text-[10px] sm:text-[11px] tracking-[3px] uppercase font-serif mb-2">Platform Features</motion.p>
+            <motion.div variants={fadeUp} custom={0.5} className="text-[#e8c86e] text-2xl sm:text-3xl font-extrabold tracking-[2px] font-serif mb-3 uppercase">
+              Paleng-Click
+            </motion.div>
             <motion.h2 variants={fadeUp} custom={1} className="text-[#f0e6c8] font-serif text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">Built for the Pamilihang Bayan</motion.h2>
             <motion.p variants={fadeUp} custom={2} className="text-[#f0e6c8]/60 text-[13px] sm:text-[15px] font-serif max-w-[560px] mx-auto leading-relaxed">
               A comprehensive platform designed specifically for San Juan&apos;s stallholders and municipal administrators.

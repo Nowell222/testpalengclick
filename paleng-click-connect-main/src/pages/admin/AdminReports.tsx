@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,7 +72,13 @@ const doPrint = (title: string, subtitle: string, bodyHTML: string) => {
 };
 
 const AdminReports = () => {
-  const [activeTab,     setActiveTab]     = useState("analytics");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "analytics";
+  const setActiveTab = (tab: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("tab", tab);
+    setSearchParams(newParams, { replace: true });
+  };
   const [chartView,     setChartView]     = useState<"daily"|"weekly"|"monthly">("monthly");
   const [dateFrom,      setDateFrom]      = useState(() => { const d=new Date(); d.setDate(d.getDate()-29); return d.toISOString().split("T")[0]; });
   const [dateTo,        setDateTo]        = useState(() => new Date().toISOString().split("T")[0]);
