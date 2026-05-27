@@ -109,7 +109,22 @@ const AdminNews = () => {
   const [sendingSOA,   setSendingSOA]   = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const SECTIONS = ["All Vendors","Vegetable Section - Extension","Eatery 2nd Floor","Vegetable Section","Egg and Dried Fish","Fish Stalls","Meat Stalls","New Building - Kalayaan","New Building - Mojica","Fruit Stalls and Refreshments","Bldg 1 & 2 Bolante","Building II - 2nd Floor","Building I - 2nd Floor"];
+  const SECTIONS = [
+    "All Vendors",
+    "Building I - 1st Floor",
+    "Building II - 1st Floor",
+    "Building I - 2nd Floor",
+    "Building II - 2nd Floor",
+    "Bldg 1 & 2 Bolante",
+    "New Building - Mojica",
+    "New Building - Kalayaan",
+    "Meat Stalls",
+    "Fish Stalls",
+    "Egg and Dried Fish",
+    "Eatery 2nd Floor",
+    "Vegetable Section",
+    "Vegetable Section - Extension"
+  ];
 
   // ── Push helper ──────────────────────────────────────────────────────────────
   const sendMessagePush = async (vendorUserId: string, pushTitle: string, pushBody: string, urlPath = "/vendor/notifications") => {

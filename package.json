@@ -1,0 +1,20 @@
+{
+  "name": "testpalengclick",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nowell222/testpalengclick.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Nowell222/testpalengclick/issues"
+  },
+  "homepage": "https://github.com/Nowell222/testpalengclick#readme"
+}

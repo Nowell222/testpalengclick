@@ -199,13 +199,19 @@ const VendorApply = () => {
                     <SelectValue placeholder="Select a section" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value="Meat Section">Meat Section</SelectItem>
-                    <SelectItem value="Fish Section">Fish Section</SelectItem>
+                    <SelectItem value="Building I - 1st Floor">Building I - 1st Floor</SelectItem>
+                    <SelectItem value="Building II - 1st Floor">Building II - 1st Floor</SelectItem>
+                    <SelectItem value="Building I - 2nd Floor">Building I - 2nd Floor</SelectItem>
+                    <SelectItem value="Building II - 2nd Floor">Building II - 2nd Floor</SelectItem>
+                    <SelectItem value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</SelectItem>
+                    <SelectItem value="New Building - Mojica">New Building - Mojica</SelectItem>
+                    <SelectItem value="New Building - Kalayaan">New Building - Kalayaan</SelectItem>
+                    <SelectItem value="Meat Stalls">Meat Stalls</SelectItem>
+                    <SelectItem value="Fish Stalls">Fish Stalls</SelectItem>
+                    <SelectItem value="Egg and Dried Fish">Egg and Dried Fish</SelectItem>
+                    <SelectItem value="Eatery 2nd Floor">Eatery 2nd Floor</SelectItem>
                     <SelectItem value="Vegetable Section">Vegetable Section</SelectItem>
-                    <SelectItem value="Fruit Section">Fruit Section</SelectItem>
-                    <SelectItem value="Dry Goods">Dry Goods</SelectItem>
-                    <SelectItem value="Eatery / Food Stall">Eatery / Food Stall</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="Vegetable Section - Extension">Vegetable Section - Extension</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

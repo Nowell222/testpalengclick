@@ -88,18 +88,19 @@ const AdminReports = () => {
 
   const today = new Date().toISOString().split("T")[0];
   const SECTIONS = [
-    "Vegetable Section - Extension",
+    "Building I - 1st Floor",
+    "Building II - 1st Floor",
+    "Building I - 2nd Floor",
+    "Building II - 2nd Floor",
+    "Bldg 1 & 2 Bolante",
+    "New Building - Mojica",
+    "New Building - Kalayaan",
+    "Meat Stalls",
+    "Fish Stalls",
+    "Egg and Dried Fish",
     "Eatery 2nd Floor",
     "Vegetable Section",
-    "Egg and Dried Fish",
-    "Fish Stalls",
-    "Meat Stalls",
-    "New Building - Kalayaan",
-    "New Building - Mojica",
-    "Fruit Stalls and Refreshments",
-    "Bldg 1 & 2 Bolante",
-    "Building II - 2nd Floor",
-    "Building I - 2nd Floor",
+    "Vegetable Section - Extension",
   ];
 
   const setQuick = (type: string) => {

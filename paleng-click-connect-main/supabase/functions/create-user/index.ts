@@ -157,6 +157,107 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // ── Handle account closure ─────────────────────────────────────────
+    if (_action === 'close-user') {
+      const { data: adminRole } = await supabaseAdmin.from('user_roles').select('role').eq('user_id', caller.id).eq('role', 'admin').single();
+      if (!adminRole) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Admin only' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: 'User ID is required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      const { closure_reason, closure_notes, transferred_to_vendor_id } = body;
+
+      // 1. Get vendor stall details to vacate it
+      const { data: vendorData, error: fetchErr } = await supabaseAdmin
+        .from('vendors')
+        .select('id, stall_id')
+        .eq('user_id', user_id)
+        .maybeSingle();
+
+      if (fetchErr) {
+        return new Response(JSON.stringify({ error: fetchErr.message }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // 2. Set profiles status to closed
+      const { error: profileErr } = await supabaseAdmin
+        .from('profiles')
+        .update({ status: 'closed' })
+        .eq('user_id', user_id);
+
+      if (profileErr) {
+        return new Response(JSON.stringify({ error: profileErr.message }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // 3. Update vendor closure fields and detach stall
+      const { error: vendorErr } = await supabaseAdmin
+        .from('vendors')
+        .update({
+          stall_id: null,
+          closed_at: new Date().toISOString(),
+          closure_reason: closure_reason || 'closed',
+          closure_notes: closure_notes || null,
+          transferred_to_vendor_id: transferred_to_vendor_id || null
+        })
+        .eq('user_id', user_id);
+
+      if (vendorErr) {
+        return new Response(JSON.stringify({ error: vendorErr.message }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // 3.5. If transferring ownership, assign the stall to the new vendor record
+      if (transferred_to_vendor_id && vendorData?.stall_id) {
+        const { error: transferErr } = await supabaseAdmin
+          .from('vendors')
+          .update({ stall_id: vendorData.stall_id })
+          .eq('id', transferred_to_vendor_id);
+
+        if (transferErr) {
+          return new Response(JSON.stringify({ error: `Transfer failed: ${transferErr.message}` }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      // 4. Vacate the stall if they had one (only if not transferring to a new owner)
+      if (vendorData?.stall_id && !transferred_to_vendor_id) {
+        const { error: stallErr } = await supabaseAdmin
+          .from('stalls')
+          .update({ status: 'vacant' })
+          .eq('id', vendorData.stall_id);
+
+        if (stallErr) {
+          return new Response(JSON.stringify({ error: stallErr.message }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      // 5. Send notification to the user
+      await supabaseAdmin.from('notifications').insert({
+        user_id,
+        title: "🔒 Account Closed",
+        message: `Your account has been closed. Reason: ${closure_reason || "Administrative decision."}`,
+        type: "overdue"
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     // ── Check admin role for creation ──
     const { data: roleData } = await supabaseAdmin
       .from('user_roles')
@@ -188,8 +289,9 @@ Deno.serve(async (req: Request) => {
 
     const effectiveRate = parsedRate ?? rate2026;
 
-    if (role === 'vendor' && (effectiveRate === null || isNaN(effectiveRate) || effectiveRate <= 0)) {
-      return new Response(JSON.stringify({ error: `Monthly fee is required for vendor accounts (received: ${monthly_rate})` }), {
+    const hasStall = stall_number && stall_number.trim().length > 0;
+    if (role === 'vendor' && hasStall && (effectiveRate === null || isNaN(effectiveRate) || effectiveRate <= 0)) {
+      return new Response(JSON.stringify({ error: `Monthly fee is required for vendor accounts with an assigned stall (received: ${monthly_rate})` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -217,42 +319,38 @@ Deno.serve(async (req: Request) => {
 
     // If vendor, create stall and vendor record
     if (role === 'vendor') {
-      if (!stall_number || !stall_number.trim()) {
-        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
-        return new Response(JSON.stringify({ error: 'Stall number is required' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      const cleanStallNumber = stall_number.trim()
+      const cleanStallNumber = stall_number ? stall_number.trim() : ""
       let stallId: string | null = null
 
-      const { data: existingStall } = await supabaseAdmin
-        .from('stalls')
-        .select('id')
-        .eq('stall_number', cleanStallNumber)
-        .maybeSingle()
-
-      if (existingStall) {
-        stallId = existingStall.id
-        await supabaseAdmin.from('stalls').update({ status: 'occupied', section: section || 'General', location: stallLocation || null, monthly_rate: effectiveRate, area_measurement: area_measurement || null, monthly_rate_2026: rate2026, monthly_rate_2027: rate2027, monthly_rate_2028: rate2028 }).eq('id', stallId)
-      } else {
-        const { data: newStall, error: insertError } = await supabaseAdmin
+      if (cleanStallNumber) {
+        const { data: existingStall } = await supabaseAdmin
           .from('stalls')
-          .insert({ stall_number: cleanStallNumber, section: section || 'General', location: stallLocation || null, status: 'occupied', monthly_rate: effectiveRate, area_measurement: area_measurement || null, monthly_rate_2026: rate2026, monthly_rate_2027: rate2027, monthly_rate_2028: rate2028 })
           .select('id')
-          .single()
+          .eq('stall_number', cleanStallNumber)
+          .maybeSingle()
 
-        if (insertError || !newStall) {
-          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
-          return new Response(JSON.stringify({ error: 'Failed to create stall' }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
+        if (existingStall) {
+          stallId = existingStall.id
+          await supabaseAdmin.from('stalls').update({ status: 'occupied', section: section || 'General', location: stallLocation || null, monthly_rate: effectiveRate, area_measurement: area_measurement || null, monthly_rate_2026: rate2026, monthly_rate_2027: rate2027, monthly_rate_2028: rate2028 }).eq('id', stallId)
+        } else {
+          const { data: newStall, error: insertError } = await supabaseAdmin
+            .from('stalls')
+            .insert({ stall_number: cleanStallNumber, section: section || 'General', location: stallLocation || null, status: 'occupied', monthly_rate: effectiveRate, area_measurement: area_measurement || null, monthly_rate_2026: rate2026, monthly_rate_2027: rate2027, monthly_rate_2028: rate2028 })
+            .select('id')
+            .single()
+
+          if (insertError || !newStall) {
+            await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
+            return new Response(JSON.stringify({ error: 'Failed to create stall' }), {
+              status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          stallId = newStall.id
         }
-        stallId = newStall.id
+
+        await supabaseAdmin.from('stall_fee_schedules').delete().eq('stall_id', stallId)
       }
 
-      await supabaseAdmin.from('stall_fee_schedules').delete().eq('stall_id', stallId)
       await supabaseAdmin.from('vendors').insert({ user_id: newUser.user.id, stall_id: stallId, award_date: new Date().toISOString().split('T')[0] })
     }
 

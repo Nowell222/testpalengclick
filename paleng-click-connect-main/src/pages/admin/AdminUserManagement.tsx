@@ -7,6 +7,7 @@ import {
   X, Users, CheckCircle2, AlertCircle, Eye, EyeOff,
   RefreshCw, Edit3, Save, Phone, Home, Lock, UserCircle, AlertTriangle,
   FileUp, Download, CheckCheck, XCircle, ChevronDown, ChevronUp,
+  MoreHorizontal,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,34 +15,42 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import VendorDocumentsManager from "@/components/admin/VendorDocumentsManager";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const SECTION_PREFIX: Record<string, string> = {
-  "Vegetable Section - Extension": "VSE",
+  "Building I - 1st Floor": "B11",
+  "Building II - 1st Floor": "B21",
+  "Building I - 2nd Floor": "B1F",
+  "Building II - 2nd Floor": "B2F",
+  "Bldg 1 & 2 Bolante": "B12",
+  "New Building - Mojica": "NBM",
+  "New Building - Kalayaan": "NBK",
+  "Meat Stalls": "MS",
+  "Fish Stalls": "FS",
+  "Egg and Dried Fish": "EDF",
   "Eatery 2nd Floor": "E2F",
   "Vegetable Section": "VS",
-  "Egg and Dried Fish": "EDF",
-  "Fish Stalls": "FS",
-  "Meat Stalls": "MS",
-  "New Building - Kalayaan": "NBK",
-  "New Building - Mojica": "NBM",
-  "Fruit Stalls and Refreshments": "FSR",
-  "Bldg 1 & 2 Bolante": "B12",
-  "Building II - 2nd Floor": "B2F",
-  "Building I - 2nd Floor": "B1F",
+  "Vegetable Section - Extension": "VSE",
 };
 const SECTIONS = [
-  "Vegetable Section - Extension",
+  "Building I - 1st Floor",
+  "Building II - 1st Floor",
+  "Building I - 2nd Floor",
+  "Building II - 2nd Floor",
+  "Bldg 1 & 2 Bolante",
+  "New Building - Mojica",
+  "New Building - Kalayaan",
+  "Meat Stalls",
+  "Fish Stalls",
+  "Egg and Dried Fish",
   "Eatery 2nd Floor",
   "Vegetable Section",
-  "Egg and Dried Fish",
-  "Fish Stalls",
-  "Meat Stalls",
-  "New Building - Kalayaan",
-  "New Building - Mojica",
-  "Fruit Stalls and Refreshments",
-  "Bldg 1 & 2 Bolante",
-  "Building II - 2nd Floor",
-  "Building I - 2nd Floor",
+  "Vegetable Section - Extension",
 ];
 const ROLE_CONFIG = {
   vendor: { icon: Store, color: "bg-emerald-100 text-emerald-700", label: "Vendor" },
@@ -68,6 +77,12 @@ const STATUS_CONFIG = {
     label: "Delinquent",
     dot: "bg-amber-500",
     badge: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  // NEW: closed status — gray/slate for closed accounts
+  closed: {
+    label: "Closed",
+    dot: "bg-slate-500",
+    badge: "bg-slate-100 text-slate-700 border-slate-200",
   },
 };
 
@@ -104,6 +119,11 @@ const AdminUserManagement = () => {
   // NEW: separate state for the delinquent modal
   const [delinquentTarget, setDelinquentTarget] = useState<any>(null);
   const [delinquentReason, setDelinquentReason] = useState("");
+  // NEW: separate state for the account closure modal
+  const [closeTarget, setCloseTarget] = useState<any>(null);
+  const [closureReason, setClosureReason] = useState("transfer_ownership");
+  const [closureNotes, setClosureNotes] = useState("");
+  const [transferredToVendorId, setTransferredToVendorId] = useState("");
   // NEW: separate state for documents modal
   const [docsTarget, setDocsTarget] = useState<any>(null);
   // NEW: Bulk delete state
@@ -111,6 +131,7 @@ const AdminUserManagement = () => {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isBulkDelete, setIsBulkDelete] = useState(false);
+  const [assignStall, setAssignStall] = useState(true);
 
   // ── CSV Import state ──────────────────────────────────────────────────────
   const [showImport, setShowImport] = useState(false);
@@ -128,7 +149,7 @@ const AdminUserManagement = () => {
       const [{ data: profiles }, { data: roles }, { data: vendors }] = await Promise.all([
         supabase.from("profiles").select("*").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
-        supabase.from("vendors").select("user_id, stalls(stall_number, section)"),
+        supabase.from("vendors").select("id, user_id, stalls(stall_number, section)"),
       ]);
       if (!profiles) return [];
       return profiles.map(p => {
@@ -142,6 +163,7 @@ const AdminUserManagement = () => {
           stall: stall?.stall_number || "—", section: stall?.section || "—",
           contact: p.contact_number || "—", address: p.address || "—",
           status: p.status, created: p.created_at,
+          vendor_id: vendorInfo?.id,
         };
       });
     },
@@ -165,6 +187,12 @@ const AdminUserManagement = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.section, form.role]);
 
+  useEffect(() => {
+    if (!showCreate) {
+      setAssignStall(true);
+    }
+  }, [showCreate]);
+
   const createUser = useMutation({
     mutationFn: async () => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -172,20 +200,22 @@ const AdminUserManagement = () => {
       if (form.password.length < 6) throw new Error("Password must be at least 6 characters");
       if (!form.first_name.trim()) throw new Error("First name is required");
       if (!form.last_name.trim()) throw new Error("Last name is required");
-      if (form.role === "vendor" && !form.stall_number.trim()) throw new Error("Stall number is required");
-      if (form.role === "vendor" && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
+      if (form.role === "vendor" && assignStall && !form.stall_number.trim()) throw new Error("Stall number is required");
+      if (form.role === "vendor" && assignStall && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
       const res = await supabase.functions.invoke("create-user", {
         body: {
           email: form.email.trim(), password: form.password,
           first_name: form.first_name.trim(), middle_name: form.middle_name.trim(), last_name: form.last_name.trim(),
           contact_number: form.contact_number.trim(), address: form.address.trim(),
-          role: form.role, stall_number: form.stall_number.trim(),
-          section: form.section, location: form.location.trim(),
-          monthly_rate: Number(form.monthly_rate_2026),
-          monthly_rate_2026: form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
-          monthly_rate_2027: form.monthly_rate_2027 ? Number(form.monthly_rate_2027) : undefined,
-          monthly_rate_2028: form.monthly_rate_2028 ? Number(form.monthly_rate_2028) : undefined,
-          area_measurement: form.area_measurement.trim(),
+          role: form.role, 
+          stall_number: assignStall ? form.stall_number.trim() : "",
+          section: assignStall ? form.section : undefined, 
+          location: assignStall ? form.location.trim() : "",
+          monthly_rate: assignStall && form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
+          monthly_rate_2026: assignStall && form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
+          monthly_rate_2027: assignStall && form.monthly_rate_2027 ? Number(form.monthly_rate_2027) : undefined,
+          monthly_rate_2028: assignStall && form.monthly_rate_2028 ? Number(form.monthly_rate_2028) : undefined,
+          area_measurement: assignStall ? form.area_measurement.trim() : "",
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -273,7 +303,31 @@ const AdminUserManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       setDelinquentTarget(null); setDelinquentReason("");
     },
-    onError: () => toast.error("Failed to mark account as delinquent"),
+  });
+
+  const confirmCloseUser = useMutation({
+    mutationFn: async () => {
+      const res = await supabase.functions.invoke("create-user", {
+        body: {
+          _action: "close-user",
+          user_id: closeTarget.id,
+          closure_reason: closureReason,
+          closure_notes: closureNotes,
+          transferred_to_vendor_id: transferredToVendorId || undefined
+        }
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+    },
+    onSuccess: () => {
+      toast.success(`${closeTarget.name}'s account has been successfully closed.`);
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setCloseTarget(null);
+      setClosureNotes("");
+      setClosureReason("transfer_ownership");
+      setTransferredToVendorId("");
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to close account"),
   });
 
   const reactivate = useMutation({
@@ -631,6 +685,133 @@ const AdminUserManagement = () => {
                   Confirm — Mark Delinquent
                 </Button>
                 <Button variant="outline" className="rounded-xl" onClick={() => { setDelinquentTarget(null); setDelinquentReason(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── NEW: Close Account / Transfer Modal ──────────────────────────── */}
+      {closeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setCloseTarget(null)}>
+          <div className="bg-card rounded-2xl border shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-5 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 shrink-0">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-foreground">Close Vendor Account</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Closing account for <strong>{closeTarget.name}</strong>.
+                  </p>
+                  {closeTarget.stall !== "—" && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
+                      Stall: {closeTarget.stall} ({closeTarget.section})
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Reason for Closure</Label>
+                  <select
+                    className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                    value={closureReason}
+                    onChange={e => {
+                      setClosureReason(e.target.value);
+                      if (e.target.value !== "transfer_ownership") {
+                        setTransferredToVendorId("");
+                      }
+                    }}
+                  >
+                    <option value="transfer_ownership">Transfer of Ownership</option>
+                    <option value="voluntary_surrender">Voluntary Surrender</option>
+                    <option value="non_payment">Non-payment of Stall Fees</option>
+                    <option value="other">Other / Violations</option>
+                  </select>
+                </div>
+
+                {closureReason === "transfer_ownership" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Transferred to (New Vendor)</Label>
+                    {(() => {
+                      const candidates = users.filter(
+                        (u: any) =>
+                          u.role === "vendor" &&
+                          u.id !== closeTarget.id &&
+                          u.stall === "—" &&
+                          u.status !== "closed"
+                      );
+                      return (
+                        <>
+                          <select
+                            className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                            value={transferredToVendorId}
+                            onChange={e => setTransferredToVendorId(e.target.value)}
+                          >
+                            <option value="">-- Select New Owner --</option>
+                            {candidates.map((c: any) => (
+                              <option key={c.id} value={c.vendor_id}>
+                                {c.name} ({c.contact})
+                              </option>
+                            ))}
+                          </select>
+                          {candidates.length === 0 ? (
+                            <p className="text-[11px] text-amber-600 mt-1">
+                              ⚠️ No vacant vendors found. Please create the new owner's account first without a stall.
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">
+                              Only active/pending vendors without any assigned stall are shown.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Notes / Remarks (optional)</Label>
+                  <textarea
+                    className="w-full min-h-[80px] rounded-xl border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-200"
+                    placeholder="Provide additional details regarding this account closure..."
+                    value={closureNotes}
+                    onChange={e => setClosureNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  className="flex-1 gap-2 rounded-xl bg-red-600 hover:bg-red-700 text-white border-0"
+                  disabled={
+                    confirmCloseUser.isPending ||
+                    (closureReason === "transfer_ownership" && !transferredToVendorId)
+                  }
+                  onClick={() => confirmCloseUser.mutate()}
+                >
+                  {confirmCloseUser.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  Confirm Close
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => {
+                    setCloseTarget(null);
+                    setClosureNotes("");
+                    setClosureReason("transfer_ownership");
+                    setTransferredToVendorId("");
+                  }}
+                >
                   Cancel
                 </Button>
               </div>
@@ -1112,60 +1293,83 @@ const AdminUserManagement = () => {
               {form.role === "vendor" && (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Stall Information</p>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <Label>Section <span className="text-accent">*</span></Label>
-                      <select className="h-11 w-full rounded-xl border bg-background px-3 text-sm" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))}>
-                        {SECTIONS.map(s => <option key={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Stall Number <span className="text-accent">*</span> <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Auto</span></Label>
-                      <div className="flex gap-2">
-                        <Input placeholder="e.g. G-001" className="h-11 rounded-xl font-mono flex-1" value={form.stall_number} onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))} />
-                        <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
-                          {generatingStall ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5"><Label>Location / Remarks</Label><Input placeholder="e.g. Near entrance" className="h-11 rounded-xl" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
-                    <div className="space-y-1.5">
-                      <Label>Area Measurement (sqm)</Label>
-                      <Input placeholder="e.g. 12.8" className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
-                    </div>
+                  
+                  <div className="flex items-center gap-2 mb-4 bg-secondary/30 p-3 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="assignStall"
+                      className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                      checked={assignStall}
+                      onChange={e => {
+                        setAssignStall(e.target.checked);
+                        if (!e.target.checked) {
+                          setForm(f => ({ ...f, stall_number: "", monthly_rate_2026: "", monthly_rate_2027: "", monthly_rate_2028: "" }));
+                        }
+                      }}
+                    />
+                    <Label htmlFor="assignStall" className="cursor-pointer text-xs font-semibold text-foreground">
+                      Assign Stall and Rates now
+                    </Label>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-3 mt-4">
-                    <div className="space-y-1.5">
-                      <Label>Monthly Rate 2026 (₱) <span className="text-accent">*</span></Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                        <Input type="number" placeholder="e.g. 3840" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2026} onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} />
+
+                  {assignStall && (
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label>Section <span className="text-accent">*</span></Label>
+                          <select className="h-11 w-full rounded-xl border bg-background px-3 text-sm" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))}>
+                            {SECTIONS.map(s => <option key={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Stall Number <span className="text-accent">*</span> <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Auto</span></Label>
+                          <div className="flex gap-2">
+                            <Input placeholder="e.g. G-001" className="h-11 rounded-xl font-mono flex-1" value={form.stall_number} onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))} />
+                            <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
+                              {generatingStall ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5"><Label>Location / Remarks</Label><Input placeholder="e.g. Near entrance" className="h-11 rounded-xl" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
+                        <div className="space-y-1.5">
+                          <Label>Area Measurement (sqm)</Label>
+                          <Input placeholder="e.g. 12.8" className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
+                        </div>
                       </div>
-                      {form.area_measurement && form.monthly_rate_2026 && Number(form.area_measurement) > 0 && (
-                        <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2026) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Monthly Rate 2027 (₱)</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                        <Input type="number" placeholder="e.g. 4608" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2027} onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} />
+                      <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                        <div className="space-y-1.5">
+                          <Label>Monthly Rate 2026 (₱) <span className="text-accent">*</span></Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                            <Input type="number" placeholder="e.g. 3840" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2026} onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} />
+                          </div>
+                          {form.area_measurement && form.monthly_rate_2026 && Number(form.area_measurement) > 0 && (
+                            <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2026) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Monthly Rate 2027 (₱)</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                            <Input type="number" placeholder="e.g. 4608" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2027} onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} />
+                          </div>
+                          {form.area_measurement && form.monthly_rate_2027 && Number(form.area_measurement) > 0 && (
+                            <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2027) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                          )}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Monthly Rate 2028 (₱)</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                            <Input type="number" placeholder="e.g. 5760" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2028} onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} />
+                          </div>
+                          {form.area_measurement && form.monthly_rate_2028 && Number(form.area_measurement) > 0 && (
+                            <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2028) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                          )}
+                        </div>
                       </div>
-                      {form.area_measurement && form.monthly_rate_2027 && Number(form.area_measurement) > 0 && (
-                        <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2027) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Monthly Rate 2028 (₱)</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                        <Input type="number" placeholder="e.g. 5760" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2028} onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} />
-                      </div>
-                      {form.area_measurement && form.monthly_rate_2028 && Number(form.area_measurement) > 0 && (
-                        <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2028) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                      )}
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               )}
               <div className="flex gap-3 pt-2 border-t">
@@ -1242,6 +1446,7 @@ const AdminUserManagement = () => {
                   const isActive = u.status === "active";
                   const isDelinquent = u.status === "delinquent";
                   const isSuspended = u.status === "suspended";
+                  const isClosed = u.status === "closed";
 
                   return (
                     <tr key={u.id} className={`hover:bg-emerald-50/40 transition-colors ${selectedUsers.includes(u.id) ? "bg-emerald-50/60" : ""}`}>
@@ -1283,74 +1488,84 @@ const AdminUserManagement = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-1.5 flex-wrap">
-                          <Button size="sm" variant="outline" className="h-7 gap-1 rounded-lg text-xs" onClick={() => openEdit(u)}>
-                            {isReadOnly ? <Eye className="h-3 w-3" /> : <Edit3 className="h-3 w-3" />} {isReadOnly ? "View" : "Edit"}
-                          </Button>
-
-                          {u.role === "vendor" && (
-                            <Button size="sm" variant="outline" className="h-7 gap-1 rounded-lg text-xs border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => setDocsTarget(u)}>
-                              {isReadOnly ? <Eye className="h-3 w-3" /> : <FileUp className="h-3 w-3" />} Docs
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          )}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-white border rounded-xl shadow-lg p-1.5 space-y-1 z-[1000]">
+                            <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs rounded-lg hover:bg-slate-50 cursor-pointer focus:bg-slate-50 focus:text-foreground outline-none" onClick={() => openEdit(u)}>
+                              {isReadOnly ? <Eye className="h-3.5 w-3.5 text-muted-foreground" /> : <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />}
+                              {isReadOnly ? "View Details" : "Edit Account"}
+                            </DropdownMenuItem>
 
-                          {!isReadOnly && (
-                            <>
-                              {/* Active → can be marked delinquent OR suspended */}
-                              {isActive && (
-                                <>
-                                  {/* NEW: Delinquent button — primary action for unpaid fees */}
-                                  <Button
-                                    size="sm" variant="outline"
-                                    className="h-7 rounded-lg text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
-                                    onClick={() => { setDelinquentTarget(u); setDelinquentReason(""); }}
-                                  >
-                                    Delinquent
-                                  </Button>
-                                  <Button
-                                    size="sm" variant="outline"
-                                    className="h-7 rounded-lg text-xs border-accent/30 text-accent hover:bg-accent/10"
-                                    onClick={() => { setSuspendTarget(u); setSuspendReason(""); }}
-                                  >
-                                    Suspend
-                                  </Button>
-                                </>
-                              )}
+                            {u.role === "vendor" && (
+                              <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs rounded-lg hover:bg-slate-50 cursor-pointer focus:bg-slate-50 focus:text-foreground outline-none" onClick={() => setDocsTarget(u)}>
+                                <FileUp className="h-3.5 w-3.5 text-blue-600" />
+                                <span>Documents</span>
+                              </DropdownMenuItem>
+                            )}
 
-                              {/* Delinquent → can be reactivated directly */}
-                              {isDelinquent && (
-                                <Button
-                                  size="sm" variant="outline"
-                                  className="h-7 rounded-lg text-xs border-success/30 text-success hover:bg-success/10"
-                                  disabled={reactivate.isPending}
-                                  onClick={() => reactivate.mutate(u)}
-                                >
-                                  Reactivate
-                                </Button>
-                              )}
+                            {!isReadOnly && (
+                              <>
+                                {/* Active → delinquent or suspend */}
+                                {isActive && (
+                                  <>
+                                    <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-amber-700 rounded-lg hover:bg-amber-50 cursor-pointer focus:bg-amber-50 outline-none" onClick={() => { setDelinquentTarget(u); setDelinquentReason(""); }}>
+                                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                      <span>Mark Delinquent</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-accent rounded-lg hover:bg-accent/10 cursor-pointer focus:bg-accent/10 outline-none" onClick={() => { setSuspendTarget(u); setSuspendReason(""); }}>
+                                      <AlertCircle className="h-3.5 w-3.5 text-accent" />
+                                      <span>Suspend Account</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
 
-                              {/* Suspended → can be reactivated */}
-                              {isSuspended && (
-                                <Button
-                                  size="sm" variant="outline"
-                                  className="h-7 rounded-lg text-xs border-success/30 text-success hover:bg-success/10"
-                                  disabled={reactivate.isPending}
-                                  onClick={() => reactivate.mutate(u)}
-                                >
-                                  Activate
-                                </Button>
-                              )}
+                                {/* Delinquent → reactivate */}
+                                {isDelinquent && (
+                                  <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-success rounded-lg hover:bg-success/10 cursor-pointer focus:bg-success/10 outline-none" disabled={reactivate.isPending} onClick={() => reactivate.mutate(u)}>
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                    <span>Reactivate</span>
+                                  </DropdownMenuItem>
+                                )}
 
-                              <Button 
-                                size="sm" variant="outline" 
-                                className="h-7 gap-1 rounded-lg text-xs border-red-200 text-red-600 hover:bg-red-50"
-                                onClick={() => { setDeleteTarget(u); setDeleteConfirmText(""); setIsBulkDelete(false); }}
-                              >
-                                <XCircle className="h-3 w-3" /> Delete
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                                {/* Suspended → reactivate */}
+                                {isSuspended && (
+                                  <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-success rounded-lg hover:bg-success/10 cursor-pointer focus:bg-success/10 outline-none" disabled={reactivate.isPending} onClick={() => reactivate.mutate(u)}>
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                    <span>Activate Account</span>
+                                  </DropdownMenuItem>
+                                )}
+
+                                {/* Closed → reopen */}
+                                {isClosed && (
+                                  <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-success rounded-lg hover:bg-success/10 cursor-pointer focus:bg-success/10 outline-none" disabled={reactivate.isPending} onClick={() => reactivate.mutate(u)}>
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                    <span>Reopen Account</span>
+                                  </DropdownMenuItem>
+                                )}
+
+                                {/* Close Vendor Account option */}
+                                {u.role === "vendor" && !isClosed && (
+                                  <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 rounded-lg hover:bg-slate-50 cursor-pointer focus:bg-slate-50 outline-none" onClick={() => { setCloseTarget(u); setClosureReason("transfer_ownership"); setClosureNotes(""); setTransferredToVendorId(""); }}>
+                                    <XCircle className="h-3.5 w-3.5 text-slate-500" />
+                                    <span>Close Account</span>
+                                  </DropdownMenuItem>
+                                )}
+
+                                <div className="h-px bg-slate-100 my-1" />
+
+                                <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-red-600 rounded-lg hover:bg-red-50 cursor-pointer focus:bg-red-50 outline-none" onClick={() => { setDeleteTarget(u); setDeleteConfirmText(""); setIsBulkDelete(false); }}>
+                                  <XCircle className="h-3.5 w-3.5 text-red-600" />
+                                  <span>Delete Account</span>
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );
