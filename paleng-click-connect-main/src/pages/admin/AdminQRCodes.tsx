@@ -95,10 +95,28 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
 
   const startCamera = useCallback(async (deviceId?: string) => {
     stopCamera(); setError(null); setScanning(true);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Camera API is not supported in this browser or requires a secure context (HTTPS/localhost).");
+      setScanning(false);
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "environment" },
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "environment" },
+        });
+      } catch (firstErr) {
+        // Fallback: If deviceId is not specified and facingMode fails (common on laptops/desktops), try requesting any camera.
+        if (!deviceId) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } else {
+          throw firstErr;
+        }
+      }
+
       streamRef.current = stream;
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -119,7 +137,13 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
       };
       animRef.current = requestAnimationFrame(tick);
     } catch (err: any) {
-      setError(err.message?.includes("Permission") ? "Camera access denied." : "Could not access camera.");
+      const msg = err.message || "";
+      const name = err.name || "";
+      if (msg.includes("Permission") || name.includes("NotAllowed")) {
+        setError("Camera access denied.");
+      } else {
+        setError(`Could not access camera: ${name || "UnknownError"}`);
+      }
       setScanning(false);
     }
   }, [stopCamera, onScan]);
