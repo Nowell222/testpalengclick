@@ -51,6 +51,7 @@ const AdminApplications = () => {
   const [monthlyRate, setMonthlyRate] = useState("1450");
   const [tempPassword, setTempPassword] = useState("PalengClick123");
   const [generatingStall, setGeneratingStall] = useState(false);
+  const [assignStall, setAssignStall] = useState(true);
 
   // Reject Form State
   const [rejectReason, setRejectReason] = useState("");
@@ -88,10 +89,14 @@ const AdminApplications = () => {
 
   const openApprovalModal = (app: any) => {
     setSelectedApp(app);
+    const hasStallPref = !!app.preferred_section;
+    setAssignStall(hasStallPref);
     setStallNumber("");
     setMonthlyRate("1450");
     setTempPassword("PalengClick123");
-    generateStallNumber(app.preferred_section);
+    if (hasStallPref) {
+      generateStallNumber(app.preferred_section);
+    }
     setShowApprovalModal(true);
   };
 
@@ -103,8 +108,10 @@ const AdminApplications = () => {
 
   const approveMutation = useMutation({
     mutationFn: async () => {
-      if (!stallNumber.trim()) throw new Error("Stall number is required");
-      if (!monthlyRate || Number(monthlyRate) <= 0) throw new Error("Valid monthly rate is required");
+      if (assignStall) {
+        if (!stallNumber.trim()) throw new Error("Stall number is required");
+        if (!monthlyRate || Number(monthlyRate) <= 0) throw new Error("Valid monthly rate is required");
+      }
 
       // 1. Create User via Edge Function
       const res = await supabase.functions.invoke("create-user", {
@@ -117,10 +124,10 @@ const AdminApplications = () => {
           contact_number: selectedApp.phone_number, 
           address: "N/A",
           role: "vendor", 
-          stall_number: stallNumber,
-          section: selectedApp.preferred_section, 
-          location: "San Juan Public Market", 
-          monthly_rate: Number(monthlyRate),
+          stall_number: assignStall ? stallNumber : "",
+          section: assignStall ? selectedApp.preferred_section : undefined, 
+          location: assignStall ? "San Juan Public Market" : undefined, 
+          monthly_rate: assignStall ? Number(monthlyRate) : undefined,
         },
       });
       
@@ -133,7 +140,7 @@ const AdminApplications = () => {
         .update({ 
           status: "approved", 
           reviewed_at: new Date().toISOString(),
-          admin_notes: `Approved. Assigned Stall: ${stallNumber}` 
+          admin_notes: assignStall ? `Approved. Assigned Stall: ${stallNumber}` : `Approved. Stall will be assigned later.` 
         })
         .eq("id", selectedApp.id);
       
@@ -150,7 +157,9 @@ const AdminApplications = () => {
             _email_only: true,
             _target_email: selectedApp.email,
             _push_title: "Vendor Application Approved!",
-            _push_body: `Congratulations! Your vendor application has been approved.\nStall: ${stallNumber}\nTemporary Password: ${tempPassword}\nPlease login to the Vendor Portal to change your password and manage your stall.`
+            _push_body: assignStall
+              ? `Congratulations! Your vendor application has been approved.\nStall: ${stallNumber}\nTemporary Password: ${tempPassword}\nPlease login to the Vendor Portal to change your password and manage your stall.`
+              : `Congratulations! Your vendor application has been approved.\nTemporary Password: ${tempPassword}\nPlease login to the Vendor Portal to change your password.`
           }),
         });
       } catch (e) {
@@ -313,7 +322,7 @@ const AdminApplications = () => {
                         {app.status.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{app.preferred_section}</p>
+                    <p className="text-xs text-muted-foreground truncate">{app.preferred_section || "None (Blank Stall)"}</p>
                     <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
                       <CalendarDays className="h-3 w-3" />
                       {new Date(app.application_date).toLocaleDateString()}
@@ -385,8 +394,8 @@ const AdminApplications = () => {
                         <Store className="h-4 w-4 text-slate-400 mt-0.5" />
                         <div>
                           <p className="text-xs text-muted-foreground">Preferred Section</p>
-                          <p className="font-medium text-sm text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 inline-block">
-                            {selectedApp.preferred_section}
+                          <p className={`font-medium text-sm px-2 py-0.5 rounded-md border inline-block ${selectedApp.preferred_section ? "text-emerald-700 bg-emerald-50 border-emerald-100" : "text-slate-600 bg-slate-50 border-slate-200"}`}>
+                            {selectedApp.preferred_section || "None (Blank Stall)"}
                           </p>
                         </div>
                       </div>
@@ -444,35 +453,57 @@ const AdminApplications = () => {
             </div>
             
             <div className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Assigned Section</Label>
-                <Input disabled value={selectedApp.preferred_section} className="h-10 bg-slate-50" />
-              </div>
-              
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex justify-between">
-                  <span>Assigned Stall Number</span>
-                  {generatingStall && <span className="text-emerald-600 text-[10px] flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/> Generating...</span>}
-                </Label>
-                <Input 
-                  value={stallNumber} 
-                  onChange={e => setStallNumber(e.target.value)} 
-                  className="h-10 font-mono" 
-                  placeholder="e.g. MS-001"
+              <div className="flex items-center space-x-2 pb-3 border-b">
+                <input 
+                  type="checkbox" 
+                  id="assignStallApproval" 
+                  checked={assignStall} 
+                  onChange={e => {
+                    setAssignStall(e.target.checked);
+                    if (e.target.checked) {
+                      generateStallNumber(selectedApp.preferred_section);
+                    } else {
+                      setStallNumber("");
+                    }
+                  }} 
+                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                 />
+                <Label htmlFor="assignStallApproval" className="text-sm font-semibold cursor-pointer select-none">Assign Stall Details Now</Label>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Monthly Rate (₱)</Label>
-                <Input 
-                  type="number" 
-                  value={monthlyRate} 
-                  onChange={e => setMonthlyRate(e.target.value)} 
-                  className="h-10 font-mono" 
-                />
-              </div>
+              {assignStall && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Assigned Section</Label>
+                    <Input disabled value={selectedApp.preferred_section} className="h-10 bg-slate-50 font-medium" />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground flex justify-between">
+                      <span>Assigned Stall Number</span>
+                      {generatingStall && <span className="text-emerald-600 text-[10px] flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/> Generating...</span>}
+                    </Label>
+                    <Input 
+                      value={stallNumber} 
+                      onChange={e => setStallNumber(e.target.value)} 
+                      className="h-10 font-mono" 
+                      placeholder="e.g. MS-001"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Monthly Rate (₱)</Label>
+                    <Input 
+                      type="number" 
+                      value={monthlyRate} 
+                      onChange={e => setMonthlyRate(e.target.value)} 
+                      className="h-10 font-mono" 
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-1.5 pt-2">
                 <Label className="text-xs text-muted-foreground">Temporary Password</Label>
                 <Input 
                   value={tempPassword} 

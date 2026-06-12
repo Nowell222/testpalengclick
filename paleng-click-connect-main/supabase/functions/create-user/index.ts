@@ -172,7 +172,7 @@ Deno.serve(async (req: Request) => {
         })
       }
 
-      const { closure_reason, closure_notes, transferred_to_vendor_id } = body;
+      const { closure_reason, closure_notes, transferred_to_vendor_id, transferred_to_app_id } = body;
 
       // 1. Get vendor stall details to vacate it
       const { data: vendorData, error: fetchErr } = await supabaseAdmin
@@ -199,6 +199,111 @@ Deno.serve(async (req: Request) => {
         })
       }
 
+      let targetVendorId = transferred_to_vendor_id || null;
+
+      // If transferring to a pending application, approve it and create the vendor account first
+      if (transferred_to_app_id && vendorData?.stall_id) {
+        // Fetch application details
+        const { data: appData, error: appErr } = await supabaseAdmin
+          .from('vendor_applications')
+          .select('*')
+          .eq('id', transferred_to_app_id)
+          .single();
+
+        if (appErr || !appData) {
+          return new Response(JSON.stringify({ error: `Application not found: ${appErr?.message || 'No data'}` }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Create Auth User
+        const tempPassword = 'PalengClick123';
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: appData.email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: { first_name: appData.first_name, last_name: appData.last_name, role: 'vendor' }
+        });
+
+        if (createError) {
+          const isEmailTaken = createError.message?.toLowerCase().includes('already registered') || createError.message?.toLowerCase().includes('already been registered')
+          return new Response(JSON.stringify({ error: isEmailTaken ? 'Applicant email already exists as a registered user' : createError.message }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Update profile details
+        const { error: profileErr } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            contact_number: appData.phone_number || null,
+            address: 'N/A'
+          })
+          .eq('user_id', newUser.user.id);
+
+        if (profileErr) {
+          // Cleanup
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+          return new Response(JSON.stringify({ error: `Failed to update profile: ${profileErr.message}` }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Create Vendor record (stall_id will be linked in the transfer step below)
+        const { data: newVendorData, error: vendorInsertErr } = await supabaseAdmin
+          .from('vendors')
+          .insert({
+            user_id: newUser.user.id,
+            stall_id: null,
+            award_date: new Date().toISOString().split('T')[0]
+          })
+          .select('id')
+          .single();
+
+        if (vendorInsertErr || !newVendorData) {
+          // Cleanup
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+          return new Response(JSON.stringify({ error: `Failed to create vendor record: ${vendorInsertErr?.message || 'No data'}` }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        targetVendorId = newVendorData.id;
+
+        // Update Application Status to approved
+        const { error: appUpdateErr } = await supabaseAdmin
+          .from('vendor_applications')
+          .update({
+            status: 'approved',
+            reviewed_at: new Date().toISOString(),
+            admin_notes: `Approved and registered via Transfer of Ownership from user ${user_id}`
+          })
+          .eq('id', transferred_to_app_id);
+
+        if (appUpdateErr) {
+          console.error("Failed to update application status:", appUpdateErr);
+        }
+
+        // Notify Vendor via Edge Function
+        try {
+          const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+          const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+          await fetch(`${supabaseUrl}/functions/v1/notify-vendor`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}`, "apikey": anonKey },
+            body: JSON.stringify({
+              vendor_user_id: "system-approval",
+              _email_only: true,
+              _target_email: appData.email,
+              _push_title: "Vendor Application Approved!",
+              _push_body: `Congratulations! Your vendor application has been approved via Transfer of Ownership.\nTemporary Password: ${tempPassword}\nPlease login to the Vendor Portal to change your password and manage your stall.`
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to send approval email", e);
+        }
+      }
+
       // 3. Update vendor closure fields and detach stall
       const { error: vendorErr } = await supabaseAdmin
         .from('vendors')
@@ -207,7 +312,7 @@ Deno.serve(async (req: Request) => {
           closed_at: new Date().toISOString(),
           closure_reason: closure_reason || 'closed',
           closure_notes: closure_notes || null,
-          transferred_to_vendor_id: transferred_to_vendor_id || null
+          transferred_to_vendor_id: targetVendorId
         })
         .eq('user_id', user_id);
 
@@ -218,11 +323,11 @@ Deno.serve(async (req: Request) => {
       }
 
       // 3.5. If transferring ownership, assign the stall to the new vendor record
-      if (transferred_to_vendor_id && vendorData?.stall_id) {
+      if (targetVendorId && vendorData?.stall_id) {
         const { error: transferErr } = await supabaseAdmin
           .from('vendors')
           .update({ stall_id: vendorData.stall_id })
-          .eq('id', transferred_to_vendor_id);
+          .eq('id', targetVendorId);
 
         if (transferErr) {
           return new Response(JSON.stringify({ error: `Transfer failed: ${transferErr.message}` }), {
@@ -232,7 +337,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // 4. Vacate the stall if they had one (only if not transferring to a new owner)
-      if (vendorData?.stall_id && !transferred_to_vendor_id) {
+      if (vendorData?.stall_id && !targetVendorId) {
         const { error: stallErr } = await supabaseAdmin
           .from('stalls')
           .update({ status: 'vacant' })

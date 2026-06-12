@@ -169,6 +169,21 @@ const AdminUserManagement = () => {
     },
   });
 
+  const { data: pendingApps = [] } = useQuery({
+    queryKey: ["admin-pending-applications"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vendor_applications")
+        .select("id, first_name, last_name, email, phone_number, business_name, preferred_section")
+        .eq("status", "pending");
+      if (error) {
+        console.error("Error fetching pending applications:", error);
+        return [];
+      }
+      return data;
+    }
+  });
+
   const generateStallNumber = async (section: string) => {
     setGeneratingStall(true);
     try {
@@ -307,13 +322,18 @@ const AdminUserManagement = () => {
 
   const confirmCloseUser = useMutation({
     mutationFn: async () => {
+      const isApp = transferredToVendorId.startsWith("app:");
+      const appId = isApp ? transferredToVendorId.substring(4) : undefined;
+      const vendorId = isApp ? undefined : (transferredToVendorId || undefined);
+
       const res = await supabase.functions.invoke("create-user", {
         body: {
           _action: "close-user",
           user_id: closeTarget.id,
           closure_reason: closureReason,
           closure_notes: closureNotes,
-          transferred_to_vendor_id: transferredToVendorId || undefined
+          transferred_to_vendor_id: vendorId,
+          transferred_to_app_id: appId
         }
       });
       if (res.error) throw new Error(res.error.message);
@@ -322,6 +342,8 @@ const AdminUserManagement = () => {
     onSuccess: () => {
       toast.success(`${closeTarget.name}'s account has been successfully closed.`);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-pending-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["vendor-applications"] });
       setCloseTarget(null);
       setClosureNotes("");
       setClosureReason("transfer_ownership");
@@ -737,7 +759,7 @@ const AdminUserManagement = () => {
 
                 {closureReason === "transfer_ownership" && (
                   <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Transferred to (New Vendor)</Label>
+                    <Label className="text-xs text-muted-foreground">Transferred to (New Vendor / Applicant)</Label>
                     {(() => {
                       const candidates = users.filter(
                         (u: any) =>
@@ -754,19 +776,32 @@ const AdminUserManagement = () => {
                             onChange={e => setTransferredToVendorId(e.target.value)}
                           >
                             <option value="">-- Select New Owner --</option>
-                            {candidates.map((c: any) => (
-                              <option key={c.id} value={c.vendor_id}>
-                                {c.name} ({c.contact})
-                              </option>
-                            ))}
+                            {candidates.length > 0 && (
+                              <optgroup label="Registered Vendors (No Stall)">
+                                {candidates.map((c: any) => (
+                                  <option key={c.id} value={c.vendor_id}>
+                                    {c.name} ({c.contact})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {pendingApps.length > 0 && (
+                              <optgroup label="Pending Applicants">
+                                {pendingApps.map((app: any) => (
+                                  <option key={app.id} value={`app:${app.id}`}>
+                                    [APP] {app.first_name} {app.last_name} ({app.email})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
-                          {candidates.length === 0 ? (
+                          {candidates.length === 0 && pendingApps.length === 0 ? (
                             <p className="text-[11px] text-amber-600 mt-1">
-                              ⚠️ No vacant vendors found. Please create the new owner's account first without a stall.
+                              ⚠️ No vacant vendors or pending applicants found. Please create the new owner's account or submit an application first.
                             </p>
                           ) : (
                             <p className="text-[11px] text-muted-foreground">
-                              Only active/pending vendors without any assigned stall are shown.
+                              You can select an active vendor without a stall, or a pending applicant.
                             </p>
                           )}
                         </>

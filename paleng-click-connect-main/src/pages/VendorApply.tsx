@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,22 @@ import { toast } from "sonner";
 import { Store, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: any) => string;
+      remove: (widgetId: string) => void;
+      reset: (widgetId: string) => void;
+    };
+  }
+}
+
 const VendorApply = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileWidgetIdRef = useRef<string | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -22,6 +34,72 @@ const VendorApply = () => {
     preferredSection: "",
     website: "", // Honeypot field
   });
+  const [hasStallRequest, setHasStallRequest] = useState(true);
+
+  useEffect(() => {
+    // Load Cloudflare Turnstile script dynamically
+    const scriptId = "cloudflare-turnstile-script";
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    let isMounted = true;
+    let checkTimeout: any;
+
+    const renderWidget = () => {
+      if (!isMounted) return;
+
+      if (window.turnstile && document.getElementById("turnstile-container")) {
+        try {
+          if (turnstileWidgetIdRef.current) {
+            window.turnstile.remove(turnstileWidgetIdRef.current);
+          }
+
+          const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA";
+          const widgetId = window.turnstile.render("#turnstile-container", {
+            sitekey: siteKey,
+            callback: (token: string) => {
+              if (isMounted) setTurnstileToken(token);
+            },
+            "expired-callback": () => {
+              if (isMounted) setTurnstileToken("");
+            },
+            "error-callback": () => {
+              if (isMounted) {
+                setTurnstileToken("");
+                toast.error("Security challenge verification failed. Please try again.");
+              }
+            }
+          });
+          turnstileWidgetIdRef.current = widgetId;
+        } catch (e) {
+          console.error("Error rendering Turnstile:", e);
+        }
+      } else {
+        checkTimeout = setTimeout(renderWidget, 100);
+      }
+    };
+
+    renderWidget();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(checkTimeout);
+      if (turnstileWidgetIdRef.current && window.turnstile) {
+        try {
+          window.turnstile.remove(turnstileWidgetIdRef.current);
+          turnstileWidgetIdRef.current = null;
+        } catch (e) {
+          console.error("Error cleaning up Turnstile:", e);
+        }
+      }
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -42,8 +120,14 @@ const VendorApply = () => {
       return;
     }
 
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.preferredSection) {
+    const isMissingRequiredFields = !formData.firstName || !formData.lastName || !formData.email || !formData.phone || (hasStallRequest && !formData.preferredSection);
+    if (isMissingRequiredFields) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!turnstileToken) {
+      toast.error("Please complete the security verification challenge");
       return;
     }
 
@@ -55,7 +139,7 @@ const VendorApply = () => {
         email: formData.email,
         phone_number: formData.phone,
         business_name: formData.businessName || null,
-        preferred_section: formData.preferredSection,
+        preferred_section: hasStallRequest ? formData.preferredSection : null,
         status: "pending",
         application_date: new Date().toISOString()
       });
@@ -66,6 +150,11 @@ const VendorApply = () => {
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to submit application");
+      // Reset Turnstile widget on submission error so they can try again
+      setTurnstileToken("");
+      if (turnstileWidgetIdRef.current && window.turnstile) {
+        window.turnstile.reset(turnstileWidgetIdRef.current);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -192,28 +281,53 @@ const VendorApply = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Preferred Section <span className="text-red-500">*</span></Label>
-                <Select value={formData.preferredSection} onValueChange={handleSelectChange} disabled={isSubmitting}>
-                  <SelectTrigger className="rounded-xl bg-slate-50 border-slate-200 h-11">
-                    <SelectValue placeholder="Select a section" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="Building I - 1st Floor">Building I - 1st Floor</SelectItem>
-                    <SelectItem value="Building II - 1st Floor">Building II - 1st Floor</SelectItem>
-                    <SelectItem value="Building I - 2nd Floor">Building I - 2nd Floor</SelectItem>
-                    <SelectItem value="Building II - 2nd Floor">Building II - 2nd Floor</SelectItem>
-                    <SelectItem value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</SelectItem>
-                    <SelectItem value="New Building - Mojica">New Building - Mojica</SelectItem>
-                    <SelectItem value="New Building - Kalayaan">New Building - Kalayaan</SelectItem>
-                    <SelectItem value="Meat Stalls">Meat Stalls</SelectItem>
-                    <SelectItem value="Fish Stalls">Fish Stalls</SelectItem>
-                    <SelectItem value="Egg and Dried Fish">Egg and Dried Fish</SelectItem>
-                    <SelectItem value="Eatery 2nd Floor">Eatery 2nd Floor</SelectItem>
-                    <SelectItem value="Vegetable Section">Vegetable Section</SelectItem>
-                    <SelectItem value="Vegetable Section - Extension">Vegetable Section - Extension</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center space-x-2.5 py-3 border-b border-slate-100 mb-2">
+                <input 
+                  type="checkbox" 
+                  id="hasStallRequest" 
+                  checked={hasStallRequest} 
+                  onChange={e => {
+                    setHasStallRequest(e.target.checked);
+                    if (!e.target.checked) {
+                      setFormData(prev => ({ ...prev, preferredSection: "" }));
+                    }
+                  }} 
+                  className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                />
+                <Label htmlFor="hasStallRequest" className="text-sm font-semibold text-slate-700 cursor-pointer select-none">
+                  Request a Market Stall space
+                </Label>
+              </div>
+
+              {hasStallRequest && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <Label>Preferred Section <span className="text-red-500">*</span></Label>
+                  <Select value={formData.preferredSection} onValueChange={handleSelectChange} disabled={isSubmitting}>
+                    <SelectTrigger className="rounded-xl bg-slate-50 border-slate-200 h-11">
+                      <SelectValue placeholder="Select a section" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Building I - 1st Floor">Building I - 1st Floor</SelectItem>
+                      <SelectItem value="Building II - 1st Floor">Building II - 1st Floor</SelectItem>
+                      <SelectItem value="Building I - 2nd Floor">Building I - 2nd Floor</SelectItem>
+                      <SelectItem value="Building II - 2nd Floor">Building II - 2nd Floor</SelectItem>
+                      <SelectItem value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</SelectItem>
+                      <SelectItem value="New Building - Mojica">New Building - Mojica</SelectItem>
+                      <SelectItem value="New Building - Kalayaan">New Building - Kalayaan</SelectItem>
+                      <SelectItem value="Meat Stalls">Meat Stalls</SelectItem>
+                      <SelectItem value="Fish Stalls">Fish Stalls</SelectItem>
+                      <SelectItem value="Egg and Dried Fish">Egg and Dried Fish</SelectItem>
+                      <SelectItem value="Eatery 2nd Floor">Eatery 2nd Floor</SelectItem>
+                      <SelectItem value="Vegetable Section">Vegetable Section</SelectItem>
+                      <SelectItem value="Vegetable Section - Extension">Vegetable Section - Extension</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Cloudflare Turnstile Verification */}
+              <div className="flex justify-center my-4">
+                <div id="turnstile-container"></div>
               </div>
 
               <Button 
