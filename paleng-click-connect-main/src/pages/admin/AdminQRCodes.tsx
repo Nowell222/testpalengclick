@@ -121,7 +121,7 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
       if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
       const devices = await navigator.mediaDevices.enumerateDevices();
       setCameras(devices.filter(d => d.kind === "videoinput"));
-      const jsQRModule = await import("https://esm.sh/jsqr@1.4.0" as any);
+      const jsQRModule = await import("jsqr");
       const jsQR = jsQRModule.default || jsQRModule;
       const tick = () => {
         const video = videoRef.current, canvas = canvasRef.current;
