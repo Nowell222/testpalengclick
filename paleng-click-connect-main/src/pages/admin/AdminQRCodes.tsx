@@ -137,12 +137,13 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
       };
       animRef.current = requestAnimationFrame(tick);
     } catch (err: any) {
+      console.error("Camera access error:", err);
       const msg = err.message || "";
       const name = err.name || "";
       if (msg.includes("Permission") || name.includes("NotAllowed")) {
         setError("Camera access denied.");
       } else {
-        setError(`Could not access camera: ${name || "UnknownError"}`);
+        setError(`Could not access camera: ${name ? `${name}: ` : ""}${msg || "Unknown error occurred"}`);
       }
       setScanning(false);
     }
