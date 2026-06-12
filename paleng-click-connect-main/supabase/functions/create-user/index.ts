@@ -232,6 +232,18 @@ Deno.serve(async (req: Request) => {
           })
         }
 
+        // Insert role into user_roles since DB trigger handle_new_user no longer assigns roles automatically
+        const { error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({ user_id: newUser.user.id, role: 'vendor' })
+
+        if (roleError) {
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+          return new Response(JSON.stringify({ error: `Failed to assign role: ${roleError.message}` }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
         // Update profile details
         const { error: profileErr } = await supabaseAdmin
           .from('profiles')
@@ -413,6 +425,18 @@ Deno.serve(async (req: Request) => {
       const isEmailTaken = createError.message?.toLowerCase().includes('already registered') || createError.message?.toLowerCase().includes('already been registered')
       return new Response(JSON.stringify({ error: isEmailTaken ? 'Email already exists' : createError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Insert role into user_roles since DB trigger handle_new_user no longer assigns roles automatically
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .insert({ user_id: newUser.user.id, role })
+
+    if (roleError) {
+      await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
+      return new Response(JSON.stringify({ error: `Failed to assign role: ${roleError.message}` }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
