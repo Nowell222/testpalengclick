@@ -284,9 +284,11 @@ const AdminUserManagement = () => {
   };
 
   useEffect(() => {
-    if (form.role === "vendor" && form.section) generateStallNumber(form.section);
+    if (showCreate && form.role === "vendor" && !form.stall_number) {
+      generateStallNumber(form.section);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.section, form.role]);
+  }, [showCreate, form.role]);
 
   useEffect(() => {
     if (!showCreate) {
@@ -1504,7 +1506,15 @@ const AdminUserManagement = () => {
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-1.5">
                           <Label>Section <span className="text-accent">*</span></Label>
-                          <select className="h-11 w-full rounded-xl border bg-background px-3 text-sm" value={form.section} onChange={e => setForm(f => ({ ...f, section: e.target.value }))}>
+                          <select 
+                            className="h-11 w-full rounded-xl border bg-background px-3 text-sm" 
+                            value={form.section} 
+                            onChange={e => {
+                              const newSection = e.target.value;
+                              setForm(f => ({ ...f, section: newSection }));
+                              generateStallNumber(newSection);
+                            }}
+                          >
                             {SECTIONS.map(s => <option key={s}>{s}</option>)}
                           </select>
                         </div>
