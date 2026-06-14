@@ -99,7 +99,11 @@ const BploSettings = () => {
       });
 
       if (edgeError || (edgeData && edgeData.error)) {
-        throw new Error(edgeError?.message || edgeData?.error || "Failed to update account");
+        const rawMsg = edgeError?.message || edgeData?.error || "Failed to update account";
+        const errMsg = rawMsg.includes("Failed to send a request")
+          ? "Connection failed: Unable to connect to backend settings service."
+          : rawMsg;
+        throw new Error(errMsg);
       }
 
       toast.success("Account security updated successfully");

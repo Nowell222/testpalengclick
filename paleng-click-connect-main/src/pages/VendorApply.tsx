@@ -23,6 +23,9 @@ const VendorApply = () => {
     phone: "",
     businessName: "",
     preferredSection: "",
+    businessPermitNumber: "",
+    awardReceiptNumber: "",
+    awardPaymentDate: "",
     website: "", // Honeypot field
   });
   const [hasStallRequest, setHasStallRequest] = useState(true);
@@ -48,7 +51,7 @@ const VendorApply = () => {
       return;
     }
 
-    const isMissingRequiredFields = !formData.firstName || !formData.lastName || !formData.email || !formData.phone || (hasStallRequest && !formData.preferredSection);
+    const isMissingRequiredFields = !formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.businessPermitNumber || !formData.awardReceiptNumber || !formData.awardPaymentDate || (hasStallRequest && !formData.preferredSection);
     if (isMissingRequiredFields) {
       toast.error("Please fill in all required fields");
       return;
@@ -64,6 +67,9 @@ const VendorApply = () => {
         phone_number: formData.phone,
         business_name: formData.businessName || null,
         preferred_section: hasStallRequest ? formData.preferredSection : null,
+        business_permit_number: formData.businessPermitNumber,
+        award_receipt_number: formData.awardReceiptNumber,
+        award_payment_date: formData.awardPaymentDate,
         status: "pending",
         application_date: new Date().toISOString()
       });
@@ -186,6 +192,42 @@ const VendorApply = () => {
                   className="rounded-xl bg-slate-50 border-slate-200 h-11"
                   disabled={isSubmitting}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="businessPermitNumber">Permit Number <span className="text-red-500">*</span></Label>
+                <Input 
+                  id="businessPermitNumber" name="businessPermitNumber" 
+                  placeholder="e.g. BPLO-2026-8902" 
+                  value={formData.businessPermitNumber} onChange={handleChange} 
+                  className="rounded-xl bg-slate-50 border-slate-200 h-11"
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="awardReceiptNumber">Permit Receipt # <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="awardReceiptNumber" name="awardReceiptNumber" 
+                    placeholder="OR Number" 
+                    value={formData.awardReceiptNumber} onChange={handleChange} 
+                    className="rounded-xl bg-slate-50 border-slate-200 h-11"
+                    disabled={isSubmitting}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="awardPaymentDate">Date of Payment <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="awardPaymentDate" name="awardPaymentDate" type="date" 
+                    value={formData.awardPaymentDate} onChange={handleChange} 
+                    className="rounded-xl bg-slate-50 border-slate-200 h-11"
+                    disabled={isSubmitting}
+                    required
+                  />
+                </div>
               </div>
 
               {/* Honeypot field - Hidden from users but visible to bots */}

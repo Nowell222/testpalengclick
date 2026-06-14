@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { 
   FileText, Store, Search, CheckCircle2, XCircle, Clock, Loader2, 
-  ChevronRight, Building2, User, Phone, Mail, CalendarDays, X, AlertTriangle, ShieldCheck
+  ChevronRight, Building2, User, Phone, Mail, CalendarDays, X, AlertTriangle, ShieldCheck,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,10 +49,13 @@ const AdminApplications = () => {
   
   // Approval Form State
   const [stallNumber, setStallNumber] = useState("");
-  const [monthlyRate, setMonthlyRate] = useState("1450");
+  const [monthlyRate2026, setMonthlyRate2026] = useState("1450");
+  const [monthlyRate2027, setMonthlyRate2027] = useState("");
+  const [monthlyRate2028, setMonthlyRate2028] = useState("");
   const [tempPassword, setTempPassword] = useState("PalengClick123");
   const [generatingStall, setGeneratingStall] = useState(false);
   const [assignStall, setAssignStall] = useState(true);
+  const [section, setSection] = useState("");
 
   // Reject Form State
   const [rejectReason, setRejectReason] = useState("");
@@ -71,6 +75,75 @@ const AdminApplications = () => {
     }
   });
 
+  const { data: closedVendors = [] } = useQuery({
+    queryKey: ["admin-applications-closed-vendors"],
+    queryFn: async () => {
+      const [{ data: profiles }, { data: roles }, { data: vendors }, { data: history }, { data: schedules }, { data: occupiedStalls }] = await Promise.all([
+        supabase.from("profiles").select("user_id, first_name, last_name").eq("status", "closed"),
+        supabase.from("user_roles").select("user_id").eq("role", "vendor"),
+        supabase.from("vendors").select("id, user_id"),
+        supabase.from("stall_ownership_history").select("*, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)").order("started_at", { ascending: false }),
+        supabase.from("payment_schedules").select("vendor_id, stall_id, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)").order("created_at", { ascending: false }),
+        supabase.from("stalls").select("stall_number").eq("status", "occupied")
+      ]);
+      
+      if (!profiles || !roles || !vendors) return [];
+      
+      const occupiedStallNumbers = (occupiedStalls || []).map(s => s.stall_number);
+      const closedProfiles = profiles.filter(p => roles.some(r => r.user_id === p.user_id));
+      
+      const mappedClosed = closedProfiles.map(p => {
+        const v = vendors.find(vend => vend.user_id === p.user_id);
+        let lastStall = null;
+        if (v) {
+          const hist = history?.find(h => h.vendor_id === v.id);
+          if (hist && hist.stalls) {
+            lastStall = hist.stalls;
+          } else {
+            const sched = schedules?.find(s => s.vendor_id === v.id && s.stalls);
+            if (sched && sched.stalls) {
+              lastStall = sched.stalls;
+            }
+          }
+        }
+        return {
+          id: p.user_id,
+          vendor_id: v?.id,
+          name: `${p.first_name} ${p.last_name}`,
+          lastStall: lastStall as any
+        };
+      });
+
+      return mappedClosed.filter(cv => {
+        if (!cv.lastStall?.stall_number) return true;
+        return !occupiedStallNumbers.includes(cv.lastStall.stall_number);
+      });
+    }
+  });
+
+  const lookupStallDetails = async (stallNum: string) => {
+    if (!stallNum) return;
+    const cleanNum = stallNum.trim();
+    if (cleanNum.length < 2) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("stalls")
+        .select("section, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028")
+        .eq("stall_number", cleanNum)
+        .maybeSingle();
+
+      if (data && !error) {
+        setSection(data.section || "");
+        setMonthlyRate2026(data.monthly_rate_2026 !== null ? String(data.monthly_rate_2026) : "1450");
+        setMonthlyRate2027(data.monthly_rate_2027 !== null ? String(data.monthly_rate_2027) : "");
+        setMonthlyRate2028(data.monthly_rate_2028 !== null ? String(data.monthly_rate_2028) : "");
+      }
+    } catch (err) {
+      console.error("Error looking up stall details:", err);
+    }
+  };
+
   const generateStallNumber = async (section: string) => {
     setGeneratingStall(true);
     try {
@@ -79,12 +152,11 @@ const AdminApplications = () => {
       const existingNums = (existingStalls || []).map(s => { const p = s.stall_number?.split("-"); return p?.length === 2 ? parseInt(p[1], 10) : 0; }).filter(n => !isNaN(n) && n > 0);
       let next = 1;
       while (existingNums.includes(next)) next++;
-      setStallNumber(`${prefix}-${String(next).padStart(3, "0")}`);
-    } catch { 
-      toast.error("Failed to generate stall number"); 
-    } finally { 
-      setGeneratingStall(false); 
-    }
+      const generatedNum = `${prefix}-${String(next).padStart(3, "0")}`;
+      setStallNumber(generatedNum);
+      lookupStallDetails(generatedNum);
+    } catch { toast.error("Failed to generate stall number"); }
+    finally { setGeneratingStall(false); }
   };
 
   const openApprovalModal = (app: any) => {
@@ -92,8 +164,11 @@ const AdminApplications = () => {
     const hasStallPref = !!app.preferred_section;
     setAssignStall(hasStallPref);
     setStallNumber("");
-    setMonthlyRate("1450");
+    setMonthlyRate2026("1450");
+    setMonthlyRate2027("");
+    setMonthlyRate2028("");
     setTempPassword("PalengClick123");
+    setSection(app.preferred_section || "Vegetable Section");
     if (hasStallPref) {
       generateStallNumber(app.preferred_section);
     }
@@ -110,7 +185,7 @@ const AdminApplications = () => {
     mutationFn: async () => {
       if (assignStall) {
         if (!stallNumber.trim()) throw new Error("Stall number is required");
-        if (!monthlyRate || Number(monthlyRate) <= 0) throw new Error("Valid monthly rate is required");
+        if (!monthlyRate2026 || Number(monthlyRate2026) <= 0) throw new Error("Valid monthly rate is required");
       }
 
       // 1. Create User via Edge Function
@@ -125,13 +200,24 @@ const AdminApplications = () => {
           address: "N/A",
           role: "vendor", 
           stall_number: assignStall ? stallNumber : "",
-          section: assignStall ? selectedApp.preferred_section : undefined, 
+          section: assignStall ? section : undefined, 
           location: assignStall ? "San Juan Public Market" : undefined, 
-          monthly_rate: assignStall ? Number(monthlyRate) : undefined,
+          monthly_rate: assignStall ? Number(monthlyRate2026) : undefined,
+          monthly_rate_2026: assignStall ? Number(monthlyRate2026) : undefined,
+          monthly_rate_2027: assignStall && monthlyRate2027 ? Number(monthlyRate2027) : undefined,
+          monthly_rate_2028: assignStall && monthlyRate2028 ? Number(monthlyRate2028) : undefined,
+          business_permit_number: selectedApp.business_permit_number,
+          award_receipt_number: selectedApp.award_receipt_number,
+          award_payment_date: selectedApp.award_payment_date,
         },
       });
       
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) {
+        if (res.error.message?.includes("Failed to send a request")) {
+          throw new Error("Connection failed: Unable to approve application. Please check your network or verify if local Deno is running.");
+        }
+        throw new Error(res.error.message);
+      }
       if (res.data?.error) throw new Error(res.data.error);
 
       // 2. Update Application Status
@@ -403,6 +489,35 @@ const AdminApplications = () => {
                   </div>
                 </div>
 
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2 mb-3">Permit Verification</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck className="h-4 w-4 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Permit Number</p>
+                        <p className="font-semibold text-sm text-slate-800">{selectedApp.business_permit_number || "N/A"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <FileText className="h-4 w-4 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Permit Receipt #</p>
+                        <p className="font-semibold text-sm text-slate-800">{selectedApp.award_receipt_number || "N/A"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <CalendarDays className="h-4 w-4 text-emerald-600 mt-0.5" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Date of Payment</p>
+                        <p className="font-semibold text-sm text-slate-800">
+                          {selectedApp.award_payment_date ? new Date(selectedApp.award_payment_date).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {selectedApp.status !== "pending" && (
                   <div className="mt-8 rounded-xl bg-slate-50 border p-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Review Notes</h3>
@@ -473,9 +588,54 @@ const AdminApplications = () => {
 
               {assignStall && (
                 <>
+                  {closedVendors.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Reference Closed Account (Pre-fill Stall Details)</Label>
+                      <select 
+                        className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val) {
+                            const cv = closedVendors.find(c => c.id === val);
+                            if (cv && cv.lastStall) {
+                              setSection(cv.lastStall.section || "");
+                              setStallNumber(cv.lastStall.stall_number || "");
+                              setMonthlyRate2026(cv.lastStall.monthly_rate_2026 !== null ? String(cv.lastStall.monthly_rate_2026) : "1450");
+                              setMonthlyRate2027(cv.lastStall.monthly_rate_2027 !== null ? String(cv.lastStall.monthly_rate_2027) : "");
+                              setMonthlyRate2028(cv.lastStall.monthly_rate_2028 !== null ? String(cv.lastStall.monthly_rate_2028) : "");
+                            }
+                          }
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="">-- Manual Input / Select Closed Account --</option>
+                        {closedVendors.map(cv => {
+                          const stallStr = cv.lastStall?.stall_number ? ` (Stall: ${cv.lastStall.stall_number})` : "";
+                          return (
+                            <option key={cv.id} value={cv.id}>
+                              {cv.name}{stallStr}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Assigned Section</Label>
-                    <Input disabled value={selectedApp.preferred_section} className="h-10 bg-slate-50 font-medium" />
+                    <select 
+                      className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      value={section}
+                      onChange={e => {
+                        const newSection = e.target.value;
+                        setSection(newSection);
+                        generateStallNumber(newSection);
+                      }}
+                    >
+                      {Object.keys(SECTION_PREFIX).map(sec => (
+                        <option key={sec} value={sec}>{sec}</option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div className="space-y-1.5">
@@ -483,22 +643,55 @@ const AdminApplications = () => {
                       <span>Assigned Stall Number</span>
                       {generatingStall && <span className="text-emerald-600 text-[10px] flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin"/> Generating...</span>}
                     </Label>
-                    <Input 
-                      value={stallNumber} 
-                      onChange={e => setStallNumber(e.target.value)} 
-                      className="h-10 font-mono" 
-                      placeholder="e.g. MS-001"
-                    />
+                    <div className="flex gap-2">
+                      <Input 
+                        value={stallNumber} 
+                        onChange={e => setStallNumber(e.target.value)} 
+                        onBlur={e => lookupStallDetails(e.target.value)}
+                        className="h-10 font-mono flex-1" 
+                        placeholder="e.g. MS-001"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-10 w-10 rounded-xl shrink-0" 
+                        disabled={generatingStall} 
+                        onClick={() => generateStallNumber(section)}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Monthly Rate (₱)</Label>
-                    <Input 
-                      type="number" 
-                      value={monthlyRate} 
-                      onChange={e => setMonthlyRate(e.target.value)} 
-                      className="h-10 font-mono" 
-                    />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Rate 2026 (₱)</Label>
+                      <Input 
+                        type="number" 
+                        value={monthlyRate2026} 
+                        onChange={e => setMonthlyRate2026(e.target.value)} 
+                        className="h-10 font-mono" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Rate 2027 (₱)</Label>
+                      <Input 
+                        type="number" 
+                        value={monthlyRate2027} 
+                        onChange={e => setMonthlyRate2027(e.target.value)} 
+                        className="h-10 font-mono" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Rate 2028 (₱)</Label>
+                      <Input 
+                        type="number" 
+                        value={monthlyRate2028} 
+                        onChange={e => setMonthlyRate2028(e.target.value)} 
+                        className="h-10 font-mono" 
+                      />
+                    </div>
                   </div>
                 </>
               )}

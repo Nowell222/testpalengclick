@@ -712,6 +712,9 @@ export type Database = {
           reviewed_at: string | null
           status: string
           updated_at: string
+          business_permit_number: string | null
+          award_receipt_number: string | null
+          award_payment_date: string | null
         }
         Insert: {
           admin_notes?: string | null
@@ -729,6 +732,9 @@ export type Database = {
           reviewed_at?: string | null
           status?: string
           updated_at?: string
+          business_permit_number?: string | null
+          award_receipt_number?: string | null
+          award_payment_date?: string | null
         }
         Update: {
           admin_notes?: string | null
@@ -746,6 +752,9 @@ export type Database = {
           reviewed_at?: string | null
           status?: string
           updated_at?: string
+          business_permit_number?: string | null
+          award_receipt_number?: string | null
+          award_payment_date?: string | null
         }
         Relationships: []
       }
@@ -788,6 +797,48 @@ export type Database = {
             referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      stall_ownership_history: {
+        Row: {
+          id: string
+          stall_id: string
+          vendor_id: string | null
+          started_at: string
+          ended_at: string | null
+          status: string
+        }
+        Insert: {
+          id?: string
+          stall_id: string
+          vendor_id?: string | null
+          started_at?: string
+          ended_at?: string | null
+          status: string
+        }
+        Update: {
+          id?: string
+          stall_id?: string
+          vendor_id?: string | null
+          started_at?: string
+          ended_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stall_ownership_history_stall_id_fkey"
+            columns: ["stall_id"]
+            isOneToOne: false
+            referencedRelation: "stalls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stall_ownership_history_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }

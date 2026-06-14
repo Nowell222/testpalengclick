@@ -127,7 +127,11 @@ const VendorStallInfo = () => {
           },
         });
         if (edgeError || (edgeData && edgeData.error)) {
-          errors.push(`Account: ${edgeError?.message || edgeData?.error}`);
+          const rawMsg = edgeError?.message || edgeData?.error || "Failed to update account";
+          const errMsg = rawMsg.includes("Failed to send a request")
+            ? "Connection failed: Unable to connect to backend settings service."
+            : rawMsg;
+          errors.push(`Account: ${errMsg}`);
         } else {
           setEmailChanged(false); // We don't need email confirmation anymore
         }

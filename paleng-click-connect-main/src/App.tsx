@@ -14,6 +14,8 @@ import VendorLayout from "./components/vendor/VendorLayout";
 import BploLayout from "./components/bplo/BploLayout";
 import BploDashboard from "./pages/bplo/BploDashboard";
 import BploSettings from "./pages/bplo/BploSettings";
+import BploDelinquents from "./pages/bplo/BploDelinquents";
+import BploStallHistory from "./pages/bplo/BploStallHistory";
 
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import AdminUserManagement from "./pages/admin/AdminUserManagement";
@@ -129,6 +131,8 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<BploDashboard />} />
+              <Route path="history" element={<BploStallHistory />} />
+              <Route path="delinquents" element={<BploDelinquents />} />
               <Route path="settings" element={<BploSettings />} />
             </Route>
 

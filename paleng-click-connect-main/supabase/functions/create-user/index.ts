@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 declare const Deno: any;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://testpalengclick.vercel.app',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json()
-    const { _action, email, password, first_name, middle_name, last_name, contact_number, address, role, stall_number, section, location: stallLocation, monthly_rate, area_measurement, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, user_id } = body
+    const { _action, email, password, first_name, middle_name, last_name, contact_number, address, role, stall_number, section, location: stallLocation, monthly_rate, area_measurement, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, user_id, business_permit_number, award_receipt_number, award_payment_date } = body
 
     // ── Handle self-service updates (bypassing confirmation) ───────────
     if (_action === 'update-self' || _action === 'reset-password') {
@@ -267,7 +267,10 @@ Deno.serve(async (req: Request) => {
           .insert({
             user_id: newUser.user.id,
             stall_id: null,
-            award_date: new Date().toISOString().split('T')[0]
+            award_date: new Date().toISOString().split('T')[0],
+            business_permit_number: appData.business_permit_number || null,
+            award_receipt_number: appData.award_receipt_number || null,
+            award_payment_date: appData.award_payment_date || null
           })
           .select('id')
           .single();
@@ -480,7 +483,14 @@ Deno.serve(async (req: Request) => {
         await supabaseAdmin.from('stall_fee_schedules').delete().eq('stall_id', stallId)
       }
 
-      await supabaseAdmin.from('vendors').insert({ user_id: newUser.user.id, stall_id: stallId, award_date: new Date().toISOString().split('T')[0] })
+      await supabaseAdmin.from('vendors').insert({ 
+        user_id: newUser.user.id, 
+        stall_id: stallId, 
+        award_date: new Date().toISOString().split('T')[0],
+        business_permit_number: business_permit_number || null,
+        award_receipt_number: award_receipt_number || null,
+        award_payment_date: award_payment_date || null
+      })
     }
 
     return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {

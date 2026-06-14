@@ -3,7 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "cashier" | "vendor" | "bplo" | "eemo";
-type AccountStatus = "active" | "suspended" | "delinquent";
+type AccountStatus = "active" | "suspended" | "delinquent" | "closed";
 
 interface AuthContextType {
   user: User | null;
@@ -31,7 +31,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       supabase.from("profiles").select("first_name, last_name, middle_name, contact_number, avatar_url, status, address").eq("user_id", userId).single(),
     ]);
     if (roleRes.data) setRole(roleRes.data as AppRole);
-    if (profileRes.data) setProfile(profileRes.data);
+    if (profileRes.data) {
+      setProfile(profileRes.data);
+      const status = profileRes.data.status;
+      if (status === "suspended" || status === "delinquent" || status === "closed") {
+        await clearAuth();
+      }
+    }
   };
 
   const refetchProfile = async () => {
@@ -106,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const status = profileData?.status as AccountStatus | undefined;
 
-      if (status === "suspended" || status === "delinquent") {
+      if (status === "suspended" || status === "delinquent" || status === "closed") {
         // Sign them out immediately — they should not get a session
         await supabase.auth.signOut();
         return { error: null, blockedStatus: status };

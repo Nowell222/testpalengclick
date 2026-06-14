@@ -92,6 +92,7 @@ const emptyForm = {
   address: "", contact_number: "",
   stall_number: "", section: "Vegetable Section - Extension", location: "", monthly_rate: "", area_measurement: "",
   monthly_rate_2026: "", monthly_rate_2027: "", monthly_rate_2028: "",
+  business_permit_number: "", award_receipt_number: "", award_payment_date: "",
 };
 const emptyEdit = {
   first_name: "", middle_name: "", last_name: "",
@@ -169,6 +170,44 @@ const AdminUserManagement = () => {
     },
   });
 
+  const { data: stallHistory = [] } = useQuery({
+    queryKey: ["admin-stall-history-list"],
+    queryFn: async () => {
+      const [{ data: history }, { data: schedules }] = await Promise.all([
+        supabase
+          .from("stall_ownership_history")
+          .select("*, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)")
+          .order("started_at", { ascending: false }),
+        supabase
+          .from("payment_schedules")
+          .select("vendor_id, stall_id, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)")
+          .order("created_at", { ascending: false })
+      ]);
+      
+      const mergedHistory = history ? [...history] : [];
+      
+      if (schedules) {
+        schedules.forEach(sched => {
+          if (sched.vendor_id && sched.stalls) {
+            const hasHist = mergedHistory.some(h => h.vendor_id === sched.vendor_id);
+            if (!hasHist) {
+              mergedHistory.push({
+                vendor_id: sched.vendor_id,
+                stalls: sched.stalls,
+                id: `sched-fallback-${sched.vendor_id}`,
+                stall_id: sched.stall_id,
+                started_at: new Date().toISOString(),
+                ended_at: null,
+                status: 'closed'
+              });
+            }
+          }
+        });
+      }
+      return mergedHistory;
+    }
+  });
+
   const { data: pendingApps = [] } = useQuery({
     queryKey: ["admin-pending-applications"],
     queryFn: async () => {
@@ -184,6 +223,51 @@ const AdminUserManagement = () => {
     }
   });
 
+  const lookupStallDetails = async (stallNum: string, setFormState: Function) => {
+    if (!stallNum) return;
+    const cleanNum = stallNum.trim();
+    if (cleanNum.length < 2) return;
+
+    // 1. Search in local stallHistory first
+    const foundHist = stallHistory.find((h: any) => h.stalls?.stall_number?.toLowerCase() === cleanNum.toLowerCase());
+    if (foundHist && foundHist.stalls) {
+      const s = foundHist.stalls;
+      setFormState((f: any) => ({
+        ...f,
+        section: s.section || f.section,
+        location: s.location || "",
+        area_measurement: s.area_measurement || "",
+        monthly_rate_2026: s.monthly_rate_2026 !== null ? String(s.monthly_rate_2026) : "",
+        monthly_rate_2027: s.monthly_rate_2027 !== null ? String(s.monthly_rate_2027) : "",
+        monthly_rate_2028: s.monthly_rate_2028 !== null ? String(s.monthly_rate_2028) : "",
+      }));
+      return;
+    }
+
+    // 2. Query supabase stalls table
+    try {
+      const { data, error } = await supabase
+        .from("stalls")
+        .select("section, location, area_measurement, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028")
+        .eq("stall_number", cleanNum)
+        .maybeSingle();
+
+      if (data && !error) {
+        setFormState((f: any) => ({
+          ...f,
+          section: data.section || f.section,
+          location: data.location || "",
+          area_measurement: data.area_measurement || "",
+          monthly_rate_2026: data.monthly_rate_2026 !== null ? String(data.monthly_rate_2026) : "",
+          monthly_rate_2027: data.monthly_rate_2027 !== null ? String(data.monthly_rate_2027) : "",
+          monthly_rate_2028: data.monthly_rate_2028 !== null ? String(data.monthly_rate_2028) : "",
+        }));
+      }
+    } catch (err) {
+      console.error("Error looking up stall details:", err);
+    }
+  };
+
   const generateStallNumber = async (section: string) => {
     setGeneratingStall(true);
     try {
@@ -192,7 +276,9 @@ const AdminUserManagement = () => {
       const existingNums = (existingStalls || []).map(s => { const p = s.stall_number?.split("-"); return p?.length === 2 ? parseInt(p[1], 10) : 0; }).filter(n => !isNaN(n) && n > 0);
       let next = 1;
       while (existingNums.includes(next)) next++;
-      setForm(f => ({ ...f, stall_number: `${prefix}-${String(next).padStart(3, "0")}` }));
+      const generatedNum = `${prefix}-${String(next).padStart(3, "0")}`;
+      setForm(f => ({ ...f, stall_number: generatedNum }));
+      lookupStallDetails(generatedNum, setForm);
     } catch { toast.error("Failed to generate stall number"); }
     finally { setGeneratingStall(false); }
   };
@@ -231,6 +317,9 @@ const AdminUserManagement = () => {
           monthly_rate_2027: assignStall && form.monthly_rate_2027 ? Number(form.monthly_rate_2027) : undefined,
           monthly_rate_2028: assignStall && form.monthly_rate_2028 ? Number(form.monthly_rate_2028) : undefined,
           area_measurement: assignStall ? form.area_measurement.trim() : "",
+          business_permit_number: form.business_permit_number.trim() || null,
+          award_receipt_number: form.award_receipt_number.trim() || null,
+          award_payment_date: form.award_payment_date || null,
         },
       });
       if (res.error) throw new Error(res.error.message);
@@ -354,6 +443,9 @@ const AdminUserManagement = () => {
 
   const reactivate = useMutation({
     mutationFn: async (u: any) => {
+      if (u.status === "closed") {
+        throw new Error("Closed accounts cannot be reactivated");
+      }
       const { error } = await supabase.from("profiles").update({ status: "active" }).eq("user_id", u.id);
       if (error) throw error;
       await supabase.from("notifications").insert({
@@ -366,7 +458,7 @@ const AdminUserManagement = () => {
       toast.success(`${u.name}'s account has been reactivated.`);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
     },
-    onError: () => toast.error("Failed to reactivate account"),
+    onError: (e: any) => toast.error(e.message || "Failed to reactivate account"),
   });
 
   const deleteUsers = useMutation({
@@ -1349,6 +1441,66 @@ const AdminUserManagement = () => {
 
                   {assignStall && (
                     <>
+                      {(() => {
+                        const activeOccupiedStalls = users
+                          .filter((u: any) => u.status !== "closed" && u.role === "vendor" && u.stall && u.stall !== "—")
+                          .map((u: any) => u.stall);
+
+                        const closedVendors = users.filter((u: any) => {
+                          if (u.status !== "closed" || u.role !== "vendor") return false;
+                          
+                          const hist = stallHistory.find((h: any) => h.vendor_id === u.vendor_id);
+                          const lastStallNum = hist?.stalls?.stall_number;
+                          if (!lastStallNum) return true;
+
+                          return !activeOccupiedStalls.includes(lastStallNum);
+                        });
+
+                        if (closedVendors.length === 0) return null;
+                        return (
+                          <div className="mb-4 space-y-1.5">
+                            <Label className="text-xs font-semibold text-muted-foreground">Reference Closed Account (Pre-fill Stall Details)</Label>
+                            <select
+                              className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              onChange={e => {
+                                const vendorId = e.target.value;
+                                if (vendorId) {
+                                  const hist = stallHistory.find((h: any) => h.vendor_id === vendorId);
+                                  if (hist && hist.stalls) {
+                                    const s = hist.stalls as any;
+                                    setForm(f => ({
+                                      ...f,
+                                      section: s.section || f.section,
+                                      stall_number: s.stall_number || "",
+                                      location: s.location || "",
+                                      area_measurement: s.area_measurement || "",
+                                      monthly_rate_2026: s.monthly_rate_2026 !== null ? String(s.monthly_rate_2026) : "",
+                                      monthly_rate_2027: s.monthly_rate_2027 !== null ? String(s.monthly_rate_2027) : "",
+                                      monthly_rate_2028: s.monthly_rate_2028 !== null ? String(s.monthly_rate_2028) : "",
+                                    }));
+                                  }
+                                }
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="">-- Manual Input / Select Closed Account --</option>
+                              {closedVendors.map((cv: any) => {
+                                const hist = stallHistory.find((h: any) => h.vendor_id === cv.vendor_id);
+                                const lastStallStr = hist?.stalls?.stall_number ? ` (Stall: ${hist.stalls.stall_number})` : "";
+                                return (
+                                  <option key={cv.id} value={cv.vendor_id}>
+                                    {cv.name}{lastStallStr}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <p className="text-[10px] text-muted-foreground">
+                              Selecting a closed account will auto-populate its previous stall number, section, area, and rates.
+                            </p>
+                          </div>
+                        );
+                      })()}
+
                       <div className="grid gap-4 sm:grid-cols-3">
                         <div className="space-y-1.5">
                           <Label>Section <span className="text-accent">*</span></Label>
@@ -1359,7 +1511,13 @@ const AdminUserManagement = () => {
                         <div className="space-y-1.5">
                           <Label>Stall Number <span className="text-accent">*</span> <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Auto</span></Label>
                           <div className="flex gap-2">
-                            <Input placeholder="e.g. G-001" className="h-11 rounded-xl font-mono flex-1" value={form.stall_number} onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))} />
+                            <Input 
+                              placeholder="e.g. G-001" 
+                              className="h-11 rounded-xl font-mono flex-1" 
+                              value={form.stall_number} 
+                              onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
+                              onBlur={e => lookupStallDetails(e.target.value, setForm)}
+                            />
                             <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
                               {generatingStall ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                             </Button>
@@ -1371,6 +1529,22 @@ const AdminUserManagement = () => {
                           <Input placeholder="e.g. 12.8" className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
                         </div>
                       </div>
+
+                      <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                        <div className="space-y-1.5">
+                          <Label>Business Permit Number</Label>
+                          <Input placeholder="e.g. BP-2026-0001" className="h-11 rounded-xl" value={form.business_permit_number} onChange={e => setForm(f => ({ ...f, business_permit_number: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Permit Receipt #</Label>
+                          <Input placeholder="e.g. REC-987654" className="h-11 rounded-xl" value={form.award_receipt_number} onChange={e => setForm(f => ({ ...f, award_receipt_number: e.target.value }))} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Date of Payment</Label>
+                          <Input type="date" className="h-11 rounded-xl" value={form.award_payment_date} onChange={e => setForm(f => ({ ...f, award_payment_date: e.target.value }))} />
+                        </div>
+                      </div>
+
                       <div className="grid gap-4 sm:grid-cols-3 mt-4">
                         <div className="space-y-1.5">
                           <Label>Monthly Rate 2026 (₱) <span className="text-accent">*</span></Label>
@@ -1575,13 +1749,7 @@ const AdminUserManagement = () => {
                                   </DropdownMenuItem>
                                 )}
 
-                                {/* Closed → reopen */}
-                                {isClosed && (
-                                  <DropdownMenuItem className="flex items-center gap-2 px-3 py-2 text-xs text-success rounded-lg hover:bg-success/10 cursor-pointer focus:bg-success/10 outline-none" disabled={reactivate.isPending} onClick={() => reactivate.mutate(u)}>
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                                    <span>Reopen Account</span>
-                                  </DropdownMenuItem>
-                                )}
+
 
                                 {/* Close Vendor Account option */}
                                 {u.role === "vendor" && !isClosed && (

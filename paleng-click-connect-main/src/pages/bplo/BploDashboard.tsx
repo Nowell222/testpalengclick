@@ -54,10 +54,83 @@ export default function BploDashboard() {
     business_permit_number: "",
     award_receipt_number: "",
     award_payment_date: "",
+    stall_number: "",
+    section: "",
   });
 
   const [saving, setSaving] = useState(false);
   const itemsPerPage = 10;
+
+  // Stall History States
+  const [historyStall, setHistoryStall] = useState<{ id: string, number: string } | null>(null);
+  const [stallHistory, setStallHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const handleStallHistoryClick = async (stallId: string | null, stallNumber: string) => {
+    if (!stallId) return;
+    setHistoryStall({ id: stallId, number: stallNumber });
+    setLoadingHistory(true);
+    try {
+      const { data: historyData, error: historyError } = await supabase
+        .from("stall_ownership_history")
+        .select(`
+          id,
+          started_at,
+          ended_at,
+          status,
+          vendors (
+            id,
+            user_id,
+            business_permit_number,
+            award_receipt_number,
+            award_payment_date
+          )
+        `)
+        .eq("stall_id", stallId)
+        .order("started_at", { ascending: false });
+
+      if (historyError) throw historyError;
+
+      if (!historyData || historyData.length === 0) {
+        setStallHistory([]);
+        return;
+      }
+
+      const userIds = historyData
+        .map((h: any) => h.vendors?.user_id)
+        .filter(Boolean);
+
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, contact_number")
+          .in("user_id", userIds);
+
+        if (profilesError) throw profilesError;
+
+        const merged = historyData.map((h: any) => {
+          if (h.vendors && h.vendors.user_id) {
+            const profile = profilesData?.find((p) => p.user_id === h.vendors.user_id);
+            return {
+              ...h,
+              vendors: {
+                ...h.vendors,
+                profiles: profile || null
+              }
+            };
+          }
+          return h;
+        });
+        setStallHistory(merged);
+      } else {
+        setStallHistory(historyData);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load stall ownership history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   // 1. Fetch data
   const { data: vendors = [], isLoading } = useQuery<VendorRow[]>({
@@ -210,6 +283,8 @@ export default function BploDashboard() {
       business_permit_number: vendor.businessPermitNumber,
       award_receipt_number: vendor.awardReceiptNumber,
       award_payment_date: vendor.awardPaymentDate,
+      stall_number: vendor.stallNumber === "—" ? "" : vendor.stallNumber,
+      section: vendor.section === "—" ? "" : vendor.section,
     });
   };
 
@@ -249,10 +324,93 @@ export default function BploDashboard() {
 
       if (vendorErr) errors.push(`Licensing: ${vendorErr.message}`);
 
+      // 2.5. Update Stall Assignment (Section & Stall Number)
+      let finalStallId = editVendor.stallId;
+      const oldStallId = editVendor.stallId;
+      const currentStallNum = editVendor.stallNumber;
+      const newStallNum = editForm.stall_number.trim();
+      const newSection = editForm.section.trim();
+
+      if (newStallNum && newStallNum !== currentStallNum) {
+        const { data: existingStall } = await supabase
+          .from("stalls")
+          .select("id, status")
+          .eq("stall_number", newStallNum)
+          .maybeSingle();
+
+        if (existingStall) {
+          finalStallId = existingStall.id;
+          const { error: updateStallErr } = await supabase
+            .from("stalls")
+            .update({
+              section: newSection || "General",
+              status: "occupied"
+            })
+            .eq("id", finalStallId);
+          if (updateStallErr) errors.push(`Assign Stall: ${updateStallErr.message}`);
+        } else {
+          if (oldStallId) {
+            const { error: renameStallErr } = await supabase
+              .from("stalls")
+              .update({
+                stall_number: newStallNum,
+                section: newSection || "General"
+              })
+              .eq("id", oldStallId);
+            if (renameStallErr) errors.push(`Rename Stall: ${renameStallErr.message}`);
+          } else {
+            const { data: newStall, error: createStallErr } = await supabase
+              .from("stalls")
+              .insert({
+                stall_number: newStallNum,
+                section: newSection || "General",
+                status: "occupied",
+                monthly_rate: 1450
+              })
+              .select("id")
+              .single();
+            if (createStallErr) {
+              errors.push(`Create Stall: ${createStallErr.message}`);
+            } else {
+              finalStallId = newStall.id;
+            }
+          }
+        }
+
+        if (finalStallId !== oldStallId) {
+          const { error: updateVendorStallErr } = await supabase
+            .from("vendors")
+            .update({ stall_id: finalStallId })
+            .eq("id", editVendor.id);
+          if (updateVendorStallErr) errors.push(`Update Vendor Stall: ${updateVendorStallErr.message}`);
+
+          if (oldStallId) {
+            const { data: otherVendors } = await supabase
+              .from("vendors")
+              .select("id")
+              .eq("stall_id", oldStallId)
+              .neq("id", editVendor.id);
+
+            if (!otherVendors || otherVendors.length === 0) {
+              await supabase
+                .from("stalls")
+                .update({ status: "vacant" })
+                .eq("id", oldStallId);
+            }
+          }
+        }
+      } else if (oldStallId && newSection && newSection !== editVendor.section) {
+        const { error: updateStallErr } = await supabase
+          .from("stalls")
+          .update({ section: newSection })
+          .eq("id", oldStallId);
+        if (updateStallErr) errors.push(`Update Stall Section: ${updateStallErr.message}`);
+      }
+
       // 3. Update Stall Area measurement (via RPC if vendor has stall)
-      if (editVendor.stallId) {
+      if (finalStallId) {
         const { error: stallErr } = await supabase.rpc("update_stall_area", {
-          p_stall_id: editVendor.stallId,
+          p_stall_id: finalStallId,
           p_area_measurement: editForm.area_measurement.trim() || null
         });
         if (stallErr) errors.push(`Stall Area: ${stallErr.message}`);
@@ -273,7 +431,11 @@ export default function BploDashboard() {
             },
           });
           if (edgeError || (edgeData && edgeData.error)) {
-            errors.push(`Account Email: ${edgeError?.message || edgeData?.error}`);
+            const rawMsg = edgeError?.message || edgeData?.error;
+            const errMsg = rawMsg?.includes("Failed to send a request")
+              ? "Connection failed to backend account helper"
+              : rawMsg;
+            errors.push(`Account Email: ${errMsg}`);
           }
         }
       }
@@ -380,7 +542,16 @@ export default function BploDashboard() {
                       <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Phone size={11} /> {v.contact}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-800 font-mono">Stall {v.stallNumber}</p>
+                      {v.stallId ? (
+                        <button 
+                          onClick={() => handleStallHistoryClick(v.stallId, v.stallNumber)} 
+                          className="font-semibold text-blue-600 hover:text-blue-800 hover:underline font-mono text-left"
+                        >
+                          Stall {v.stallNumber}
+                        </button>
+                      ) : (
+                        <p className="font-semibold text-slate-800 font-mono">Stall {v.stallNumber}</p>
+                      )}
                       <p className="text-xs text-slate-400 mt-0.5">{v.section}</p>
                     </td>
                     <td className="px-5 py-4 font-mono font-bold text-slate-700">
@@ -536,6 +707,40 @@ export default function BploDashboard() {
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5 border-b pb-1.5">
                   <Layers size={14} /> Stall Allocation
                 </p>
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-slate-600">Assigned Stall Number</Label>
+                    <Input 
+                      className="h-10 rounded-xl border-slate-200 font-mono font-bold" 
+                      value={editForm.stall_number} 
+                      onChange={e => setEditForm(f => ({ ...f, stall_number: e.target.value }))} 
+                      placeholder="e.g. MS-001" 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-slate-600">Market Section</Label>
+                    <select
+                      className="w-full h-10 rounded-xl border border-slate-200 bg-background px-3 text-sm focus:border-blue-500 outline-none"
+                      value={editForm.section}
+                      onChange={e => setEditForm(f => ({ ...f, section: e.target.value }))}
+                    >
+                      <option value="">Select a section</option>
+                      <option value="Building I - 1st Floor">Building I - 1st Floor</option>
+                      <option value="Building II - 1st Floor">Building II - 1st Floor</option>
+                      <option value="Building I - 2nd Floor">Building I - 2nd Floor</option>
+                      <option value="Building II - 2nd Floor">Building II - 2nd Floor</option>
+                      <option value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</option>
+                      <option value="New Building - Mojica">New Building - Mojica</option>
+                      <option value="New Building - Kalayaan">New Building - Kalayaan</option>
+                      <option value="Meat Stalls">Meat Stalls</option>
+                      <option value="Fish Stalls">Fish Stalls</option>
+                      <option value="Egg and Dried Fish">Egg and Dried Fish</option>
+                      <option value="Eatery 2nd Floor">Eatery 2nd Floor</option>
+                      <option value="Vegetable Section">Vegetable Section</option>
+                      <option value="Vegetable Section - Extension">Vegetable Section - Extension</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs font-semibold text-slate-600">Stall Area Measurement (sqm) *</Label>
                   <Input className="h-10 rounded-xl border-slate-200 font-mono" value={editForm.area_measurement} onChange={e => setEditForm(f => ({ ...f, area_measurement: e.target.value }))} placeholder="e.g. 6.25" />
@@ -585,6 +790,94 @@ export default function BploDashboard() {
                 </Button>
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stall History Dialog Modal */}
+      {historyStall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(13, 27, 42, 0.6)", backdropFilter: "blur(4px)" }} onClick={() => setHistoryStall(null)}>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50/50 to-transparent px-6 py-4 rounded-t-2xl">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Stall Ownership History</h3>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Chronological ownership list for Stall {historyStall.number}</p>
+              </div>
+              <button onClick={() => setHistoryStall(null)} className="rounded-lg p-1.5 hover:bg-slate-100 transition-colors">
+                <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {loadingHistory ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                  <p className="text-xs text-slate-400">Loading ownership logs...</p>
+                </div>
+              ) : stallHistory.length === 0 ? (
+                <p className="text-center py-12 text-sm text-slate-400">No ownership history records found.</p>
+              ) : (
+                <div className="relative border-l border-slate-200 pl-6 ml-4 space-y-6">
+                  {stallHistory.map((h) => {
+                    const vendor = h.vendors;
+                    const profile = vendor?.profiles;
+                    const name = profile ? `${profile.first_name} ${profile.last_name}` : "Unknown Vendor";
+                    const isCurrent = !h.ended_at && h.status === 'active';
+                    
+                    return (
+                      <div key={h.id} className="relative">
+                        {/* Timeline Bullet */}
+                        <span className={`absolute -left-[32px] top-1.5 h-3.5 w-3.5 rounded-full border-2 bg-white flex items-center justify-center ${
+                          isCurrent 
+                            ? "border-emerald-500 shadow-sm" 
+                            : h.status === 'transferred' 
+                              ? "border-blue-500" 
+                              : "border-slate-300"
+                        }`}>
+                          {isCurrent && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                        </span>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-slate-900 text-sm">{name}</h4>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                              isCurrent 
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
+                                : h.status === 'transferred' 
+                                  ? "bg-blue-50 text-blue-700 border border-blue-100" 
+                                  : "bg-slate-100 text-slate-700"
+                            }`}>
+                              {isCurrent ? "Current Owner" : h.status}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-slate-400 flex items-center gap-1 font-semibold">
+                            <Calendar className="h-3 w-3 text-slate-400" />
+                            {new Date(h.started_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} — {h.ended_at ? new Date(h.ended_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "Present"}
+                          </p>
+
+                          {vendor && (
+                            <div className="mt-2 bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1 text-slate-600">
+                              <p className="font-semibold text-slate-700 flex items-center gap-1 mb-1.5"><BadgeInfo size={12} className="text-blue-500" /> Vendor Details:</p>
+                              <p><span className="text-slate-400">Permit Number:</span> <strong className="text-slate-700">{vendor.business_permit_number || "—"}</strong></p>
+                              <p><span className="text-slate-400">Permit Receipt #:</span> <strong className="text-slate-700">{vendor.award_receipt_number || "—"}</strong></p>
+                              <p><span className="text-slate-400">Date of Payment:</span> <strong className="text-slate-700">{vendor.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString() : "—"}</strong></p>
+                              {profile?.contact_number && <p><span className="text-slate-400">Contact:</span> <strong className="text-slate-700">{profile.contact_number}</strong></p>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t p-4 flex justify-end bg-slate-50/50 rounded-b-2xl">
+              <Button size="sm" variant="outline" className="rounded-lg h-9" onClick={() => setHistoryStall(null)}>
+                Close History
+              </Button>
             </div>
           </div>
         </div>
