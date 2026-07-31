@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchRoleAndProfile = async (userId: string) => {
     const [roleRes, profileRes] = await Promise.all([
       supabase.rpc("get_user_role", { _user_id: userId }),
-      supabase.from("profiles").select("first_name, last_name, middle_name, contact_number, avatar_url, status, address").eq("user_id", userId).single(),
+      supabase.from("profiles").select("first_name, last_name, middle_name, contact_number, avatar_url, status, address").eq("user_id", userId).maybeSingle(),
     ]);
     if (roleRes.data) setRole(roleRes.data as AppRole);
     if (profileRes.data) {
@@ -78,22 +78,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    // On mount: get existing session, handle stale refresh tokens gracefully
-    supabase.auth.getSession().then(({ data: { session: sess }, error }) => {
-      if (error) {
-        // "Refresh Token Not Found" or similar - clear the stale session
-        console.warn("[Auth] Session error on mount, clearing:", error.message);
-        clearAuth();
-        return;
-      }
-      setSession(sess);
-      setUser(sess?.user ?? null);
-      if (sess?.user) {
-        fetchRoleAndProfile(sess.user.id);
-      }
-      setLoading(false);
-    });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -108,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from("profiles")
         .select("status")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
       const status = profileData?.status as AccountStatus | undefined;
 
