@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "cd paleng-click-connect-main && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
