@@ -555,6 +555,40 @@ const AdminUserManagement = () => {
       "rate_2028": "monthly_rate_2028",
       "rate 2028": "monthly_rate_2028",
       "size": "area_measurement",
+      "business_permit_number": "business_permit_number",
+      "business permit number": "business_permit_number",
+      "business_permit_no": "business_permit_number",
+      "business permit no": "business_permit_number",
+      "business_permit": "business_permit_number",
+      "business permit": "business_permit_number",
+      "business_permit_num": "business_permit_number",
+      "business permit num": "business_permit_number",
+      "award_receipt_number": "award_receipt_number",
+      "award receipt number": "award_receipt_number",
+      "permit_receipt_number": "award_receipt_number",
+      "permit receipt number": "award_receipt_number",
+      "permit_receipt_no": "award_receipt_number",
+      "permit receipt no": "award_receipt_number",
+      "permit_receipt": "award_receipt_number",
+      "permit receipt": "award_receipt_number",
+      "permit_no": "award_receipt_number",
+      "permit no": "award_receipt_number",
+      "permit_number": "award_receipt_number",
+      "permit number": "award_receipt_number",
+      "permit_receipt_#": "award_receipt_number",
+      "permit receipt #": "award_receipt_number",
+      "receipt_number": "award_receipt_number",
+      "receipt number": "award_receipt_number",
+      "receipt_no": "award_receipt_number",
+      "receipt no": "award_receipt_number",
+      "award_payment_date": "award_payment_date",
+      "award payment date": "award_payment_date",
+      "payment_date": "award_payment_date",
+      "payment date": "award_payment_date",
+      "date_of_payment": "award_payment_date",
+      "date of payment": "award_payment_date",
+      "permit_payment_date": "award_payment_date",
+      "permit payment date": "award_payment_date",
     };
 
     const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
@@ -625,6 +659,9 @@ const AdminUserManagement = () => {
             stall_number: (row.stall_number || "").trim(),
             section: (row.section || "Vegetable Section - Extension").trim(),
             location: (row.location || "").trim(),
+            business_permit_number: (row.business_permit_number || "").trim() || undefined,
+            award_receipt_number: (row.award_receipt_number || "").trim() || undefined,
+            award_payment_date: (row.award_payment_date || "").trim() || undefined,
             monthly_rate: row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
               ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
               : row.monthly_rate !== undefined && row.monthly_rate !== ""
@@ -666,9 +703,9 @@ const AdminUserManagement = () => {
   };
 
   const downloadSampleCSV = () => {
-    const header = "email,password,first_name,middle_name,last_name,contact_number,address,role,stall_number,section,location,area_measurement,monthly_rate_2026,monthly_rate_2027,monthly_rate_2028";
-    const row1 = "juan@example.com,abc123,Juan,,Dela Cruz,09171234567,Lipa City,vendor,VSE-001,Vegetable Section - Extension,Near gate,12.8,3840,4608,5760";
-    const row2 = "maria@example.com,abc123,Maria,Santos,Reyes,09181234567,Batangas City,cashier,,,,,,,";
+    const header = "email,password,first_name,middle_name,last_name,contact_number,address,role,stall_number,section,location,area_measurement,business_permit_number,award_receipt_number,award_payment_date,monthly_rate_2026,monthly_rate_2027,monthly_rate_2028";
+    const row1 = "juan@example.com,abc123,Juan,,Dela Cruz,09171234567,Lipa City,vendor,VSE-001,Vegetable Section - Extension,Near gate,12.8,BP-2026-0001,REC-987654,2026-01-15,3840,4608,5760";
+    const row2 = "maria@example.com,abc123,Maria,Santos,Reyes,09181234567,Batangas City,cashier,,,,,,,,,,";
     const blob = new Blob([header + "\n" + row1 + "\n" + row2], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "sample-users.csv"; a.click();
@@ -1157,6 +1194,9 @@ const AdminUserManagement = () => {
                         { col: "stall_number", req: false, note: "vendors only" }, { col: "section", req: false, note: "vendors only" },
                         { col: "location", req: false },
                         { col: "area_measurement", req: false, note: "vendors only (e.g. 12.8)" },
+                        { col: "business_permit_number", req: false, note: "vendors" },
+                        { col: "award_receipt_number", req: false, note: "vendors (Permit Receipt #)" },
+                        { col: "award_payment_date", req: false, note: "vendors (YYYY-MM-DD)" },
                         { col: "monthly_rate_2026", req: false, note: "vendors" },
                         { col: "monthly_rate_2027", req: false, note: "vendors" },
                         { col: "monthly_rate_2028", req: false, note: "vendors" },
@@ -1233,7 +1273,7 @@ const AdminUserManagement = () => {
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="border-b bg-secondary/60">
-                              {["#", "Email", "Name", "Role", "Stall", "Section", "Rate 2026", "Rate 2027", "Rate 2028"].map(h => (
+                              {["#", "Email", "Name", "Role", "Stall", "Section", "Bus. Permit #", "Permit Receipt #", "Payment Date", "Rate 2026", "Rate 2027", "Rate 2028"].map(h => (
                                 <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                               ))}
                             </tr>
@@ -1255,6 +1295,9 @@ const AdminUserManagement = () => {
                                   </td>
                                   <td className="px-3 py-2 font-mono">{r.stall_number || "—"}</td>
                                   <td className="px-3 py-2 max-w-[120px] truncate text-muted-foreground">{r.section || "—"}</td>
+                                  <td className="px-3 py-2 font-mono max-w-[110px] truncate text-muted-foreground">{r.business_permit_number || "—"}</td>
+                                  <td className="px-3 py-2 font-mono max-w-[110px] truncate text-muted-foreground">{r.award_receipt_number || "—"}</td>
+                                  <td className="px-3 py-2 font-mono max-w-[100px] truncate text-muted-foreground">{r.award_payment_date || "—"}</td>
                                   <td className={`px-3 py-2 font-mono font-semibold ${missingRate ? "text-amber-600" : "text-foreground"}`}>
                                     {(r.monthly_rate_2026 || r.monthly_rate)
                                       ? fmtRate(r.monthly_rate_2026 || r.monthly_rate)
