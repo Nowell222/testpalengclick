@@ -85,6 +85,13 @@ export const syncOfflinePayments = async () => {
 export const getUnsyncedCount = async () => {
   if (!dbPromise) return 0;
   const db = await dbPromise;
-  const all = await db.getAll('offline_payments');
+  const all: any[] = await db.getAll('offline_payments');
   return all.filter((p: any) => !p.synced).length;
+};
+
+export const getOfflinePayments = async () => {
+  if (!dbPromise) return [];
+  const db = await dbPromise;
+  const all: any[] = await db.getAll('offline_payments');
+  return all.filter((p: any) => !p.synced);
 };

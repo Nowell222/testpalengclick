@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
-import { saveOfflinePayment, syncOfflinePayments, getUnsyncedCount } from "@/lib/offlineSync";
+import { saveOfflinePayment, syncOfflinePayments, getUnsyncedCount, getOfflinePayments } from "@/lib/offlineSync";
 import { preloadVendorDirectory, searchCachedVendors } from "@/lib/vendorCache";
 
 const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -602,8 +602,8 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
                     </p>
                   </div>
                 </div>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   onClick={() => {
                     setSearchResults([]);
                     loadVendorData(res);
@@ -652,9 +652,9 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
                   return (
                     <button key={m} onClick={() => { setPeriodMonth(mo); setAmount(""); }}
                       className={`rounded-xl px-1 py-2.5 text-center text-xs transition-all border-2 ${isSel ? "border-primary bg-primary/10 shadow-sm" :
-                          isFully ? "border-success/30 bg-success/10" :
-                            isPartial ? "border-primary/20 bg-primary/5" :
-                              "border-accent/20 bg-accent/5 hover:border-accent/40"
+                        isFully ? "border-success/30 bg-success/10" :
+                          isPartial ? "border-primary/20 bg-primary/5" :
+                            "border-accent/20 bg-accent/5 hover:border-accent/40"
                         }`}>
                       <p className={`font-semibold ${isSel ? "text-primary" : "text-foreground"}`}>{m.slice(0, 3)}</p>
                       <p className={`text-[10px] font-bold mt-0.5 ${isFully ? "text-success" : isPartial ? "text-primary" : "text-accent"}`}>
@@ -836,7 +836,7 @@ const CashierAcceptPayment = () => {
         console.warn("Offline query for active shift, checking local cache...", err);
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
-          try { return JSON.parse(cached); } catch (e) {}
+          try { return JSON.parse(cached); } catch (e) { }
         }
         if (!navigator.onLine) {
           const offlineShift = {
@@ -1228,12 +1228,160 @@ Please contact the cashier or try paying again through another method.`,
 
   const resetManual = () => { setManualVendor(null); setManualSearch(""); setManualAmount(""); setManualReceipt(null); };
 
+  const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [offlinePaymentsList, setOfflinePaymentsList] = useState<any[]>([]);
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const refreshOfflineStatus = async () => {
+    const count = await getUnsyncedCount();
+    setUnsyncedCount(count);
+    if (count > 0) {
+      const list = await getOfflinePayments();
+      setOfflinePaymentsList(list);
+    } else {
+      setOfflinePaymentsList([]);
+    }
+  };
+
+  useEffect(() => {
+    refreshOfflineStatus();
+    const interval = setInterval(refreshOfflineStatus, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualSync = async () => {
+    if (!navigator.onLine) {
+      toast.error("Still offline. Please connect to internet to sync payments.");
+      return;
+    }
+    setIsSyncing(true);
+    toast.info("Syncing offline payments with database...");
+    const res = await syncOfflinePayments();
+    setIsSyncing(false);
+    await refreshOfflineStatus();
+    if (res?.success) {
+      toast.success(`Successfully synced ${res.count} payment(s)!`);
+      queryClient.invalidateQueries();
+    } else {
+      toast.error("Failed to sync some offline payments. Will retry automatically.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Accept Payment</h1>
         <p className="text-sm text-muted-foreground">Confirm online payments, process walk-in cash, or record manually</p>
       </div>
+
+      {/* ── OFFLINE PAYMENTS BANNER & SYNC CONTROL ───────────────────────────── */}
+      {unsyncedCount > 0 && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-amber-900 shadow-sm flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center font-bold text-lg shrink-0">
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm text-amber-950 flex items-center gap-2">
+                {unsyncedCount} Offline Payment{unsyncedCount > 1 ? "s" : ""} Saved Locally
+              </h4>
+              <p className="text-xs text-amber-800/80 mt-0.5">
+                Saved safely in browser local storage (IndexedDB). Click to view or sync with database.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-400 bg-white/80 text-amber-900 hover:bg-white text-xs font-semibold rounded-xl"
+              onClick={() => { refreshOfflineStatus(); setShowOfflineModal(true); }}
+            >
+              <Eye className="w-3.5 h-3.5 mr-1.5" /> View Saved ({unsyncedCount})
+            </Button>
+            <Button
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl gap-1.5 shadow-sm"
+              disabled={isSyncing}
+              onClick={handleManualSync}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+              {isSyncing ? "Syncing..." : "Sync Now"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── OFFLINE SAVED PAYMENTS MODAL ─────────────────────────────────────── */}
+      {showOfflineModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-card w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b bg-amber-50 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base text-amber-950 flex items-center gap-2">
+                  <span className="text-lg">⚡</span> Saved Offline Payments
+                </h3>
+                <p className="text-xs text-amber-800">
+                  {offlinePaymentsList.length} transaction(s) stored locally in browser IndexedDB
+                </p>
+              </div>
+              <button
+                onClick={() => setShowOfflineModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-amber-200/50 text-amber-900 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-3 flex-1">
+              {offlinePaymentsList.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No unsynced offline payments found.
+                </div>
+              ) : (
+                offlinePaymentsList.map((p, idx) => (
+                  <div key={p.id || idx} className="rounded-xl border bg-background p-4 flex items-center justify-between gap-3 text-sm">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 font-bold text-foreground">
+                        <span>{fmt(p.amount)}</span>
+                        <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono">
+                          {p.payment_method?.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Period: Month {p.period_month || "—"}, {p.period_year || 2026} · Saved {new Date(p.created_at || Date.now()).toLocaleTimeString()}
+                      </p>
+                      <p className="text-[11px] font-mono text-amber-700">
+                        ID: {p.id?.substring(0, 18)}...
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-amber-500/15 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> Pending Sync
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t bg-secondary/30 flex items-center justify-between gap-3">
+              <span className="text-xs text-muted-foreground">
+                Location: Browser IndexedDB (`palengclick-offline-db`)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowOfflineModal(false)} className="rounded-xl text-xs">
+                  Close
+                </Button>
+                <Button size="sm" onClick={handleManualSync} disabled={isSyncing} className="rounded-xl text-xs bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                  Sync to Database
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!shiftLoading && !activeShift && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600 flex items-center gap-2 font-medium">
