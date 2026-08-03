@@ -719,7 +719,13 @@ const AdminUserManagement = () => {
   };
 
   const filtered = users.filter((u: any) => {
-    const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.stall.toLowerCase().includes(search.toLowerCase()) || u.contact.includes(search);
+    const term = search.toLowerCase().trim();
+    const matchSearch = !term ||
+      (u.name || "").toLowerCase().includes(term) ||
+      (u.stall || "").toLowerCase().includes(term) ||
+      (u.section || "").toLowerCase().includes(term) ||
+      (u.contact || "").toLowerCase().includes(term) ||
+      (u.address || "").toLowerCase().includes(term);
     return matchSearch && (filterRole === "all" || u.role === filterRole) && (filterStatus === "all" || u.status === filterStatus);
   });
 

@@ -156,9 +156,8 @@ const LandingPage = () => {
             </div>
 
             <div className="lg:col-span-5 flex items-center justify-center mt-10 lg:mt-0">
-              <motion.div variants={fadeUp} custom={0} className="flex flex-row items-center justify-center gap-6 sm:gap-8">
-                <img src="/san-juan-logo.png" alt="San Juan Logo" className="h-[140px] sm:h-[180px] lg:h-[200px] w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform duration-300" />
-                <img src="/dap-logo.png" alt="DAP Logo" className="h-[140px] sm:h-[180px] lg:h-[200px] w-auto object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform duration-300" />
+              <motion.div variants={fadeUp} custom={0} className="flex items-center justify-center">
+                <img src="/san-juan-logo.png" alt="San Juan Logo" className="h-[160px] sm:h-[220px] lg:h-[260px] w-auto object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.6)] hover:scale-105 transition-transform duration-300" />
               </motion.div>
             </div>
           </motion.div>

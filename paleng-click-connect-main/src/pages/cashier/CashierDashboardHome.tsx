@@ -1,8 +1,8 @@
 import {
   Clock, CheckCircle2, Loader2, CreditCard,
-  Search, FileText, TrendingUp, AlertCircle, ArrowRight, Banknote,
-  Smartphone, ChevronDown, ChevronUp, Activity, Zap,
-  CalendarDays, CalendarRange, Users, Lock, Unlock, LogIn, LogOut
+  Search, FileText, ArrowRight, Banknote,
+  Smartphone, Activity, Zap, CalendarDays, CalendarRange,
+  Lock, Unlock, ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,38 +29,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       background: "rgba(15, 110, 86, 0.95)",
       border: "1px solid rgba(52, 211, 153, 0.4)",
       borderRadius: 12,
-      padding: "12px 16px",
+      padding: "10px 14px",
       boxShadow: "0 8px 16px rgba(0,0,0,0.12)",
-      backdropFilter: "blur(8px)",
     }}>
       <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, marginBottom: 4, fontWeight: 500 }}>{label}</p>
-      <p style={{ color: "#34d399", fontWeight: 600, fontFamily: "monospace", fontSize: 14 }}>
+      <p style={{ color: "#34d399", fontWeight: 600, fontFamily: "monospace", fontSize: 13 }}>
         {fmt(payload[0].value)}
       </p>
     </div>
   );
 };
 
-const METHOD_CFG: Record<string, {
-  iconBg: string; iconText: string; pillBg: string; bar: string; label: string;
-}> = {
+const METHOD_CFG: Record<string, { iconBg: string; iconText: string; pillBg: string; bar: string; label: string }> = {
   cash: { iconBg: "bg-slate-100", iconText: "text-slate-600", pillBg: "bg-slate-50", bar: "#64748b", label: "Cash" },
   gcash: { iconBg: "bg-blue-100", iconText: "text-blue-700", pillBg: "bg-blue-50", bar: "#3b82f6", label: "GCash" },
   paymaya: { iconBg: "bg-emerald-100", iconText: "text-emerald-700", pillBg: "bg-emerald-50", bar: "#10b981", label: "Maya" },
   instapay: { iconBg: "bg-indigo-100", iconText: "text-indigo-700", pillBg: "bg-indigo-50", bar: "#6366f1", label: "Instapay" },
 };
 
-const METHOD_BADGE: Record<string, { bg: string; text: string }> = {
-  cash: { bg: "bg-slate-100", text: "text-slate-700" },
-  gcash: { bg: "bg-blue-100", text: "text-blue-800" },
-  paymaya: { bg: "bg-emerald-100", text: "text-emerald-800" },
-  instapay: { bg: "bg-indigo-100", text: "text-indigo-800" },
-};
-
 const CashierDashboardHome = () => {
   const { session } = useAuth();
   const queryClient = useQueryClient();
-  const [showTransactions, setShowTransactions] = useState(false);
   const [showOpenShiftModal, setShowOpenShiftModal] = useState(false);
   const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
   const [startingCash, setStartingCash] = useState("");
@@ -213,7 +202,7 @@ const CashierDashboardHome = () => {
         methodBreakdown[p.payment_method] = (methodBreakdown[p.payment_method] || 0) + Number(p.amount);
       });
 
-      const recent8 = payments.slice(0, 8);
+      const recent8 = payments.slice(0, 5);
       let recentList: any[] = [];
       if (recent8.length) {
         const vendorIds = [...new Set(recent8.map(p => p.vendor_id))];
@@ -256,7 +245,7 @@ const CashierDashboardHome = () => {
       <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "#0f6e56" }}>
         <Loader2 className="h-5 w-5 animate-spin text-white" />
       </div>
-      <p className="text-sm text-muted-foreground">Loading dashboard…</p>
+      <p className="text-sm text-muted-foreground">Loading cashier dashboard…</p>
     </div>
   );
 
@@ -267,7 +256,7 @@ const CashierDashboardHome = () => {
   const greeting = today.getHours() < 12 ? "morning" : today.getHours() < 17 ? "afternoon" : "evening";
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-4">
       {/* ── Shift Modals ────────────────────────────────────────────────── */}
       {showOpenShiftModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowOpenShiftModal(false)}>
@@ -334,597 +323,308 @@ const CashierDashboardHome = () => {
         </div>
       )}
 
-      {/* ── Offline Sync Banner ───────────────────────────────────────────── */}
-      {unsyncedCount > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-pulse">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-              <Zap className="h-5 w-5" />
+      {/* ── Compact Shift & Offline Alert Bar ───────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card border rounded-2xl p-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          {!shiftLoading && !activeShift ? (
+            <div className="flex items-center gap-2 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl">
+              <Lock className="h-4 w-4" /> Shift Closed
             </div>
-            <div>
-              <h3 className="font-bold text-amber-800">Offline Payments Pending</h3>
-              <p className="text-sm text-amber-700">You have {unsyncedCount} payment(s) saved offline that need to be synced.</p>
+          ) : !shiftLoading && activeShift ? (
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+              <Activity className="h-4 w-4 text-emerald-600 animate-pulse" />
+              <span>Shift Active (Float: {fmt(activeShift.starting_cash)})</span>
             </div>
-          </div>
-          <Button
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending || !navigator.onLine}
-            className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white gap-2"
-          >
-            {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
-            Sync Now
-          </Button>
-        </div>
-      )}
+          ) : null}
 
-      {/* ── Shift Status Banner ───────────────────────────────────────────── */}
-      {!shiftLoading && !activeShift ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0"><Lock className="h-5 w-5" /></div>
-            <div>
-              <h3 className="font-bold text-red-800">Shift Closed</h3>
-              <p className="text-sm text-red-600/80">You cannot accept payments until you open a shift.</p>
+          {unsyncedCount > 0 && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">
+              <Zap className="h-4 w-4 text-amber-600" />
+              <span>{unsyncedCount} offline payment(s) pending</span>
+              <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending || !navigator.onLine} className="ml-1 text-[11px] underline font-bold hover:text-amber-900">
+                Sync Now
+              </button>
             </div>
-          </div>
-          <Button onClick={() => setShowOpenShiftModal(true)} className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white gap-2">
-            <Unlock className="h-4 w-4" /> Open Shift Now
-          </Button>
+          )}
         </div>
-      ) : !shiftLoading && activeShift ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0"><Activity className="h-5 w-5" /></div>
-            <div>
-              <h3 className="font-bold text-emerald-800">Shift Active</h3>
-              <p className="text-xs text-emerald-600/80 mt-0.5">
-                Opened at {new Date(activeShift.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Starting Cash: {fmt(activeShift.starting_cash)}
-              </p>
-            </div>
-          </div>
-          <Button onClick={() => setShowCloseShiftModal(true)} variant="outline" className="w-full sm:w-auto border-emerald-200 text-emerald-700 hover:bg-emerald-100 gap-2">
-            <Lock className="h-4 w-4" /> End Shift
-          </Button>
+
+        <div className="flex items-center gap-2 ml-auto">
+          {!shiftLoading && !activeShift ? (
+            <Button size="sm" onClick={() => setShowOpenShiftModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 h-8 text-xs rounded-xl">
+              <Unlock className="h-3.5 w-3.5" /> Open Shift
+            </Button>
+          ) : !shiftLoading && activeShift ? (
+            <Button size="sm" onClick={() => setShowCloseShiftModal(true)} variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-50 gap-1.5 h-8 text-xs rounded-xl">
+              <Lock className="h-3.5 w-3.5" /> End Shift
+            </Button>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, #0f6e56 0%, #0d5a47 100%)",
-          boxShadow: "0 20px 48px rgba(15, 110, 86, 0.15)"
-        }}>
-        {[
-          [200, "-60px", "-60px", "top", "right"],
-          [140, "-20px", "-20px", "top", "right"],
-          [250, "-100px", "-60px", "bottom", "left"],
-        ].map(([sz, a, b, v, h], i) => (
-          <div key={i} style={{
-            position: "absolute", [v as string]: a, [h as string]: b,
-            width: sz, height: sz, borderRadius: "50%",
-            border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none",
-          }} />
-        ))}
-        <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04,
-          backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
-        }} />
-
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-2"
-              style={{ color: "rgba(255,255,255,0.6)" }}>Cashier Terminal</p>
-            <h1 className="text-[28px] font-bold text-white leading-tight">
-              Good {greeting} 👋
-            </h1>
-            <p className="text-xs mt-1.5 flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.6)" }}>
-              <span className="inline-block w-1 h-1 rounded-full" style={{ background: "#34d399" }} />
-              {today.toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-            </p>
-          </div>
-
-          <div className="rounded-2xl px-5 py-4 text-right relative backdrop-blur"
-            style={{
-              background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              minWidth: 165,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)"
-            }}>
-            <div style={{ position: "absolute", top: 12, left: 12, width: 6, height: 6, borderRadius: "50%", background: "#34d399" }} />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.6)" }}>Today's Collection</p>
-            <p className="font-mono text-[24px] font-bold text-white mt-1">{fmt(d.totalToday)}</p>
-            <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-              {d.txToday} transaction{d.txToday !== 1 ? "s" : ""} • {((d.txToday / 10) * 100).toFixed(0)}% of target
-            </p>
-          </div>
-        </div>
-
-        <div className="relative mt-5 rounded-xl px-4 py-3"
-          style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}>
-          <div className="flex items-center justify-between mb-2.5">
-            <p className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.6)" }}>
-              Vendor compliance progress — {MONTHS[today.getMonth()]}
-            </p>
-            <p className="text-[11px] font-bold text-white">
-              {d.paidVendors}/{d.totalVendors} vendors paid ({paidPct}%)
-            </p>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <div className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${paidPct}%`, background: "linear-gradient(90deg, #34d399 0%, #6ee7b7 100%)" }} />
-          </div>
-        </div>
-
-        {d.pendingCount > 0 && (
-          <Link to="/cashier/accept">
-            <div className="mt-3.5 flex items-center gap-2.5 rounded-xl px-4 py-3 cursor-pointer group transition-all hover:scale-[1.02]"
-              style={{ background: "rgba(251,191,36,0.18)", border: "1px solid rgba(251,191,36,0.35)" }}>
-              <div className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style={{ background: "#fbbf24" }} />
-              <span className="text-xs font-medium" style={{ color: "#fef08a" }}>
-                <strong className="text-sm">{d.pendingCount}</strong> pending payment{d.pendingCount > 1 ? "s" : ""} awaiting confirmation
-              </span>
-              <ArrowRight className="h-3.5 w-3.5 ml-auto group-hover:translate-x-1 transition-transform" style={{ color: "#fbbf24" }} />
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">{today.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</span>
             </div>
-          </Link>
-        )}
-      </div>
-
-      {/* ── KPI row ───────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          {
-            label: "This Week", value: fmt(d.totalWeek), sub: `${d.txWeek} transactions`,
-            icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "#0ea5e9",
-            glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/40"
-          },
-          {
-            label: "This Month", value: fmt(d.totalMonth), sub: `${d.txMonth} transactions`,
-            icon: CalendarRange, iconBg: "bg-emerald-100", iconColor: "#10b981",
-            glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/40"
-          },
-          {
-            label: "Pending", value: String(d.pendingCount), sub: "awaiting confirm",
-            icon: d.pendingCount > 0 ? Clock : CheckCircle2,
-            iconBg: d.pendingCount > 0 ? "bg-amber-100" : "bg-emerald-100",
-            iconColor: d.pendingCount > 0 ? "#f59e0b" : "#10b981",
-            glow: d.pendingCount > 0 ? "#f59e0b" : "#10b981",
-            gradient: d.pendingCount > 0 ? "from-amber-50 to-amber-50/40" : "from-emerald-50 to-emerald-50/40"
-          },
-        ].map((c, i) => (
-          <div key={i}
-            className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`}
-            style={{ minHeight: 120 }}>
-            <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity`}
-              style={{ background: c.glow }} />
-            <div className="flex items-center justify-between z-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                <c.icon className="h-4.5 w-4.5" style={{ color: c.iconColor }} />
-              </div>
-            </div>
-            <div className="z-10">
-              <p className="font-mono text-[18px] font-bold text-foreground">{c.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-1 font-medium">{c.sub}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── 4 action buttons — single row ─────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-3">
-        <Link to="/cashier/accept"
-          className="relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-2xl text-white font-medium group hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02]"
-          style={{ minHeight: 96, background: "linear-gradient(135deg, #0f6e56 0%, #0d5a47 100%)", textDecoration: "none", boxShadow: "0 12px 32px rgba(15, 110, 86, 0.2)" }}>
-          <div style={{ position: "absolute", top: -25, right: -25, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
-          <div style={{ position: "absolute", bottom: -40, left: 25, width: 85, height: 85, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
-          <div className="relative z-10 h-9 w-9 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"
-            style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)" }}>
-            <Zap className="h-4.5 w-4.5 text-white" />
-          </div>
-          <span className="relative z-10 text-[10px] font-semibold text-white text-center leading-tight px-2 whitespace-pre-line">{"Accept\nPayment"}</span>
-        </Link>
-
-        {[
-          { label: "Search\nVendor", to: "/cashier/search", icon: Search, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9" },
-          { label: "Payment\nStatus", to: "/cashier/status", icon: Activity, iconBg: "bg-amber-100", iconColor: "#f59e0b", glow: "#f59e0b" },
-          { label: "Print\nSOA", to: "/cashier/soa", icon: FileText, iconBg: "bg-violet-100", iconColor: "#a855f7", glow: "#a855f7" },
-        ].map(a => (
-          <Link key={a.to} to={a.to}
-            className="relative overflow-hidden flex items-center gap-3 rounded-2xl border border-border bg-card px-5 hover:shadow-md transition-all duration-300 group hover:scale-[1.02]"
-            style={{ minHeight: 96, textDecoration: "none" }}>
-            <div className={`absolute -bottom-4 -right-4 w-14 h-14 rounded-full opacity-[0.06] blur-lg group-hover:opacity-[0.1] transition-opacity`} style={{ background: a.glow }} />
-            <div className={`relative z-10 h-9 w-9 shrink-0 rounded-xl flex items-center justify-center group-hover:shadow-md transition-shadow ${a.iconBg}`}>
-              <a.icon className="h-4.5 w-4.5" style={{ color: a.iconColor }} />
-            </div>
-            <span className="relative z-10 text-[12px] font-semibold text-foreground leading-tight whitespace-pre-line">
-              {a.label}
-            </span>
-          </Link>
-        ))}
-      </div>
-
-      {/* ── Payment method breakdown ───────────────────────────────────── */}
-      {Object.keys(d.methodBreakdown).length > 0 && (
-        <div className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-md" />
-              <p className="text-[13px] font-bold text-foreground">Today's Collections by Payment Method</p>
-            </div>
-            <span className="text-[11px] font-semibold text-foreground px-3 py-1.5 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
-              {fmt(methodTotal)} total
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 p-4">
-            {Object.entries(d.methodBreakdown).map(([method, amount]) => {
-              const pct = methodTotal > 0 ? Math.round((amount / methodTotal) * 100) : 0;
-              const cfg = METHOD_CFG[method] || { iconBg: "bg-secondary", iconText: "text-foreground", pillBg: "bg-secondary", bar: "#6b7280", label: method };
-              const Icon = method === "cash" ? Banknote : Smartphone;
-              return (
-                <div key={method}
-                  className={`group relative overflow-hidden flex flex-col rounded-xl border border-border px-4 py-3.5 transition-all duration-300 hover:shadow-md hover:scale-[1.02]`}
-                  style={{ background: `linear-gradient(135deg, ${cfg.pillBg} 0%, rgba(255,255,255,0) 100%)` }}>
-                  <div className="flex items-start justify-between mb-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`h-9 w-9 shrink-0 rounded-lg flex items-center justify-center group-hover:shadow-md transition-shadow ${cfg.iconBg}`}>
-                        <Icon className={`h-4 w-4 ${cfg.iconText}`} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className={`text-[11px] font-bold ${cfg.iconText}`}>{cfg.label}</p>
-                        <p className="font-mono text-[14px] font-bold text-foreground mt-0.5 truncate">{fmt(amount)}</p>
-                      </div>
-                    </div>
-                    <span className="text-[11px] font-bold text-muted-foreground" style={{ color: cfg.iconText }}>{pct}%</span>
-                  </div>
-                  <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.08)" }}>
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: cfg.bar }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Charts side by side ────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-
-        {/* 7-day bar chart */}
-        <div className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-emerald-600 shadow-md" />
-              <p className="text-[13px] font-bold text-foreground">Collections — Last 7 Days</p>
-            </div>
-            <span className="text-[11px] font-semibold text-foreground px-3 py-1.5 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
-              {fmt(d.totalWeek)} this week
-            </span>
+            <h1 className="text-xl font-bold text-white leading-snug">Good {greeting}, Cashier 👋</h1>
+            <p className="text-xs text-white/70 mt-0.5">Collect stall fees, verify payment status, and issue receipts</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 px-5 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-sm" style={{ background: "#34d399" }} />
-              <span className="text-[11px] font-medium text-muted-foreground">Past days</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-sm" style={{ background: "#0f6e56" }} />
-              <span className="text-[11px] font-medium text-muted-foreground">Today</span>
-            </div>
-          </div>
-
-          <div className="relative">
-            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-              <defs>
-                <linearGradient id="barGradient7DayPast" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" style={{ stopColor: "#34d399", stopOpacity: 1 }} />
-                  <stop offset="50%" style={{ stopColor: "#1f9e74", stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: "#10b981", stopOpacity: 0.8 }} />
-                </linearGradient>
-                <linearGradient id="barGradient7DayToday" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" style={{ stopColor: "#0f6e56", stopOpacity: 1 }} />
-                  <stop offset="50%" style={{ stopColor: "#065f46", stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: "#0d4a3d", stopOpacity: 0.9 }} />
-                </linearGradient>
-              </defs>
-            </svg>
-
-            <div className="absolute inset-0 pointer-events-none" style={{
-              background: "url('data:image/svg+xml,%3Csvg width=%2720%27 height=%2720%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%271%27 fill=%27%23d1fae5%27 opacity=%270.3%27/%3E%3C/svg%3E')",
-              backgroundSize: "20px 20px"
-            }} />
-
-            <div className="relative px-4 py-3" style={{ background: "rgba(240, 253, 250, 0.3)" }}>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={d.chartData} barSize={24} margin={{ top: 16, right: 16, left: -8, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(220,10%,55%)", fontWeight: 500 }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: "hsl(220,10%,55%)", fontWeight: 500 }}
-                    tickFormatter={v => v >= 1000 ? `₱${(v / 1000).toFixed(0)}k` : `₱${v}`}
-                    axisLine={false} tickLine={false} width={50}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(16,185,129,0.08)" }} />
-                  <Bar dataKey="amount" radius={[10, 10, 0, 0]} isAnimationActive={true}>
-                    {d.chartData.map((entry: any, i: number) => (
-                      <Cell
-                        key={i}
-                        fill={entry.isToday ? "url(#barGradient7DayToday)" : "url(#barGradient7DayPast)"}
-                        opacity={1}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 px-4 pb-4 border-t">
-            {[
-              { label: "Daily Avg", value: fmt(Math.round(d.totalWeek / 7)) },
-              { label: "Peak Day", value: fmt(Math.max(...d.chartData.map((c: any) => c.amount))) },
-              { label: "Growth", value: "+12.5%" }
-            ].map((stat, i) => (
-              <div key={i} className="flex flex-col items-center pt-3 px-2 gap-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
-                <p className="font-mono text-[12px] font-bold text-foreground">{stat.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Monthly chart */}
-        <div className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-emerald-600 shadow-md" />
-              <p className="text-[13px] font-bold text-foreground">Collections — {today.getFullYear()} Monthly</p>
-            </div>
-            <span className="text-[11px] font-semibold text-foreground px-3 py-1.5 rounded-lg" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
-              {fmt(d.totalMonth)} this month
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 px-5 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-sm" style={{ background: "#34d399" }} />
-              <span className="text-[11px] font-medium text-muted-foreground">Past months</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-sm" style={{ background: "#0f6e56" }} />
-              <span className="text-[11px] font-medium text-muted-foreground">Current month</span>
-            </div>
-          </div>
-
-          <div className="relative">
-            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-              <defs>
-                <linearGradient id="barGradientMonthlyPast" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" style={{ stopColor: "#34d399", stopOpacity: 1 }} />
-                  <stop offset="50%" style={{ stopColor: "#1f9e74", stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: "#10b981", stopOpacity: 0.8 }} />
-                </linearGradient>
-                <linearGradient id="barGradientMonthlyCurrent" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" style={{ stopColor: "#0f6e56", stopOpacity: 1 }} />
-                  <stop offset="50%" style={{ stopColor: "#065f46", stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: "#0d4a3d", stopOpacity: 0.9 }} />
-                </linearGradient>
-              </defs>
-            </svg>
-
-            <div className="absolute inset-0 pointer-events-none" style={{
-              background: "url('data:image/svg+xml,%3Csvg width=%2720%27 height=%2720%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%271%27 fill=%27%23d1fae5%27 opacity=%270.3%27/%3E%3C/svg%3E')",
-              backgroundSize: "20px 20px"
-            }} />
-
-            <div className="relative px-4 py-3" style={{ background: "rgba(240, 253, 250, 0.3)" }}>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={d.monthlyData} barSize={16} margin={{ top: 16, right: 16, left: -8, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: "hsl(220,10%,55%)", fontWeight: 500 }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "hsl(220,10%,55%)", fontWeight: 500 }}
-                    tickFormatter={v => v >= 1000 ? `₱${(v / 1000).toFixed(0)}k` : `₱${v}`}
-                    axisLine={false} tickLine={false} width={50}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(16,185,129,0.08)" }} />
-                  <Bar dataKey="amount" radius={[10, 10, 0, 0]} isAnimationActive={true}>
-                    {d.monthlyData.map((entry: any, i: number) => (
-                      <Cell
-                        key={i}
-                        fill={i === today.getMonth() ? "url(#barGradientMonthlyCurrent)" : "url(#barGradientMonthlyPast)"}
-                        opacity={1}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 px-4 pb-4 border-t">
-            {[
-              { label: "Best Month", value: fmt(Math.max(...d.monthlyData.map((c: any) => c.amount))) },
-              { label: "Avg/Month", value: fmt(Math.round(d.monthlyData.filter((c: any) => c.amount > 0).reduce((s: number, c: any) => s + c.amount, 0) / Math.max(1, d.monthlyData.filter((c: any) => c.amount > 0).length))) },
-              { label: "This Month", value: fmt(d.totalMonth) }
-            ].map((stat, i) => (
-              <div key={i} className="flex flex-col items-center pt-3 px-2 gap-1.5 rounded-lg hover:bg-secondary/40 transition-colors">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
-                <p className="font-mono text-[12px] font-bold text-foreground">{stat.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── Recent Transactions — collapsible, 3 items ────────────────── */}
-      <div className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
-        {/*
-          FIX: was <button> wrapping a <Link><button>, which is invalid HTML.
-          Changed outer element to <div> with onClick + cursor-pointer.
-          "View all" Link is styled directly — no inner <button> child.
-        */}
-        <div
-          onClick={() => setShowTransactions(v => !v)}
-          className="flex items-center justify-between w-full px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent hover:bg-secondary/40 transition-colors cursor-pointer select-none"
-        >
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-md" />
-            <h3 className="text-[13px] font-bold text-foreground">Recent Transactions</h3>
-            <span className="text-[10px] font-semibold px-2 py-1 rounded-full" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981" }}>
-              {d.recentList.length > 0
-                ? showTransactions
-                  ? `Showing 3 of ${d.recentList.length}`
-                  : `${d.recentList.length} recent transactions — tap to expand`
-                : "No transactions"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/cashier/status"
-              onClick={e => e.stopPropagation()}
-              className="flex items-center gap-1.5 text-[11px] font-bold px-3.5 py-1.5 rounded-lg transition-all hover:shadow-md group"
-              style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.2)", textDecoration: "none" }}
-            >
-              View all <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            {showTransactions
-              ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            {d.pendingCount > 0 && (
+              <Link to="/cashier/accept" className="no-underline">
+                <div className="flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold bg-amber-400/20 border border-amber-300/40 text-amber-200 hover:bg-amber-400/30 transition-all">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>{d.pendingCount} Pending Payment{d.pendingCount > 1 ? "s" : ""}</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-amber-300" />
+                </div>
+              </Link>
+            )}
+
+            <div className="rounded-xl px-4 py-2.5 text-right bg-white/10 border border-white/20 shrink-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-200">Today's Collection</p>
+              <p className="font-mono text-lg font-bold text-white leading-none mt-0.5">{fmt(d.totalToday)}</p>
+              <p className="text-[10px] text-emerald-100/70 mt-0.5">{d.txToday} txs</p>
+            </div>
           </div>
         </div>
+      </div>
 
-        {showTransactions && (
-          d.recentList.length > 0 ? (
-            <div className="overflow-x-auto">
-              <div className="divide-y">
-                <div className="hidden md:grid grid-cols-[50px_1fr_120px_120px_100px_80px] gap-4 px-5 py-3 bg-secondary/30 items-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <div>Status</div>
-                  <div>Vendor & Details</div>
-                  <div>Method</div>
-                  <div>Amount</div>
-                  <div>Date</div>
-                  <div>Action</div>
+      {/* ── 4 Top KPI Cards ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: "Today's Collection", value: fmt(d.totalToday), sub: `${d.txToday} transaction${d.txToday !== 1 ? "s" : ""}`, icon: Activity, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "This Week", value: fmt(d.totalWeek), sub: `${d.txWeek} transactions`, icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "This Month", value: fmt(d.totalMonth), sub: `${d.txMonth} transactions`, icon: CalendarRange, iconBg: "bg-violet-100", iconColor: "#a855f7", glow: "#a855f7", gradient: "from-violet-50 to-violet-50/30" },
+          { label: "Pending Confirm", value: String(d.pendingCount), sub: d.pendingCount > 0 ? "Awaiting processing" : "All clear ✓", icon: d.pendingCount > 0 ? Clock : CheckCircle2, iconBg: d.pendingCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: d.pendingCount > 0 ? "#f59e0b" : "#10b981", glow: d.pendingCount > 0 ? "#f59e0b" : "#10b981", gradient: d.pendingCount > 0 ? "from-amber-50 to-amber-50/30" : "from-emerald-50 to-emerald-50/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-sm transition-all duration-300 group`}>
+            <div className="flex items-center justify-between z-10">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-sm ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              </div>
+            </div>
+            <div className="z-10 mt-2">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Main 2-Column Dashboard Grid ────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        {/* ── LEFT COLUMN (7 Cols): Cashier Action Tools & Collection Charts ──── */}
+        <div className="lg:col-span-7 space-y-4">
+
+          {/* Quick Cashier Navigation Bar */}
+          <div className="bg-card border rounded-2xl p-4 shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Cashier Shortcuts</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <Link to="/cashier/accept" className="flex items-center gap-2.5 rounded-xl border bg-emerald-700 text-white p-2.5 hover:bg-emerald-800 transition-colors no-underline">
+                <div className="h-7 w-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                  <Zap className="h-4 w-4 text-white" />
                 </div>
+                <span className="text-xs font-semibold truncate">Accept Pay</span>
+              </Link>
 
-                {d.recentList.slice(0, 3).map((r: any, idx: number) => {
-                  const isCompleted = r.status === "completed";
-                  const isPending = r.status === "pending";
-                  const initials = r.vendor_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-                  const badgeCfg = METHOD_BADGE[r.payment_method] || { bg: "bg-secondary", text: "text-foreground" };
-                  const methodLabel = METHOD_CFG[r.payment_method]?.label || r.payment_method;
-                  const txDate = new Date(r.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+              {[
+                { label: "Search Vendor", to: "/cashier/search", icon: Search, color: "text-blue-600 bg-blue-50 border-blue-100" },
+                { label: "Payment Status", to: "/cashier/status", icon: Activity, color: "text-amber-600 bg-amber-50 border-amber-100" },
+                { label: "Print SOA", to: "/cashier/soa", icon: FileText, color: "text-purple-600 bg-purple-50 border-purple-100" },
+              ].map(a => (
+                <Link key={a.to} to={a.to} className={`flex items-center gap-2.5 rounded-xl border ${a.color} p-2.5 hover:opacity-90 transition-opacity no-underline`}>
+                  <div className="h-7 w-7 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-xs">
+                    <a.icon className="h-4 w-4" />
+                  </div>
+                  <span className="text-xs font-semibold text-foreground truncate">{a.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
 
+          {/* Collections Bar Chart (7 Days) */}
+          <div className="rounded-2xl border bg-card overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-600" />
+                <p className="text-xs font-bold text-foreground">Weekly Collections (Last 7 Days)</p>
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700">{fmt(d.totalWeek)} week total</span>
+            </div>
+
+            <div className="p-4">
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={175}>
+                  <BarChart data={d.chartData} barSize={20} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(220,10%,55%)", fontWeight: 500 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(220,10%,55%)" }} tickFormatter={v => v >= 1000 ? `₱${(v / 1000).toFixed(0)}k` : `₱${v}`} axisLine={false} tickLine={false} width={42} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(16,185,129,0.08)" }} />
+                    <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                      {d.chartData.map((entry: any, i: number) => (
+                        <Cell key={i} fill={entry.isToday ? "#0f6e56" : "#34d399"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t mt-2">
+                {[
+                  { label: "Daily Avg", value: fmt(Math.round(d.totalWeek / 7)) },
+                  { label: "Peak Day", value: fmt(Math.max(...d.chartData.map((c: any) => c.amount))) },
+                  { label: "Today", value: fmt(d.totalToday) },
+                ].map((s, i) => (
+                  <div key={i} className="text-center p-1.5 rounded-lg bg-secondary/30">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">{s.label}</p>
+                    <p className="font-mono text-xs font-bold text-foreground mt-0.5">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Method Breakdown */}
+          {Object.keys(d.methodBreakdown).length > 0 && (
+            <div className="rounded-2xl border bg-card overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-600" />
+                  <p className="text-xs font-bold text-foreground">Today's Collections by Method</p>
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground">{fmt(methodTotal)} total</span>
+              </div>
+              <div className="p-3.5 grid grid-cols-2 gap-2.5">
+                {Object.entries(d.methodBreakdown).map(([method, amount]) => {
+                  const pct = methodTotal > 0 ? Math.round((amount / methodTotal) * 100) : 0;
+                  const cfg = METHOD_CFG[method] || { iconBg: "bg-secondary", iconText: "text-foreground", pillBg: "bg-secondary", bar: "#6b7280", label: method };
+                  const Icon = method === "cash" ? Banknote : Smartphone;
                   return (
-                    <div key={r.id} className="hidden md:grid grid-cols-[50px_1fr_120px_120px_100px_80px] gap-4 px-5 py-3.5 items-center hover:bg-secondary/40 transition-colors group border-t border-border/50">
-                      <div className="flex justify-center">
-                        <div className="relative">
-                          <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold ${isCompleted ? "bg-emerald-100 text-emerald-700"
-                            : isPending ? "bg-amber-100 text-amber-700"
-                              : "bg-red-100 text-red-700"
-                            }`}>
-                            {initials}
+                    <div key={method} className="rounded-xl border p-2.5 bg-card flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-7 w-7 rounded-md flex items-center justify-center ${cfg.iconBg}`}>
+                            <Icon className={`h-3.5 w-3.5 ${cfg.iconText}`} />
                           </div>
-                          <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isCompleted ? "bg-emerald-500 shadow-md"
-                            : isPending ? "bg-amber-400 animate-pulse"
-                              : "bg-red-500"
-                            }`} />
-                        </div>
-                      </div>
-
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-bold text-foreground truncate">{r.vendor_name}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                          <span>Stall {r.stall}</span>
-                          <span>•</span>
-                          <span>{r.section}</span>
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-1 rounded-lg ${badgeCfg.bg} ${badgeCfg.text}`}>
-                          {methodLabel}
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="font-mono text-[13px] font-bold text-foreground">{fmt(Number(r.amount))}</p>
-                      </div>
-
-                      <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">{txDate}</p>
-                      </div>
-
-                      <div className="text-center">
-                        <span className={`inline-flex items-center text-[9px] font-bold px-2 py-1 rounded-full transition-all ${isCompleted ? "bg-emerald-50 text-emerald-700"
-                          : isPending ? "bg-amber-50 text-amber-700"
-                            : "bg-red-50 text-red-600"
-                          }`}>
-                          {isCompleted ? "✓ Completed" : isPending ? "⏱ Pending" : "✗ Failed"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {d.recentList.slice(0, 3).map((r: any) => {
-                  const isCompleted = r.status === "completed";
-                  const isPending = r.status === "pending";
-                  const initials = r.vendor_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-                  const badgeCfg = METHOD_BADGE[r.payment_method] || { bg: "bg-secondary", text: "text-foreground" };
-                  const methodLabel = METHOD_CFG[r.payment_method]?.label || r.payment_method;
-
-                  return (
-                    <div key={r.id} className="md:hidden flex items-start gap-3.5 px-4 py-3.5 hover:bg-secondary/40 transition-colors border-t">
-                      <div className="relative shrink-0">
-                        <div className={`h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-bold ${isCompleted ? "bg-emerald-100 text-emerald-700"
-                          : isPending ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                          }`}>
-                          {initials}
-                        </div>
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isCompleted ? "bg-emerald-500 shadow-md"
-                          : isPending ? "bg-amber-400 animate-pulse"
-                            : "bg-red-500"
-                          }`} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="min-w-0">
-                            <p className="text-[12px] font-bold text-foreground truncate">{r.vendor_name}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">Stall {r.stall} · {r.section}</p>
+                          <div>
+                            <p className="text-[11px] font-bold leading-none text-foreground">{cfg.label}</p>
+                            <p className="font-mono text-xs font-bold text-foreground mt-0.5">{fmt(amount)}</p>
                           </div>
-                          <p className="font-mono text-[12px] font-bold text-foreground shrink-0">{fmt(Number(r.amount))}</p>
                         </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-lg ${badgeCfg.bg} ${badgeCfg.text}`}>
-                            {methodLabel}
-                          </span>
-                          <span className={`inline-flex items-center text-[9px] font-bold px-2 py-0.5 rounded-full ${isCompleted ? "bg-emerald-50 text-emerald-700"
-                            : isPending ? "bg-amber-50 text-amber-700"
-                              : "bg-red-50 text-red-600"
-                            }`}>
-                            {isCompleted ? "Completed" : isPending ? "Pending" : "Failed"}
-                          </span>
-                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: cfg.bar }} />
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
-                <CreditCard className="h-6 w-6 text-muted-foreground" />
+          )}
+
+        </div>
+
+        {/* ── RIGHT COLUMN (5 Cols): Operational Activity & Shift Summary ────── */}
+        <div className="lg:col-span-5 space-y-4">
+
+          {/* Shift Drawer Balance & Vendor Compliance Summary */}
+          <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                <h3 className="text-xs font-bold text-foreground">Shift & Compliance Summary</h3>
               </div>
-              <p className="text-[13px] font-medium text-muted-foreground">No transactions yet</p>
-              <p className="text-[12px] text-muted-foreground/60 text-center px-4">Processed payments will appear here in real-time</p>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                {paidPct}% Paid
+              </span>
             </div>
-          )
-        )}
+
+            {activeShift ? (
+              <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Starting Float:</span>
+                  <span className="font-mono font-bold text-foreground">{fmt(activeShift.starting_cash)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Today's System Collections:</span>
+                  <span className="font-mono font-bold text-emerald-700">+{fmt(d.totalToday)}</span>
+                </div>
+                <div className="border-t border-emerald-200/60 pt-1.5 flex justify-between font-bold">
+                  <span className="text-emerald-900">Expected Drawer Total:</span>
+                  <span className="font-mono text-emerald-800">{fmt(Number(activeShift.starting_cash) + d.totalToday)}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-red-50/50 border border-red-100 rounded-xl p-3 text-xs text-red-700">
+                ⚠️ Shift is currently closed. Open shift to track cash drawer balance.
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Monthly Vendor Paid Progress:</span>
+                <span className="font-bold">{d.paidVendors} / {d.totalVendors} vendors</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+                <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${paidPct}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Live Transactions Stream (Direct List) */}
+          <div className="rounded-2xl border bg-card overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
+              <div className="flex items-center gap-2">
+                <Activity className="h-3.5 w-3.5 text-emerald-600" />
+                <h3 className="text-xs font-bold text-foreground">Recent Transactions</h3>
+              </div>
+              <Link to="/cashier/status" className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 no-underline">
+                View All <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            {d.recentList.length === 0 ? (
+              <div className="p-6 text-center text-muted-foreground text-xs">No payments processed yet today</div>
+            ) : (
+              <div className="divide-y max-h-[300px] overflow-y-auto">
+                {d.recentList.map((t: any) => {
+                  const isC = t.status === "completed", isP = t.status === "pending";
+                  const cfg = METHOD_CFG[t.payment_method] || { iconBg: "bg-secondary", iconText: "text-foreground", pillBg: "bg-secondary", bar: "#6b7280", label: t.payment_method };
+                  return (
+                    <div key={t.id} className="p-3 hover:bg-secondary/30 transition-colors flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-foreground truncate">{t.vendor_name}</p>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${cfg.iconBg} ${cfg.iconText}`}>{cfg.label}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Stall {t.stall} · {new Date(t.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-mono text-xs font-bold text-foreground">{fmt(Number(t.amount))}</p>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isC ? "bg-emerald-100 text-emerald-700" : isP ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-600"}`}>
+                          {isC ? "Completed" : isP ? "Pending" : "Failed"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+        </div>
+
       </div>
 
     </div>

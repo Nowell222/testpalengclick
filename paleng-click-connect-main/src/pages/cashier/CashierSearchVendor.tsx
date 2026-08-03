@@ -23,7 +23,7 @@ const CashierSearchVendor = () => {
     queryFn: async () => {
       const { data: vendorList } = await supabase
         .from("vendors")
-        .select("id, user_id, qr_code, award_date, stalls(stall_number, section, monthly_rate, location, status)");
+        .select("id, user_id, qr_code, award_date, stalls(stall_number, section, monthly_rate, monthly_rate_2026, location, status)");
       if (!vendorList) return [];
       const userIds = vendorList.map(v => v.user_id);
       const [profilesRes, paymentsRes] = await Promise.all([
@@ -40,7 +40,7 @@ const CashierSearchVendor = () => {
       return vendorList.map(v => {
         const profile = profiles.find(p => p.user_id === v.user_id);
         const stall = v.stalls as any;
-        const monthlyRate = stall?.monthly_rate || 1450;
+        const monthlyRate = stall?.monthly_rate_2026 || stall?.monthly_rate || 1450;
         const vendorPayments = allPayments.filter(p => p.vendor_id === v.id);
         const completedPayments = vendorPayments.filter(p => p.status === "completed" && p.period_year === currentYear);
         const monthPaidMap: Record<number, number> = {};
@@ -79,11 +79,19 @@ const CashierSearchVendor = () => {
     },
   });
 
-  const filtered = vendors.filter((v: any) =>
-    v.name.toLowerCase().includes(search.toLowerCase()) ||
-    v.stallNumber.toLowerCase().includes(search.toLowerCase()) ||
-    v.section.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = vendors.filter((v: any) => {
+    const term = search.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      v.name.toLowerCase().includes(term) ||
+      v.stallNumber.toLowerCase().includes(term) ||
+      v.section.toLowerCase().includes(term) ||
+      (v.contact || "").toLowerCase().includes(term) ||
+      (v.qrCode || "").toLowerCase().includes(term) ||
+      (v.location || "").toLowerCase().includes(term) ||
+      (v.address || "").toLowerCase().includes(term)
+    );
+  });
 
   const paidCount   = vendors.filter((v: any) => v.isCurrentMonthPaid).length;
   const unpaidCount = vendors.length - paidCount;

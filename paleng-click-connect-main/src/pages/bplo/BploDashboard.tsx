@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Search, User, Loader2, CheckCircle2, AlertCircle,
-  X, Phone, MapPin, Edit3, Save, Users, FileText,
-  Layers, ShieldAlert, Award, Calendar, BadgeInfo, Mail, Plus
+  Search, Loader2,
+  X, Phone, Edit3, Save, Users, FileText,
+  Layers, ShieldAlert, Award, BadgeInfo, RefreshCw, AlertTriangle, ChevronRight,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface VendorRow {
   id: string; // vendor id
@@ -33,12 +34,12 @@ interface VendorRow {
   awardDate: string;
 }
 
-const BPLO_GRAD = "linear-gradient(160deg, #0d1e36 0%, #1e3a8a 70%, #3b82f6 100%)";
-const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+const BPLO_GRAD = "linear-gradient(135deg, #0d1e36 0%, #1e3a8a 70%, #3b82f6 100%)";
 
 export default function BploDashboard() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [editVendor, setEditVendor] = useState<VendorRow | null>(null);
 
@@ -59,7 +60,7 @@ export default function BploDashboard() {
   });
 
   const [saving, setSaving] = useState(false);
-  const itemsPerPage = 10;
+  const itemsPerPage = 8;
 
   // Stall History States
   const [historyStall, setHistoryStall] = useState<{ id: string, number: string } | null>(null);
@@ -132,12 +133,11 @@ export default function BploDashboard() {
     }
   };
 
-  // 1. Fetch data
-  const { data: vendors = [], isLoading } = useQuery<VendorRow[]>({
+  // Fetch vendors data
+  const { data: vendors = [], isLoading, refetch } = useQuery<VendorRow[]>({
     queryKey: ["bplo-vendors-list"],
     refetchInterval: 10000,
     queryFn: async () => {
-      // Fetch vendors with their stall details
       const { data: vendorList, error: vendorError } = await supabase
         .from("vendors")
         .select(`
@@ -153,7 +153,8 @@ export default function BploDashboard() {
             stall_number,
             section,
             area_measurement,
-            monthly_rate
+            monthly_rate,
+            monthly_rate_2026
           )
         `);
 
@@ -162,58 +163,12 @@ export default function BploDashboard() {
 
       const userIds = vendorList.map(v => v.user_id);
 
-      // Fetch profiles
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name, middle_name, contact_number, address, status")
         .in("user_id", userIds);
 
       if (profileError) throw profileError;
-
-      // Since auth.users email is not directly queryable via standard SDK unless admin/edge function,
-      // we can fetch the emails via another method or fallback gracefully.
-      // Wait, is there a user_emails view or can BPLO call a helper? No, we will fetch emails dynamically when editing a specific vendor, 
-      // or we can fetch current profile data. Let's make sure the edit form fetches the email directly when clicked or displays it.
-      // Wait, is there any other place where the email is stored in public?
-      // In PALENG-CLICK, how does Admin view user emails? Let's check how AdminUserManagement queries emails.
-      // Oh! AdminUserManagement queries "profiles", "user_roles", "vendors" and returns them. It does NOT display emails in the list table,
-      // but does it show email when editing or creating? Yes, for creating it takes email. But for editing, let's see:
-      // Does it let you change email? In AdminUserManagement, it only lets you reset password or change profile info!
-      // But for BPLO, the requirement is:
-      // "email address (calls Edge Function create-user to update account login)"
-      // Let's check if the profiles table has a user email? No.
-      // How can BPLO know the email when editing?
-      // Wait! We can call a quick Supabase edge function or RPC to get it, or since BPLO needs to change it, 
-      // BPLO can input a new email or we can try to fetch the email using the auth API if BPLO has permissions, 
-      // or we can invoke our `create-user` edge function or check if we can get it.
-      // Wait! Does `create-user` Edge Function support retrieving user info or does BPLO already know the email when they open edit?
-      // Let's check if BPLO can select from `auth.users`? No.
-      // Wait, let's look at `create-user/index.ts` if there's any action to get user details?
-      // No, `create-user` has `update-self`, `reset-password`, `update-user-email`, and `delete-user`.
-      // How does the frontend get the email of the vendor when the vendor goes to their Stall Info page?
-      // In `VendorStallInfo.tsx`, the vendor gets their own email by calling `supabase.auth.getUser()`, which returns their current email.
-      // But BPLO is editing *other* vendors.
-      // To solve this, let's allow BPLO to view the vendor's email if they click edit.
-      // Wait! Can we store or fetch email? Let's see: does the application have a way for BPLO to get the email?
-      // If we can't fetch it from auth, BPLO can just see a placeholder and update it, or we can check if the email can be retrieved.
-      // Wait! Let's check if we can fetch user email from auth.users using a Supabase query? No, standard client keys cannot read auth.users.
-      // But wait! Is there a profiles view or table that contains email, or is email in profiles? No.
-      // Can BPLO input the new email when editing? Yes, the BPLO can see the email as a field. If it's empty, they can still write a new email to update it.
-      // Let's provide an email field in the edit modal. If the email is edited, we call `create-user` with `_action: "update-user-email"`.
-      // Let's check if we can store/sync the user email in the profiles table?
-      // Wait! Let's check if there is an email column in the database we can retrieve.
-      // If not, we can just allow the BPLO to update it by typing it in. We can prefill it if the user has email stored somewhere.
-      // Wait, let's see if the profiles table actually has an email column?
-      // Let's check the migration `20260318015824_1e60222b-b19b-4654-8cba-2cd3cd608ca7.sql` line 10 again.
-      // No, `profiles` table has `first_name`, `middle_name`, `last_name`, `contact_number`, `address`, `status`. No email.
-      // Wait, what about `vendors`? No email.
-      // So BPLO can just enter/update the email address in the edit dialog. We will explain in the UI that BPLO can change the account login email here.
-      // Let's design it beautifully.
-
-      // Fetch registered stalls count as well
-      const { count: stallsCount } = await supabase
-        .from("stalls")
-        .select("*", { count: "exact", head: true });
 
       return vendorList.map(v => {
         const profile = profiles?.find(p => p.user_id === v.user_id);
@@ -225,7 +180,7 @@ export default function BploDashboard() {
           firstName: profile?.first_name || "",
           middleName: profile?.middle_name || "",
           lastName: profile?.last_name || "",
-          email: "", // Can update login email
+          email: "",
           contact: profile?.contact_number || "—",
           address: profile?.address || "—",
           status: profile?.status || "active",
@@ -233,7 +188,7 @@ export default function BploDashboard() {
           stallNumber: stall?.stall_number || "—",
           section: stall?.section || "—",
           areaMeasurement: stall?.area_measurement || "—",
-          monthlyRate: stall?.monthly_rate || 0,
+          monthlyRate: stall?.monthly_rate_2026 || stall?.monthly_rate || 0,
           businessPermitNumber: v.business_permit_number || "",
           awardReceiptNumber: v.award_receipt_number || "",
           awardPaymentDate: v.award_payment_date || "",
@@ -243,7 +198,6 @@ export default function BploDashboard() {
     }
   });
 
-  // Get total stats
   const totalVendors = vendors.length;
   const { data: registeredStalls = 0 } = useQuery({
     queryKey: ["bplo-stalls-count"],
@@ -253,30 +207,35 @@ export default function BploDashboard() {
     }
   });
   const activePermits = vendors.filter(v => v.businessPermitNumber && v.status === "active").length;
+  const delinquentCount = vendors.filter(v => v.status === "delinquent").length;
+  const permitRate = totalVendors > 0 ? Math.round((activePermits / totalVendors) * 100) : 0;
 
   // Filter vendors
   const filteredVendors = vendors.filter(v => {
-    const term = search.toLowerCase();
-    return (
+    const term = search.toLowerCase().trim();
+    const matchSearch = !term ||
       v.name.toLowerCase().includes(term) ||
       v.stallNumber.toLowerCase().includes(term) ||
       v.section.toLowerCase().includes(term) ||
       v.businessPermitNumber.toLowerCase().includes(term) ||
-      v.contact.includes(term)
-    );
+      v.awardReceiptNumber.toLowerCase().includes(term) ||
+      v.contact.toLowerCase().includes(term) ||
+      v.address.toLowerCase().includes(term);
+
+    const matchStatus = filterStatus === "all" || v.status === filterStatus;
+    return matchSearch && matchStatus;
   });
 
   const totalPages = Math.ceil(filteredVendors.length / itemsPerPage);
   const paginatedVendors = filteredVendors.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  // Edit action
   const handleEditClick = (vendor: VendorRow) => {
     setEditVendor(vendor);
     setEditForm({
       first_name: vendor.firstName,
       middle_name: vendor.middleName,
       last_name: vendor.lastName,
-      email: "", // Allow BPLO to supply/update the login email
+      email: "",
       contact_number: vendor.contact === "—" ? "" : vendor.contact,
       address: vendor.address === "—" ? "" : vendor.address,
       area_measurement: vendor.areaMeasurement === "—" ? "" : vendor.areaMeasurement,
@@ -288,15 +247,12 @@ export default function BploDashboard() {
     });
   };
 
-  // Mutation to save edits
   const saveVendorMutation = useMutation({
     mutationFn: async () => {
       if (!editVendor) return;
       setSaving(true);
-
       const errors: string[] = [];
 
-      // 1. Update Profiles table (first_name, last_name, middle_name, contact_number, address)
       const { error: profileErr } = await supabase
         .from("profiles")
         .update({
@@ -311,7 +267,6 @@ export default function BploDashboard() {
 
       if (profileErr) errors.push(`Profile: ${profileErr.message}`);
 
-      // 2. Update Vendor table (permit number, receipt number, payment date)
       const { error: vendorErr } = await supabase
         .from("vendors")
         .update({
@@ -324,7 +279,6 @@ export default function BploDashboard() {
 
       if (vendorErr) errors.push(`Licensing: ${vendorErr.message}`);
 
-      // 2.5. Update Stall Assignment (Section & Stall Number)
       let finalStallId = editVendor.stallId;
       const oldStallId = editVendor.stallId;
       const currentStallNum = editVendor.stallNumber;
@@ -407,7 +361,6 @@ export default function BploDashboard() {
         if (updateStallErr) errors.push(`Update Stall Section: ${updateStallErr.message}`);
       }
 
-      // 3. Update Stall Area measurement (via RPC if vendor has stall)
       if (finalStallId) {
         const { error: stallErr } = await supabase.rpc("update_stall_area", {
           p_stall_id: finalStallId,
@@ -416,7 +369,6 @@ export default function BploDashboard() {
         if (stallErr) errors.push(`Stall Area: ${stallErr.message}`);
       }
 
-      // 4. Update Email Address if supplied
       if (editForm.email.trim()) {
         const trimmedEmail = editForm.email.trim().toLowerCase();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
@@ -457,431 +409,407 @@ export default function BploDashboard() {
     }
   });
 
-  return (
-    <div className="space-y-6">
+  const today = new Date();
 
-      {/* Hero Header */}
-      <div className="rounded-2xl p-6 relative overflow-hidden text-white" style={{ background: BPLO_GRAD, boxShadow: "0 20px 48px rgba(30, 58, 138, 0.15)" }}>
-        <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+  return (
+    <div className="space-y-4">
+
+      {/* Executive Header Banner */}
+      <div className="rounded-2xl p-5 relative overflow-hidden text-white" style={{ background: BPLO_GRAD, boxShadow: "0 12px 32px rgba(13,30,54,0.15)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
-        <div className="relative">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1 text-blue-200">BPLO Management Dashboard</p>
-          <h1 className="text-2xl font-extrabold">Business Permit & Licensing Portal</h1>
-          <p className="text-xs mt-1 text-blue-100">Review vendor profile details, update stall area measurements, and authorize business permits.</p>
+        
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-200">BPLO Licensing Portal</span>
+              <span className="h-1 w-1 rounded-full bg-blue-400" />
+              <span className="text-[10px] text-blue-100">{today.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Business Permit & Licensing Directory</h1>
+            <p className="text-xs text-blue-100/70 mt-0.5">Manage vendor permits, receipt numbers, stall areas, and licensing compliance</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button onClick={() => refetch()} variant="outline" className="h-9 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 text-xs gap-1.5 border">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh Directory
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Stats Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Top 4 KPI Metrics Row */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: "Total Vendors", value: isLoading ? "..." : totalVendors, icon: Users, iconBg: "bg-blue-50 text-blue-600 border-blue-100" },
-          { label: "Registered Stalls", value: isLoading ? "..." : registeredStalls, icon: Layers, iconBg: "bg-indigo-50 text-indigo-600 border-indigo-100" },
-          { label: "Active Permits", value: isLoading ? "..." : activePermits, icon: Award, iconBg: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-        ].map((c) => (
-          <div key={c.label} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{c.label}</p>
-              <h3 className="text-3xl font-black text-slate-900 mt-2 font-mono">{c.value}</h3>
+          { label: "Total Vendors", value: isLoading ? "..." : String(totalVendors), sub: "Registered stallholders", icon: Users, iconBg: "bg-blue-100", iconColor: "#2563eb", glow: "#2563eb", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Registered Stalls", value: isLoading ? "..." : String(registeredStalls), sub: "Market stalls", icon: Layers, iconBg: "bg-indigo-100", iconColor: "#4f46e5", glow: "#4f46e5", gradient: "from-indigo-50 to-indigo-50/30" },
+          { label: "Active Permits", value: isLoading ? "..." : String(activePermits), sub: `${permitRate}% compliance rate`, icon: Award, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "Delinquents", value: isLoading ? "..." : String(delinquentCount), sub: delinquentCount > 0 ? "Requires review" : "All active", icon: AlertTriangle, iconBg: delinquentCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: delinquentCount > 0 ? "#f59e0b" : "#10b981", glow: delinquentCount > 0 ? "#f59e0b" : "#10b981", gradient: delinquentCount > 0 ? "from-amber-50 to-amber-50/30" : "from-emerald-50 to-emerald-50/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-sm transition-all duration-300 group`}>
+            <div className="flex items-center justify-between z-10">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-sm ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              </div>
             </div>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-sm ${c.iconBg}`}>
-              <c.icon size={22} />
+            <div className="z-10 mt-2">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Search & Vendor Directory */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Main 2-Column Dashboard Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
-        {/* Search controls header */}
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <Input
-              type="text"
-              placeholder="Search vendor name, stall number, permit..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-10 h-10 rounded-xl border-slate-200 text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all outline-none"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <X size={16} />
-              </button>
+        {/* LEFT COLUMN (8 Cols): Vendor Directory & Search */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+            
+            {/* Search & Filter Header */}
+            <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+                <Input
+                  type="text"
+                  placeholder="Search vendor name, stall number, permit..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  className="pl-9 h-9 rounded-xl border-slate-200 text-xs bg-white focus:border-blue-500 outline-none"
+                />
+                {search && (
+                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs focus:border-blue-500 outline-none"
+                  value={filterStatus}
+                  onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="delinquent">Delinquent</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+
+                <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                  {filteredVendors.length} vendors
+                </span>
+              </div>
+            </div>
+
+            {/* Table */}
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+                <p className="text-xs text-muted-foreground">Loading vendor licensing data...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-slate-100/70 text-slate-600 text-left">
+                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Vendor Info</th>
+                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Stall Details</th>
+                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Area (sqm)</th>
+                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Permit Number</th>
+                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Receipt #</th>
+                      <th className="px-4 py-3 font-bold uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedVendors.map((v) => (
+                      <tr key={v.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-bold text-foreground">{v.name}</p>
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5"><Phone size={10} /> {v.contact}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          {v.stallId ? (
+                            <button
+                              onClick={() => handleStallHistoryClick(v.stallId, v.stallNumber)}
+                              className="font-semibold text-blue-600 hover:text-blue-800 hover:underline font-mono text-left"
+                            >
+                              Stall {v.stallNumber}
+                            </button>
+                          ) : (
+                            <span className="font-mono text-slate-700">Stall {v.stallNumber}</span>
+                          )}
+                          <p className="text-[10px] text-muted-foreground">{v.section}</p>
+                        </td>
+                        <td className="px-4 py-3 font-mono font-semibold text-slate-700">{v.areaMeasurement}</td>
+                        <td className="px-4 py-3 font-mono">
+                          {v.businessPermitNumber ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-100">
+                              <FileText size={10} /> {v.businessPermitNumber}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-semibold text-[10px]">No Permit</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-slate-700">
+                          {v.awardReceiptNumber ? (
+                            <div>
+                              <p className="font-semibold">{v.awardReceiptNumber}</p>
+                              {v.awardPaymentDate && <p className="text-[9px] text-muted-foreground">{v.awardPaymentDate}</p>}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditClick(v)}
+                            className="h-7 text-xs rounded-lg gap-1 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          >
+                            <Edit3 size={11} /> Edit
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedVendors.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="text-center py-10 text-muted-foreground text-xs">
+                          No vendors found matching search term.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination controls */}
+            {totalPages > 1 && (
+              <div className="p-3 border-t flex items-center justify-between bg-slate-50/50 text-xs">
+                <span className="text-muted-foreground">Page {page} of {totalPages}</span>
+                <div className="flex gap-1.5">
+                  <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="h-7 text-xs rounded-lg">Prev</Button>
+                  <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="h-7 text-xs rounded-lg">Next</Button>
+                </div>
+              </div>
             )}
           </div>
-          <div className="text-xs font-semibold text-slate-400 uppercase">
-            Showing {filteredVendors.length} of {totalVendors} vendors
-          </div>
         </div>
 
-        {/* Directory Table */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-sm text-slate-400">Loading vendor licensing data...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-slate-50 text-slate-500 text-left">
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Vendor Info</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Stall Details</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Area (sqm)</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Permit Number</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Receipt Details</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {paginatedVendors.map((v) => (
-                  <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-slate-900">{v.name}</p>
-                      <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Phone size={11} /> {v.contact}</p>
-                    </td>
-                    <td className="px-5 py-4">
-                      {v.stallId ? (
-                        <button 
-                          onClick={() => handleStallHistoryClick(v.stallId, v.stallNumber)} 
-                          className="font-semibold text-blue-600 hover:text-blue-800 hover:underline font-mono text-left"
-                        >
-                          Stall {v.stallNumber}
-                        </button>
-                      ) : (
-                        <p className="font-semibold text-slate-800 font-mono">Stall {v.stallNumber}</p>
-                      )}
-                      <p className="text-xs text-slate-400 mt-0.5">{v.section}</p>
-                    </td>
-                    <td className="px-5 py-4 font-mono font-bold text-slate-700">
-                      {v.areaMeasurement ? `${v.areaMeasurement} sqm` : "—"}
-                    </td>
-                    <td className="px-5 py-4">
-                      {v.businessPermitNumber ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                          <CheckCircle2 size={12} /> {v.businessPermitNumber}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                          <AlertCircle size={12} /> Missing Permit
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4">
-                      {v.awardReceiptNumber ? (
-                        <div>
-                          <p className="text-xs font-semibold text-slate-700 font-mono">Receipt: {v.awardReceiptNumber}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Paid: {v.awardPaymentDate ? new Date(v.awardPaymentDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</p>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 rounded-lg gap-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                        onClick={() => handleEditClick(v)}
-                      >
-                        <Edit3 size={13} /> Edit
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {filteredVendors.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center text-slate-400">
-                      <div className="flex flex-col items-center gap-2">
-                        <BadgeInfo size={36} className="text-slate-300" />
-                        <p className="font-semibold text-slate-600">No vendors matching search criteria</p>
-                        <p className="text-xs">Try searching by names, sections, stall numbers, or business permits</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* RIGHT COLUMN (4 Cols): BPLO Navigation & Licensing Compliance */}
+        <div className="lg:col-span-4 space-y-4">
 
-        {/* Pagination controls */}
-        {totalPages > 1 && (
-          <div className="p-5 border-t border-slate-100 flex items-center justify-between">
-            <Button
-              disabled={page === 1}
-              onClick={() => setPage(p => p - 1)}
-              variant="outline"
-              size="sm"
-              className="rounded-lg h-9"
-            >
-              Previous
-            </Button>
-            <span className="text-xs font-semibold text-slate-500">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              disabled={page === totalPages}
-              onClick={() => setPage(p => p + 1)}
-              variant="outline"
-              size="sm"
-              className="rounded-lg h-9"
-            >
-              Next
-            </Button>
+          {/* Quick Shortcuts */}
+          <div className="bg-card border rounded-2xl p-4 shadow-sm space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">BPLO Navigation</p>
+            <div className="space-y-2">
+              <Link to="/bplo/delinquents" className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/60 transition-colors text-amber-900 no-underline">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-amber-200/80 flex items-center justify-center shrink-0 text-amber-800">
+                    <ShieldAlert className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold leading-none">Delinquency Registry</p>
+                    <p className="text-[10px] text-amber-700 mt-0.5">{delinquentCount} overdue vendor accounts</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-amber-600" />
+              </Link>
+
+              <Link to="/bplo/stall-history" className="flex items-center justify-between p-3 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/60 transition-colors text-blue-900 no-underline">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-blue-200/80 flex items-center justify-center shrink-0 text-blue-800">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold leading-none">Stall Ownership Histories</p>
+                    <p className="text-[10px] text-blue-700 mt-0.5">Historical timelines & transitions</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-blue-600" />
+              </Link>
+
+              <Link to="/bplo/settings" className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-100/60 transition-colors text-slate-900 no-underline">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-slate-200/80 flex items-center justify-center shrink-0 text-slate-700">
+                    <BadgeInfo className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold leading-none">BPLO Settings</p>
+                    <p className="text-[10px] text-slate-600 mt-0.5">System preferences & roles</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              </Link>
+            </div>
           </div>
-        )}
+
+          {/* Business Permit Compliance Gauge */}
+          <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Award className="h-4 w-4 text-emerald-600" />
+                <h3 className="text-xs font-bold text-foreground">Permit Compliance</h3>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                {permitRate}% Verified
+              </span>
+            </div>
+
+            <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden">
+              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${permitRate}%` }} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center text-xs pt-1">
+              <div className="bg-emerald-50/60 rounded-lg p-2 border border-emerald-100">
+                <p className="text-[9px] font-bold text-emerald-700 uppercase">Active Permits</p>
+                <p className="font-bold text-emerald-800 text-sm mt-0.5">{activePermits}</p>
+              </div>
+              <div className="bg-amber-50/60 rounded-lg p-2 border border-amber-100">
+                <p className="text-[9px] font-bold text-amber-700 uppercase">Missing Permits</p>
+                <p className="font-bold text-amber-800 text-sm mt-0.5">{totalVendors - activePermits}</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
-      {/* Edit Vendor Dialog Modal */}
+      {/* Edit Vendor Modal */}
       {editVendor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(13, 27, 42, 0.6)", backdropFilter: "blur(4px)" }} onClick={() => setEditVendor(null)}>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50/50 to-transparent px-6 py-4 rounded-t-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto" onClick={() => setEditVendor(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-3">
               <div>
-                <h3 className="font-bold text-slate-900 text-lg">Manage Vendor Licensing</h3>
-                <p className="text-xs text-slate-400">Stall {editVendor.stallNumber} · {editVendor.section}</p>
+                <h3 className="font-bold text-lg text-slate-900">Edit Vendor Licensing Profile</h3>
+                <p className="text-xs text-slate-500">{editVendor.name} • Stall {editVendor.stallNumber}</p>
               </div>
-              <button onClick={() => setEditVendor(null)} className="rounded-lg p-1.5 hover:bg-slate-100 transition-colors">
-                <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+              <button onClick={() => setEditVendor(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100">
+                <X size={18} />
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="p-6 space-y-6">
-
-              {/* Profile Block */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5 border-b pb-1.5">
-                  <User size={14} /> Personal Profile
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">First Name *</Label>
-                    <Input className="h-10 rounded-xl border-slate-200" value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">Last Name *</Label>
-                    <Input className="h-10 rounded-xl border-slate-200" value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} />
-                  </div>
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">First Name *</Label>
+                  <Input value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} className="h-9 text-xs" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">Middle Name</Label>
-                    <Input className="h-10 rounded-xl border-slate-200" value={editForm.middle_name} onChange={e => setEditForm(f => ({ ...f, middle_name: e.target.value }))} placeholder="Optional" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">Contact Number</Label>
-                    <Input className="h-10 rounded-xl border-slate-200" value={editForm.contact_number} onChange={e => setEditForm(f => ({ ...f, contact_number: e.target.value }))} placeholder="09xx-xxx-xxxx" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-600">Home Address</Label>
-                  <Input className="h-10 rounded-xl border-slate-200" value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))} />
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Last Name *</Label>
+                  <Input value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} className="h-9 text-xs" />
                 </div>
               </div>
 
-              {/* Account Block */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5 border-b pb-1.5">
-                  <Mail size={14} /> Account Credentials
-                </p>
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-600">Update Login Email</Label>
-                  <Input
-                    type="email"
-                    className="h-10 rounded-xl border-slate-200"
-                    placeholder="Enter new email to change login (leaves unchanged if blank)"
-                    value={editForm.email}
-                    onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">Updates the vendor's authentication login credentials directly.</p>
-                </div>
-              </div>
-
-              {/* Stall Area Block */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5 border-b pb-1.5">
-                  <Layers size={14} /> Stall Allocation
-                </p>
-                <div className="grid grid-cols-2 gap-3 mb-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">Assigned Stall Number</Label>
-                    <Input 
-                      className="h-10 rounded-xl border-slate-200 font-mono font-bold" 
-                      value={editForm.stall_number} 
-                      onChange={e => setEditForm(f => ({ ...f, stall_number: e.target.value }))} 
-                      placeholder="e.g. MS-001" 
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">Market Section</Label>
-                    <select
-                      className="w-full h-10 rounded-xl border border-slate-200 bg-background px-3 text-sm focus:border-blue-500 outline-none"
-                      value={editForm.section}
-                      onChange={e => setEditForm(f => ({ ...f, section: e.target.value }))}
-                    >
-                      <option value="">Select a section</option>
-                      <option value="Building I - 1st Floor">Building I - 1st Floor</option>
-                      <option value="Building II - 1st Floor">Building II - 1st Floor</option>
-                      <option value="Building I - 2nd Floor">Building I - 2nd Floor</option>
-                      <option value="Building II - 2nd Floor">Building II - 2nd Floor</option>
-                      <option value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</option>
-                      <option value="New Building - Mojica">New Building - Mojica</option>
-                      <option value="New Building - Kalayaan">New Building - Kalayaan</option>
-                      <option value="Meat Stalls">Meat Stalls</option>
-                      <option value="Fish Stalls">Fish Stalls</option>
-                      <option value="Egg and Dried Fish">Egg and Dried Fish</option>
-                      <option value="Eatery 2nd Floor">Eatery 2nd Floor</option>
-                      <option value="Vegetable Section">Vegetable Section</option>
-                      <option value="Vegetable Section - Extension">Vegetable Section - Extension</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-600">Stall Area Measurement (sqm) *</Label>
-                  <Input className="h-10 rounded-xl border-slate-200 font-mono" value={editForm.area_measurement} onChange={e => setEditForm(f => ({ ...f, area_measurement: e.target.value }))} placeholder="e.g. 6.25" />
-                  <p className="text-[10px] text-slate-400 mt-1">Area measurements are restricted. Vendors cannot change their assigned stall dimensions.</p>
-                </div>
-              </div>
-
-              {/* Business Licensing Block */}
-              <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1.5 border-b pb-1.5">
-                  <Award size={14} /> Licensing & Awards
-                </p>
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-600">Business Permit Number</Label>
-                    <Input className="h-10 rounded-xl border-slate-200" value={editForm.business_permit_number} onChange={e => setEditForm(f => ({ ...f, business_permit_number: e.target.value }))} placeholder="e.g. BPLO-2026-8902" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-600">Permit Receipt Number</Label>
-                      <Input className="h-10 rounded-xl border-slate-200 font-mono" value={editForm.award_receipt_number} onChange={e => setEditForm(f => ({ ...f, award_receipt_number: e.target.value }))} placeholder="OR Number" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold text-slate-600">Award Payment Date</Label>
-                      <Input type="date" className="h-10 rounded-xl border-slate-200" value={editForm.award_payment_date} onChange={e => setEditForm(f => ({ ...f, award_payment_date: e.target.value }))} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-2 border-t">
-                <Button
-                  className="flex-1 gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white h-11 text-sm font-bold border-none"
-                  disabled={saving}
-                  onClick={() => saveVendorMutation.mutate()}
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save Vendor Details
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 rounded-xl h-11 text-sm"
-                  onClick={() => setEditVendor(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stall History Dialog Modal */}
-      {historyStall && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(13, 27, 42, 0.6)", backdropFilter: "blur(4px)" }} onClick={() => setHistoryStall(null)}>
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50/50 to-transparent px-6 py-4 rounded-t-2xl">
               <div>
-                <h3 className="font-bold text-slate-900 text-lg">Stall Ownership History</h3>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">Chronological ownership list for Stall {historyStall.number}</p>
+                <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Contact Number</Label>
+                <Input value={editForm.contact_number} onChange={e => setEditForm(f => ({ ...f, contact_number: e.target.value }))} className="h-9 text-xs" />
               </div>
-              <button onClick={() => setHistoryStall(null)} className="rounded-lg p-1.5 hover:bg-slate-100 transition-colors">
-                <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
-              </button>
-            </div>
-            
-            <div className="p-6 max-h-[60vh] overflow-y-auto">
-              {loadingHistory ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-2">
-                  <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-                  <p className="text-xs text-slate-400">Loading ownership logs...</p>
-                </div>
-              ) : stallHistory.length === 0 ? (
-                <p className="text-center py-12 text-sm text-slate-400">No ownership history records found.</p>
-              ) : (
-                <div className="relative border-l border-slate-200 pl-6 ml-4 space-y-6">
-                  {stallHistory.map((h) => {
-                    const vendor = h.vendors;
-                    const profile = vendor?.profiles;
-                    const name = profile ? `${profile.first_name} ${profile.last_name}` : "Unknown Vendor";
-                    const isCurrent = !h.ended_at && h.status === 'active';
-                    
-                    return (
-                      <div key={h.id} className="relative">
-                        {/* Timeline Bullet */}
-                        <span className={`absolute -left-[32px] top-1.5 h-3.5 w-3.5 rounded-full border-2 bg-white flex items-center justify-center ${
-                          isCurrent 
-                            ? "border-emerald-500 shadow-sm" 
-                            : h.status === 'transferred' 
-                              ? "border-blue-500" 
-                              : "border-slate-300"
-                        }`}>
-                          {isCurrent && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
-                        </span>
 
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-bold text-slate-900 text-sm">{name}</h4>
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                              isCurrent 
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-                                : h.status === 'transferred' 
-                                  ? "bg-blue-50 text-blue-700 border border-blue-100" 
-                                  : "bg-slate-100 text-slate-700"
-                            }`}>
-                              {isCurrent ? "Current Owner" : h.status}
-                            </span>
-                          </div>
-                          
-                          <p className="text-xs text-slate-400 flex items-center gap-1 font-semibold">
-                            <Calendar className="h-3 w-3 text-slate-400" />
-                            {new Date(h.started_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} — {h.ended_at ? new Date(h.ended_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "Present"}
-                          </p>
-
-                          {vendor && (
-                            <div className="mt-2 bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1 text-slate-600">
-                              <p className="font-semibold text-slate-700 flex items-center gap-1 mb-1.5"><BadgeInfo size={12} className="text-blue-500" /> Vendor Details:</p>
-                              <p><span className="text-slate-400">Permit Number:</span> <strong className="text-slate-700">{vendor.business_permit_number || "—"}</strong></p>
-                              <p><span className="text-slate-400">Permit Receipt #:</span> <strong className="text-slate-700">{vendor.award_receipt_number || "—"}</strong></p>
-                              <p><span className="text-slate-400">Date of Payment:</span> <strong className="text-slate-700">{vendor.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString() : "—"}</strong></p>
-                              {profile?.contact_number && <p><span className="text-slate-400">Contact:</span> <strong className="text-slate-700">{profile.contact_number}</strong></p>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Stall Number</Label>
+                  <Input value={editForm.stall_number} onChange={e => setEditForm(f => ({ ...f, stall_number: e.target.value }))} className="h-9 text-xs font-mono" />
                 </div>
-              )}
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Section</Label>
+                  <Input value={editForm.section} onChange={e => setEditForm(f => ({ ...f, section: e.target.value }))} className="h-9 text-xs" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Area Measurement (sqm)</Label>
+                  <Input value={editForm.area_measurement} onChange={e => setEditForm(f => ({ ...f, area_measurement: e.target.value }))} className="h-9 text-xs font-mono" />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Business Permit Number</Label>
+                  <Input value={editForm.business_permit_number} onChange={e => setEditForm(f => ({ ...f, business_permit_number: e.target.value }))} className="h-9 text-xs font-mono" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Award Receipt Number</Label>
+                  <Input value={editForm.award_receipt_number} onChange={e => setEditForm(f => ({ ...f, award_receipt_number: e.target.value }))} className="h-9 text-xs font-mono" />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Award Payment Date</Label>
+                  <Input type="date" value={editForm.award_payment_date} onChange={e => setEditForm(f => ({ ...f, award_payment_date: e.target.value }))} className="h-9 text-xs" />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Account Email (Optional Login Update)</Label>
+                <Input type="email" placeholder="e.g. vendor@example.com" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="h-9 text-xs" />
+              </div>
             </div>
 
-            <div className="border-t p-4 flex justify-end bg-slate-50/50 rounded-b-2xl">
-              <Button size="sm" variant="outline" className="rounded-lg h-9" onClick={() => setHistoryStall(null)}>
-                Close History
+            <div className="flex gap-2 pt-3 border-t">
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs h-9 gap-1.5" disabled={saving} onClick={() => saveVendorMutation.mutate()}>
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Save Licensing Profile
               </Button>
+              <Button variant="outline" className="w-full text-xs h-9" onClick={() => setEditVendor(null)}>Cancel</Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Stall History Modal */}
+      {historyStall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setHistoryStall(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-bold text-lg text-slate-900">Stall {historyStall.number} History</h3>
+                <p className="text-xs text-slate-500">Ownership transitions & permits</p>
+              </div>
+              <button onClick={() => setHistoryStall(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingHistory ? (
+              <div className="py-10 flex flex-col items-center justify-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                <p className="text-xs text-slate-400">Loading ownership timeline...</p>
+              </div>
+            ) : stallHistory.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                No past ownership history recorded for Stall {historyStall.number}.
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {stallHistory.map((h: any, i: number) => {
+                  const pr = h.vendors?.profiles;
+                  const name = pr ? `${pr.first_name} ${pr.last_name}` : "Unknown Vendor";
+                  return (
+                    <div key={h.id || i} className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 text-xs space-y-1">
+                      <div className="flex justify-between font-bold text-slate-900">
+                        <span>{name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${h.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"}`}>
+                          {h.status || "closed"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">Started: {new Date(h.started_at).toLocaleDateString("en-PH")}</p>
+                      {h.vendors?.business_permit_number && (
+                        <p className="text-[10px] text-blue-600 font-mono">Permit: {h.vendors.business_permit_number}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

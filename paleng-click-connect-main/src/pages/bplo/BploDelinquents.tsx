@@ -55,8 +55,8 @@ export default function BploDelinquents() {
       const yearStart = `${currentYear - 1}-01-01T00:00:00`;
 
       const [paymentsRes, vendorsRes] = await Promise.all([
-        supabase.from("payments").select("*").gte("created_at", yearStart).eq("status", "completed"),
-        supabase.from("vendors").select("id,user_id,stalls(stall_number,section,monthly_rate,status)"),
+        supabase.from("payments").select("*").eq("status", "completed").eq("period_year", currentYear),
+        supabase.from("vendors").select("id,user_id,stalls(stall_number,section,monthly_rate,monthly_rate_2026,status)"),
       ]);
 
       const payments = paymentsRes.data || [];
@@ -73,10 +73,10 @@ export default function BploDelinquents() {
       const vendorStatus = vendors.map(v => {
         const pr = profiles?.find(p => p.user_id === v.user_id);
         const st = v.stalls as any;
-        const rate = st?.monthly_rate || 1450;
+        const rate = st?.monthly_rate_2026 || st?.monthly_rate || 1450;
         
         // Filter payments for this specific vendor in the current year
-        const vPay = payments.filter(p => p.vendor_id === v.id && p.period_year === currentYear);
+        const vPay = payments.filter(p => p.vendor_id === v.id);
         
         const map: Record<number, number> = {};
         vPay.forEach(p => {

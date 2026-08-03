@@ -113,32 +113,37 @@ const AdminReports = () => {
   };
 
   const { data: allData, isLoading, refetch } = useQuery({
-    queryKey: ["admin-reports-all"],
+    queryKey: ["admin-reports-all", reportYear],
     refetchInterval: 60000,
     queryFn: async () => {
       const yearStart = `${new Date().getFullYear()-3}-01-01T00:00:00`;
       const [paymentsRes, vendorsRes, stallsRes] = await Promise.all([
         supabase.from("payments").select("*").gte("created_at",yearStart).order("created_at",{ascending:false}),
-        supabase.from("vendors").select("id,user_id,stalls(stall_number,section,monthly_rate,status)"),
+        supabase.from("vendors").select("id,user_id,stalls(stall_number,section,monthly_rate,monthly_rate_2026,monthly_rate_2027,monthly_rate_2028,status)"),
         supabase.from("stalls").select("*"),
       ]);
       const payments=paymentsRes.data||[], vendors=vendorsRes.data||[], stalls=stallsRes.data||[];
       const userIds = vendors.map(v=>v.user_id);
       const { data: profiles } = await supabase.from("profiles").select("user_id,first_name,last_name,contact_number,status").in("user_id",userIds);
       const completed = payments.filter(p=>p.status==="completed");
-      const currentYear=new Date().getFullYear(), currentMonth=new Date().getMonth()+1;
+      const targetYear = Number(reportYear) || new Date().getFullYear();
+      const currentMonth = targetYear === new Date().getFullYear() ? new Date().getMonth() + 1 : 12;
 
       const enriched = payments.map(p=>{
         const v=vendors.find(v=>v.id===p.vendor_id);
         const pr=profiles?.find(pr=>pr.user_id===v?.user_id);
         const st=v?.stalls as any;
-        return {...p,vendor_name:pr?`${pr.first_name} ${pr.last_name}`:"Unknown",stall:st?.stall_number||"—",section:st?.section||"General",monthly_rate:st?.monthly_rate||1450};
+        const rateKey = `monthly_rate_${targetYear}`;
+        const rate = st?.[rateKey] || st?.monthly_rate_2026 || st?.monthly_rate || 1450;
+        return {...p,vendor_name:pr?`${pr.first_name} ${pr.last_name}`:"Unknown",stall:st?.stall_number||"—",section:st?.section||"General",monthly_rate:rate};
       });
 
       const vendorStatus = vendors.map(v=>{
         const pr=profiles?.find(p=>p.user_id===v.user_id);
-        const st=v.stalls as any; const rate=st?.monthly_rate||1450;
-        const vPay=completed.filter(p=>p.vendor_id===v.id&&p.period_year===currentYear);
+        const st=v.stalls as any;
+        const rateKey = `monthly_rate_${targetYear}`;
+        const rate = st?.[rateKey] || st?.monthly_rate_2026 || st?.monthly_rate || 1450;
+        const vPay=completed.filter(p=>p.vendor_id===v.id&&p.period_year===targetYear);
         const map:Record<number,number>={};
         vPay.forEach(p=>{if(p.period_month)map[p.period_month]=(map[p.period_month]||0)+Number(p.amount);});
         const totalPaid=Object.values(map).reduce((s,v)=>s+v,0);
@@ -156,7 +161,10 @@ const AdminReports = () => {
 
       const monthlyMap:Record<number,number>={};
       MONTHS_SHORT.forEach((_,i)=>{monthlyMap[i]=0;});
-      completed.filter(p=>new Date(p.created_at).getFullYear()===currentYear).forEach(p=>{const m=new Date(p.created_at).getMonth();monthlyMap[m]=(monthlyMap[m]||0)+Number(p.amount);});
+      completed.filter(p=>(p.period_year ? p.period_year === targetYear : new Date(p.created_at).getFullYear()===targetYear)).forEach(p=>{
+        const m = p.period_month ? p.period_month - 1 : new Date(p.created_at).getMonth();
+        monthlyMap[m] = (monthlyMap[m]||0) + Number(p.amount);
+      });
       const monthlyData=MONTHS_SHORT.map((m,i)=>({month:m,amount:monthlyMap[i]}));
 
       const sectionMap:Record<string,number>={};
@@ -172,7 +180,7 @@ const AdminReports = () => {
       completed.forEach(p=>{const d=new Date(p.created_at);const key=`W${Math.ceil(d.getDate()/7)} ${MONTHS_SHORT[d.getMonth()]}`;if(weeklyMap[key]!==undefined)weeklyMap[key]+=Number(p.amount);});
       const weeklyData=Object.entries(weeklyMap).map(([week,amount])=>({week,amount}));
 
-      return {enriched,vendorStatus,monthlyData,weeklyData,sectionData,methodData,stalls,currentYear,currentMonth};
+      return {enriched,vendorStatus,monthlyData,weeklyData,sectionData,methodData,stalls,currentYear: targetYear,currentMonth};
     },
   });
 
