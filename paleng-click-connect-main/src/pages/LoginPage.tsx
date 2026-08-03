@@ -79,7 +79,7 @@ const LoginPage = () => {
             <div style={{ padding: "28px 32px 32px" }}>
               {/* Icon + title */}
               <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: blockedStatus === "closed" ? "#f3f4f6" : blockedStatus === "delinquent" ? "#fef3c7" : "#fee2e2", display: "flex", alignItems: "center", justifyOrigin: "center", flexShrink: 0, fontSize: 22, justifyContent: "center" }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: blockedStatus === "closed" ? "#f3f4f6" : blockedStatus === "delinquent" ? "#fef3c7" : "#fee2e2", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 22, justifyContent: "center" }}>
                   {blockedStatus === "closed" ? "📁" : blockedStatus === "delinquent" ? "⚠️" : "🚫"}
                 </div>
                 <div>

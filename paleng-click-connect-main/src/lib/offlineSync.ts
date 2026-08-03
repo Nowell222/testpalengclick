@@ -8,6 +8,7 @@ interface PalengClickDB extends DBSchema {
       id: string;
       vendor_id: string;
       stall_id?: string | null;
+      shift_id?: string | null;
       amount: number;
       payment_method: string;
       payment_type: string;
@@ -62,7 +63,7 @@ export const syncOfflinePayments = async () => {
   for (const p of offlinePayments) {
     try {
       // Remove local-only fields before syncing
-      const { id, synced, ...dbPayload } = p;
+      const { id, synced, ...dbPayload } = p as any;
 
       // Sanitize offline temp shift_id
       if (dbPayload.shift_id && typeof dbPayload.shift_id === 'string' && (dbPayload.shift_id.startsWith('offline-shift-') || dbPayload.shift_id.startsWith('shift-'))) {
