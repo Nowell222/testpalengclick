@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { preloadVendorDirectory, getCachedVendorsDirectory } from "@/lib/vendorCache";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
@@ -20,62 +21,89 @@ const CashierSearchVendor = () => {
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["cashier-vendors"],
     refetchInterval: 10000,
+    retry: false,
+    networkMode: "always",
     queryFn: async () => {
-      const { data: vendorList } = await supabase
-        .from("vendors")
-        .select("id, user_id, qr_code, award_date, stalls(stall_number, section, monthly_rate, monthly_rate_2026, location, status)");
-      if (!vendorList) return [];
-      const userIds = vendorList.map(v => v.user_id);
-      const [profilesRes, paymentsRes] = await Promise.all([
-        supabase.from("profiles").select("user_id, first_name, last_name, contact_number, address, status").in("user_id", userIds),
-        supabase.from("payments")
-          .select("vendor_id, amount, status, period_month, period_year, payment_method, payment_type, reference_number, receipt_number, created_at")
-          .in("vendor_id", vendorList.map(v => v.id)).order("created_at", { ascending: false }),
-      ]);
-      const profiles = profilesRes.data || [];
-      const allPayments = paymentsRes.data || [];
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth() + 1;
+      try {
+        const { data: vendorList } = await supabase
+          .from("vendors")
+          .select("id, user_id, qr_code, award_date, stalls(stall_number, section, monthly_rate, monthly_rate_2026, location, status)");
+        if (!vendorList) return [];
+        const userIds = vendorList.map(v => v.user_id);
+        const [profilesRes, paymentsRes] = await Promise.all([
+          supabase.from("profiles").select("user_id, first_name, last_name, contact_number, address, status").in("user_id", userIds),
+          supabase.from("payments")
+            .select("vendor_id, amount, status, period_month, period_year, payment_method, payment_type, reference_number, receipt_number, created_at")
+            .in("vendor_id", vendorList.map(v => v.id)).order("created_at", { ascending: false }),
+        ]);
+        const profiles = profilesRes.data || [];
+        const allPayments = paymentsRes.data || [];
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
 
-      return vendorList.map(v => {
-        const profile = profiles.find(p => p.user_id === v.user_id);
-        const stall = v.stalls as any;
-        const monthlyRate = stall?.monthly_rate_2026 || stall?.monthly_rate || 1450;
-        const vendorPayments = allPayments.filter(p => p.vendor_id === v.id);
-        const completedPayments = vendorPayments.filter(p => p.status === "completed" && p.period_year === currentYear);
-        const monthPaidMap: Record<number, number> = {};
-        completedPayments.forEach(p => {
-          if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+        const result = vendorList.map(v => {
+          const profile = profiles.find(p => p.user_id === v.user_id);
+          const stall = v.stalls as any;
+          const monthlyRate = stall?.monthly_rate_2026 || stall?.monthly_rate || 1450;
+          const vendorPayments = allPayments.filter(p => p.vendor_id === v.id);
+          const completedPayments = vendorPayments.filter(p => p.status === "completed" && p.period_year === currentYear);
+          const monthPaidMap: Record<number, number> = {};
+          completedPayments.forEach(p => {
+            if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+          });
+          const paidThisMonth = monthPaidMap[currentMonth] || 0;
+          const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
+          const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
+          let nextUnpaid = currentMonth;
+          for (let m = 1; m <= 12; m++) {
+            if ((monthPaidMap[m] || 0) < monthlyRate) { nextUnpaid = m; break; }
+            if (m === 12) nextUnpaid = 13;
+          }
+          const totalPaidYear = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
+          const totalOutstanding = MONTHS.reduce((sum, _, i) => {
+            const month = i + 1;
+            if (month > currentMonth) return sum;
+            return sum + Math.max(0, monthlyRate - (monthPaidMap[month] || 0));
+          }, 0);
+          return {
+            id: v.id, userId: v.user_id, qrCode: v.qr_code, awardDate: v.award_date,
+            name: profile ? `${profile.first_name} ${profile.last_name}` : "Unknown",
+            firstName: profile?.first_name || "", lastName: profile?.last_name || "",
+            contact: profile?.contact_number || "—", address: profile?.address || "—",
+            accountStatus: profile?.status || "active",
+            stallNumber: stall?.stall_number || "—", section: stall?.section || "General",
+            location: stall?.location || "—", stallStatus: stall?.status || "vacant",
+            monthlyRate, isCurrentMonthPaid, paidThisMonth, remainingThisMonth,
+            nextUnpaid, allPaid: nextUnpaid > 12,
+            totalPaidYear, totalOutstanding, monthPaidMap,
+            payments: vendorPayments.slice(0, 10),
+            completedCount: completedPayments.length,
+          };
         });
-        const paidThisMonth = monthPaidMap[currentMonth] || 0;
-        const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
-        const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
-        let nextUnpaid = currentMonth;
-        for (let m = 1; m <= 12; m++) {
-          if ((monthPaidMap[m] || 0) < monthlyRate) { nextUnpaid = m; break; }
-          if (m === 12) nextUnpaid = 13;
-        }
-        const totalPaidYear = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
-        const totalOutstanding = MONTHS.reduce((sum, _, i) => {
-          const month = i + 1;
-          if (month > currentMonth) return sum;
-          return sum + Math.max(0, monthlyRate - (monthPaidMap[month] || 0));
-        }, 0);
-        return {
-          id: v.id, userId: v.user_id, qrCode: v.qr_code, awardDate: v.award_date,
-          name: profile ? `${profile.first_name} ${profile.last_name}` : "Unknown",
-          firstName: profile?.first_name || "", lastName: profile?.last_name || "",
-          contact: profile?.contact_number || "—", address: profile?.address || "—",
-          accountStatus: profile?.status || "active",
-          stallNumber: stall?.stall_number || "—", section: stall?.section || "General",
-          location: stall?.location || "—", stallStatus: stall?.status || "vacant",
-          monthlyRate, isCurrentMonthPaid, paidThisMonth, remainingThisMonth,
-          nextUnpaid, allPaid: nextUnpaid > 12,
-          totalPaidYear, totalOutstanding, monthPaidMap,
-          payments: vendorPayments.slice(0, 10),
-          completedCount: completedPayments.length,
-        };
-      });
+
+        preloadVendorDirectory();
+        return result;
+      } catch (err) {
+        console.warn("Offline fallback for cashier-vendors query:", err);
+        const cached = getCachedVendorsDirectory();
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1;
+
+        return cached.map(c => ({
+          id: c.id, userId: c.user_id, qrCode: "", awardDate: "",
+          name: c.vendor_name,
+          firstName: c.first_name, lastName: c.last_name,
+          contact: c.contact_number || "—", address: "—",
+          accountStatus: "active",
+          stallNumber: c.stall_number || "—", section: c.section || "General",
+          location: "—", stallStatus: "occupied",
+          monthlyRate: c.monthly_rate || 1450, isCurrentMonthPaid: false, paidThisMonth: 0, remainingThisMonth: c.monthly_rate || 1450,
+          nextUnpaid: currentMonth, allPaid: false,
+          totalPaidYear: 0, totalOutstanding: c.monthly_rate || 1450, monthPaidMap: {},
+          payments: [],
+          completedCount: 0,
+        }));
+      }
     },
   });
 

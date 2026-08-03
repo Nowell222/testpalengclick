@@ -87,15 +87,50 @@ const CashierDashboardHome = () => {
   const { data: activeShift, isLoading: shiftLoading } = useQuery({
     queryKey: ["active-shift", session?.user?.id],
     enabled: !!session?.user?.id,
+    retry: false,
+    networkMode: "always",
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cashier_shifts")
-        .select("*")
-        .eq("cashier_id", session?.user?.id)
-        .eq("status", "open")
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      const cashierId = session?.user?.id;
+      if (!cashierId) return null;
+      const cacheKey = `palengclick_active_shift_${cashierId}`;
+
+      try {
+        const { data, error } = await supabase
+          .from("cashier_shifts")
+          .select("*")
+          .eq("cashier_id", cashierId)
+          .eq("status", "open")
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (data) {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+          return data;
+        } else {
+          localStorage.removeItem(cacheKey);
+          return null;
+        }
+      } catch (err) {
+        console.warn("Offline query for active shift, checking local cache...", err);
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try { return JSON.parse(cached); } catch (e) { }
+        }
+        if (!navigator.onLine) {
+          const offlineShift = {
+            id: `offline-shift-${cashierId}`,
+            cashier_id: cashierId,
+            starting_cash: 0,
+            status: "open",
+            opened_at: new Date().toISOString(),
+            notes: "Offline active shift"
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(offlineShift));
+          return offlineShift;
+        }
+        return null;
+      }
     }
   });
 
@@ -103,13 +138,37 @@ const CashierDashboardHome = () => {
     mutationFn: async () => {
       const start = Number(startingCash);
       if (isNaN(start) || start < 0) throw new Error("Invalid starting cash");
-      const { error } = await supabase.from("cashier_shifts").insert({
-        cashier_id: session?.user?.id,
+      const cashierId = session?.user?.id;
+      const cacheKey = `palengclick_active_shift_${cashierId}`;
+      const shiftObj = {
+        id: `shift-${Date.now()}`,
+        cashier_id: cashierId,
         starting_cash: start,
         status: "open",
+        opened_at: new Date().toISOString(),
         notes: shiftNotes || null
-      });
-      if (error) throw error;
+      };
+
+      if (!navigator.onLine) {
+        localStorage.setItem(cacheKey, JSON.stringify(shiftObj));
+        return shiftObj;
+      }
+
+      try {
+        const { data, error } = await supabase.from("cashier_shifts").insert({
+          cashier_id: cashierId,
+          starting_cash: start,
+          status: "open",
+          notes: shiftNotes || null
+        }).select("*").single();
+
+        if (error) throw error;
+        localStorage.setItem(cacheKey, JSON.stringify(data || shiftObj));
+        return data || shiftObj;
+      } catch (e) {
+        localStorage.setItem(cacheKey, JSON.stringify(shiftObj));
+        return shiftObj;
+      }
     },
     onSuccess: () => {
       toast.success("Shift opened successfully!");
@@ -127,15 +186,26 @@ const CashierDashboardHome = () => {
       const end = Number(endingCash);
       if (isNaN(end) || end < 0) throw new Error("Invalid actual ending cash");
 
-      const { error } = await supabase.from("cashier_shifts")
-        .update({
-          status: "closed",
-          actual_ending_cash: end,
-          closed_at: new Date().toISOString(),
-          notes: shiftNotes || activeShift.notes
-        })
-        .eq("id", activeShift.id);
-      if (error) throw error;
+      const cashierId = session?.user?.id;
+      const cacheKey = `palengclick_active_shift_${cashierId}`;
+      localStorage.removeItem(cacheKey);
+
+      if (!navigator.onLine || activeShift.id?.startsWith("offline-shift-") || activeShift.id?.startsWith("shift-")) {
+        return;
+      }
+
+      try {
+        await supabase.from("cashier_shifts")
+          .update({
+            status: "closed",
+            actual_ending_cash: end,
+            closed_at: new Date().toISOString(),
+            notes: shiftNotes || activeShift.notes
+          })
+          .eq("id", activeShift.id);
+      } catch (e) {
+        console.warn("Failed online shift close:", e);
+      }
     },
     onSuccess: () => {
       toast.success("Shift closed successfully!");
@@ -242,6 +312,7 @@ const CashierDashboardHome = () => {
           chartData, monthlyData, methodBreakdown,
           recentList, totalVendors, paidVendors,
         };
+
       } catch (err) {
         console.warn("Offline query fallback for cashier dashboard:", err);
         return {
@@ -388,7 +459,7 @@ const CashierDashboardHome = () => {
       <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
         <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
-        
+
         <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">

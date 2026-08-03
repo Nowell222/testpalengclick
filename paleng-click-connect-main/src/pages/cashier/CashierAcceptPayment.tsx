@@ -15,6 +15,7 @@ import { useSearchParams } from "react-router-dom";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
 import { saveOfflinePayment, syncOfflinePayments, getUnsyncedCount } from "@/lib/offlineSync";
+import { preloadVendorDirectory, searchCachedVendors } from "@/lib/vendorCache";
 
 const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
@@ -238,19 +239,34 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
+  useEffect(() => {
+    preloadVendorDirectory();
+  }, []);
+
   const loadVendorData = async (v: any) => {
-    const [profileRes, paymentsRes, schedulesRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", v.user_id).single(),
-      supabase.from("payments").select("period_month, amount")
-        .eq("vendor_id", v.id).eq("status", "completed").eq("period_year", currentYear),
-      v.stall_id
-        ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", v.stall_id).eq("year", currentYear)
-        : Promise.resolve({ data: [] }),
-    ]);
+    let profile = v.profile;
+    let payments: any[] = [];
+    let schedules: any[] = [];
+
+    if (navigator.onLine) {
+      try {
+        const [profileRes, paymentsRes, schedulesRes] = await Promise.all([
+          supabase.from("profiles").select("*").eq("user_id", v.user_id).single(),
+          supabase.from("payments").select("period_month, amount")
+            .eq("vendor_id", v.id).eq("status", "completed").eq("period_year", currentYear),
+          v.stall_id
+            ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", v.stall_id).eq("year", currentYear)
+            : Promise.resolve({ data: [] }),
+        ]);
+        if (profileRes.data) profile = profileRes.data;
+        if (paymentsRes.data) payments = paymentsRes.data;
+        if (schedulesRes.data) schedules = schedulesRes.data;
+      } catch (e) {
+        console.warn("Offline loading vendor data:", e);
+      }
+    }
+
     const stall = (v.stalls || v.stall) as any;
-    const profile = profileRes.data;
-    const payments = paymentsRes.data || [];
-    const schedules = schedulesRes.data || [];
     const defRate = stall?.monthly_rate || 1450;
 
     const rawPaidMap: Record<number, number> = {};
@@ -264,7 +280,6 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
     };
 
     // Cascade excess payments forward
-    // Rule: carry only moves to next month if current month is FULLY paid
     const paidMap: Record<number, number> = {};
     let carry = 0;
     for (let m = 1; m <= 12; m++) {
@@ -291,6 +306,32 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
     setVendor(null);
     setSearchResults([]);
 
+    if (!navigator.onLine) {
+      const cached = searchCachedVendors(searchTerm);
+      if (!cached || cached.length === 0) {
+        toast.error("No vendor found in offline directory. Try stall number or name.");
+        setSearching(false);
+        return;
+      }
+
+      const formattedResults = cached.map(c => ({
+        id: c.id,
+        user_id: c.user_id,
+        stall_id: c.stall_id,
+        stalls: { id: c.stall_id, stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate, area_measurement: c.area_measurement },
+        stall: { id: c.stall_id, stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate, area_measurement: c.area_measurement },
+        profile: { first_name: c.first_name, last_name: c.last_name, contact_number: c.contact_number },
+      }));
+
+      if (formattedResults.length === 1) {
+        await loadVendorData(formattedResults[0]);
+      } else {
+        setSearchResults(formattedResults);
+      }
+      setSearching(false);
+      return;
+    }
+
     try {
       // 1. Search stalls by stall_number or section
       const { data: stalls } = await supabase
@@ -315,6 +356,26 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       }
 
       if (conditions.length === 0) {
+        // Fallback to offline search
+        const cached = searchCachedVendors(searchTerm);
+        if (cached && cached.length > 0) {
+          const formattedResults = cached.map(c => ({
+            id: c.id,
+            user_id: c.user_id,
+            stall_id: c.stall_id,
+            stalls: { id: c.stall_id, stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate, area_measurement: c.area_measurement },
+            stall: { id: c.stall_id, stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate, area_measurement: c.area_measurement },
+            profile: { first_name: c.first_name, last_name: c.last_name, contact_number: c.contact_number },
+          }));
+
+          if (formattedResults.length === 1) {
+            await loadVendorData(formattedResults[0]);
+          } else {
+            setSearchResults(formattedResults);
+          }
+          return;
+        }
+
         toast.error("No vendor found. Try stall number, section, or vendor name.");
         setSearching(false);
         return;
@@ -359,8 +420,26 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
         setSearchResults(formattedResults);
       }
     } catch (err: any) {
-      console.error("Search error:", err);
-      toast.error("An error occurred during search.");
+      console.warn("Search error, trying offline fallback:", err);
+      const cached = searchCachedVendors(searchTerm);
+      if (cached && cached.length > 0) {
+        const formattedResults = cached.map(c => ({
+          id: c.id,
+          user_id: c.user_id,
+          stall_id: c.stall_id,
+          stalls: { id: c.stall_id, stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate, area_measurement: c.area_measurement },
+          stall: { id: c.stall_id, stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate, area_measurement: c.area_measurement },
+          profile: { first_name: c.first_name, last_name: c.last_name, contact_number: c.contact_number },
+        }));
+
+        if (formattedResults.length === 1) {
+          await loadVendorData(formattedResults[0]);
+        } else {
+          setSearchResults(formattedResults);
+        }
+      } else {
+        toast.error("No vendor found matching search term.");
+      }
     } finally {
       setSearching(false);
     }
@@ -711,15 +790,50 @@ const CashierAcceptPayment = () => {
   const { data: activeShift, isLoading: shiftLoading } = useQuery({
     queryKey: ["active-shift", user?.id],
     enabled: !!user?.id,
+    retry: false,
+    networkMode: "always",
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cashier_shifts")
-        .select("*")
-        .eq("cashier_id", user?.id)
-        .eq("status", "open")
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
+      const cashierId = user?.id;
+      if (!cashierId) return null;
+      const cacheKey = `palengclick_active_shift_${cashierId}`;
+
+      try {
+        const { data, error } = await supabase
+          .from("cashier_shifts")
+          .select("*")
+          .eq("cashier_id", cashierId)
+          .eq("status", "open")
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        if (data) {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+          return data;
+        } else {
+          localStorage.removeItem(cacheKey);
+          return null;
+        }
+      } catch (err) {
+        console.warn("Offline query for active shift, checking local cache...", err);
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try { return JSON.parse(cached); } catch (e) {}
+        }
+        if (!navigator.onLine) {
+          const offlineShift = {
+            id: `offline-shift-${cashierId}`,
+            cashier_id: cashierId,
+            starting_cash: 0,
+            status: "open",
+            opened_at: new Date().toISOString(),
+            notes: "Offline active shift"
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(offlineShift));
+          return offlineShift;
+        }
+        return null;
+      }
     }
   });
 
@@ -979,28 +1093,75 @@ Please contact the cashier or try paying again through another method.`,
   const searchManual = async () => {
     if (!manualSearch.trim()) return;
     setManualSearching(true); setManualVendor(null);
-    const { data: stalls } = await supabase.from("stalls").select("id, stall_number, section, monthly_rate").ilike("stall_number", `%${manualSearch}%`);
-    if (stalls?.length) {
-      const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("stall_id", stalls[0].id).single();
-      if (v) { const { data: pr } = await supabase.from("profiles").select("*").eq("user_id", v.user_id).single(); setManualVendor({ ...v, stall: v.stalls, profile: pr }); setManualAmount(String(stalls[0].monthly_rate)); setManualSearching(false); return; }
+
+    if (!navigator.onLine) {
+      const cached = searchCachedVendors(manualSearch);
+      if (cached?.length) {
+        const c = cached[0];
+        setManualVendor({
+          id: c.id,
+          user_id: c.user_id,
+          stall_id: c.stall_id,
+          stall: { stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate },
+          profile: { first_name: c.first_name, last_name: c.last_name }
+        });
+        setManualAmount(String(c.monthly_rate || 1450));
+        setManualSearching(false);
+        return;
+      }
+      toast.error("Vendor not found in offline directory");
+      setManualSearching(false);
+      return;
     }
-    const { data: profiles } = await supabase.from("profiles").select("*").or(`first_name.ilike.%${manualSearch}%,last_name.ilike.%${manualSearch}%`);
-    if (profiles?.length) {
-      const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("user_id", profiles[0].user_id).single();
-      if (v) { setManualVendor({ ...v, stall: v.stalls, profile: profiles[0] }); setManualAmount(String((v.stalls as any)?.monthly_rate || 1450)); setManualSearching(false); return; }
+
+    try {
+      const { data: stalls } = await supabase.from("stalls").select("id, stall_number, section, monthly_rate").ilike("stall_number", `%${manualSearch}%`);
+      if (stalls?.length) {
+        const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("stall_id", stalls[0].id).single();
+        if (v) { const { data: pr } = await supabase.from("profiles").select("*").eq("user_id", v.user_id).single(); setManualVendor({ ...v, stall: v.stalls, profile: pr }); setManualAmount(String(stalls[0].monthly_rate)); setManualSearching(false); return; }
+      }
+      const { data: profiles } = await supabase.from("profiles").select("*").or(`first_name.ilike.%${manualSearch}%,last_name.ilike.%${manualSearch}%`);
+      if (profiles?.length) {
+        const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("user_id", profiles[0].user_id).single();
+        if (v) { setManualVendor({ ...v, stall: v.stalls, profile: profiles[0] }); setManualAmount(String((v.stalls as any)?.monthly_rate || 1450)); setManualSearching(false); return; }
+      }
+      toast.error("Vendor not found");
+    } catch (e) {
+      const cached = searchCachedVendors(manualSearch);
+      if (cached?.length) {
+        const c = cached[0];
+        setManualVendor({
+          id: c.id,
+          user_id: c.user_id,
+          stall_id: c.stall_id,
+          stall: { stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate },
+          profile: { first_name: c.first_name, last_name: c.last_name }
+        });
+        setManualAmount(String(c.monthly_rate || 1450));
+      } else {
+        toast.error("Vendor not found");
+      }
+    } finally {
+      setManualSearching(false);
     }
-    toast.error("Vendor not found"); setManualSearching(false);
   };
 
   const recordManual = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.from("payments").insert({
+      const payload = {
         vendor_id: manualVendor.id, stall_id: manualVendor.stall_id || null,
         amount: Number(manualAmount), payment_method: manualMethod,
         payment_type: "due", status: "completed", processed_by: user?.id,
         period_month: new Date().getMonth() + 1, period_year: new Date().getFullYear(),
         shift_id: activeShift?.id || null,
-      }).select("reference_number, receipt_number").single();
+      };
+
+      if (!navigator.onLine) {
+        await saveOfflinePayment(payload);
+        return { reference_number: "OFFLINE-SYNC", receipt_number: "PENDING", offline: true };
+      }
+
+      const { data, error } = await supabase.from("payments").insert(payload).select("reference_number, receipt_number").single();
       if (error) throw error;
       const cn3 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
       const now3 = new Date();

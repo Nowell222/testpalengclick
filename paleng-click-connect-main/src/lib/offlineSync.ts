@@ -64,6 +64,11 @@ export const syncOfflinePayments = async () => {
       // Remove local-only fields before syncing
       const { id, synced, ...dbPayload } = p;
 
+      // Sanitize offline temp shift_id
+      if (dbPayload.shift_id && typeof dbPayload.shift_id === 'string' && (dbPayload.shift_id.startsWith('offline-shift-') || dbPayload.shift_id.startsWith('shift-'))) {
+        dbPayload.shift_id = null;
+      }
+
       const { error } = await supabase.from('payments').insert({
         ...dbPayload,
         status: 'completed', // Since cashier took it directly
@@ -79,6 +84,7 @@ export const syncOfflinePayments = async () => {
     } catch (e) {
       console.error('Failed to sync payment', e);
     }
+
   }
 
   // Clear synced payments to save space
@@ -97,3 +103,4 @@ export const getUnsyncedCount = async () => {
   const all = await db.getAll('offline_payments');
   return all.filter(p => !p.synced).length;
 };
+

@@ -21,6 +21,19 @@ const LoginPage = () => {
     e.preventDefault();
     if (!email || !password) { toast.error("Please enter your email and password"); return; }
     setIsLoading(true);
+
+    if (!navigator.onLine) {
+      setIsLoading(false);
+      const lastRole = localStorage.getItem("palengclick_last_logged_role");
+      if (lastRole) {
+        toast.info(`Offline mode: Resuming session as ${lastRole.toUpperCase()}.`);
+        navigate(`/${lastRole}`);
+        return;
+      }
+      toast.error("You are currently offline. Please connect to the internet to sign in for the first time.");
+      return;
+    }
+
     const { error, blockedStatus } = await signIn(email, password);
     setIsLoading(false);
     if (blockedStatus) {
@@ -35,6 +48,9 @@ const LoginPage = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: roleData } = await supabase.rpc("get_user_role", { _user_id: user.id });
+          if (roleData) {
+            localStorage.setItem("palengclick_last_logged_role", String(roleData));
+          }
           if (roleData === "admin" || roleData === "eemo")    navigate("/admin");
           else if (roleData === "vendor")  navigate("/vendor");
           else if (roleData === "cashier") navigate("/cashier");

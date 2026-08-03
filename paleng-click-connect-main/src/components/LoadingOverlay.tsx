@@ -8,11 +8,11 @@ interface LoadingOverlayProps {
 
 const LoadingOverlay = ({ message = "Processing...", role = "admin" }: LoadingOverlayProps) => {
   const isBlueTheme = role === "vendor" || role === "bplo";
-  
+
   // Design based on the user's screenshot
   // Green for Admin/Cashier, Blue for Vendor/BPLO
-  const circleColor = isBlueTheme ? "#2563eb" : "#065f46"; 
-  
+  const circleColor = isBlueTheme ? "#2563eb" : "#065f46";
+
   return (
     <div style={{
       position: "fixed",
@@ -25,6 +25,7 @@ const LoadingOverlay = ({ message = "Processing...", role = "admin" }: LoadingOv
       background: "rgba(255, 255, 255, 0.8)", // Clean light overlay
       gap: 12
     }}>
+
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
