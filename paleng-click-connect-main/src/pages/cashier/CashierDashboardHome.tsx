@@ -150,93 +150,109 @@ const CashierDashboardHome = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["cashier-dashboard"],
     refetchInterval: 15000,
+    retry: false,
+    networkMode: "always",
     queryFn: async () => {
-      const now = new Date();
-      const todayStr = now.toISOString().split("T")[0];
-      const yearStart = `${now.getFullYear()}-01-01T00:00:00`;
-      const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
+      try {
+        const now = new Date();
+        const todayStr = now.toISOString().split("T")[0];
+        const yearStart = `${now.getFullYear()}-01-01T00:00:00`;
+        const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6);
 
-      const { data: allPayments } = await supabase
-        .from("payments").select("*")
-        .gte("created_at", yearStart)
-        .order("created_at", { ascending: false });
+        const { data: allPayments, error } = await supabase
+          .from("payments").select("*")
+          .gte("created_at", yearStart)
+          .order("created_at", { ascending: false });
 
-      const payments = allPayments || [];
-      const completed = payments.filter(p => p.status === "completed");
-      const pending = payments.filter(p => p.status === "pending");
+        if (error) throw error;
 
-      const todayPay = completed.filter(p => p.created_at?.startsWith(todayStr));
-      const totalToday = todayPay.reduce((s, p) => s + Number(p.amount), 0);
-      const weekPay = completed.filter(p => new Date(p.created_at) >= weekStart);
-      const totalWeek = weekPay.reduce((s, p) => s + Number(p.amount), 0);
-      const monthPay = completed.filter(p => {
-        const d = new Date(p.created_at);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      });
-      const totalMonth = monthPay.reduce((s, p) => s + Number(p.amount), 0);
+        const payments = allPayments || [];
+        const completed = payments.filter(p => p.status === "completed");
+        const pending = payments.filter(p => p.status === "pending");
 
-      const weekChart: Record<string, number> = {};
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now); d.setDate(now.getDate() - i);
-        weekChart[d.toISOString().split("T")[0]] = 0;
-      }
-      weekPay.forEach(p => {
-        const k = p.created_at?.split("T")[0];
-        if (k && weekChart[k] !== undefined) weekChart[k] += Number(p.amount);
-      });
-      const chartData = Object.entries(weekChart).map(([date, amount], i, arr) => ({
-        day: DAYS[new Date(date).getDay()], date, amount,
-        isToday: i === arr.length - 1,
-      }));
-
-      const monthlyMap: Record<number, number> = {};
-      MONTHS.forEach((_, i) => { monthlyMap[i] = 0; });
-      completed.forEach(p => {
-        const m = new Date(p.created_at).getMonth();
-        monthlyMap[m] = (monthlyMap[m] || 0) + Number(p.amount);
-      });
-      const monthlyData = MONTHS.map((m, i) => ({ month: m, amount: monthlyMap[i] }));
-
-      const methodBreakdown: Record<string, number> = {};
-      todayPay.forEach(p => {
-        methodBreakdown[p.payment_method] = (methodBreakdown[p.payment_method] || 0) + Number(p.amount);
-      });
-
-      const recent8 = payments.slice(0, 5);
-      let recentList: any[] = [];
-      if (recent8.length) {
-        const vendorIds = [...new Set(recent8.map(p => p.vendor_id))];
-        const { data: vendors } = await supabase
-          .from("vendors").select("id, user_id, stalls(stall_number, section)").in("id", vendorIds);
-        const userIds = vendors?.map(v => v.user_id) || [];
-        const { data: profiles } = await supabase
-          .from("profiles").select("user_id, first_name, last_name").in("user_id", userIds);
-        recentList = recent8.map(p => {
-          const v = vendors?.find(v => v.id === p.vendor_id);
-          const pr = profiles?.find(pr => pr.user_id === v?.user_id);
-          const st = v?.stalls as any;
-          return {
-            ...p,
-            vendor_name: pr ? `${pr.first_name} ${pr.last_name}` : "Unknown",
-            stall: st?.stall_number || "—",
-            section: st?.section || "",
-          };
+        const todayPay = completed.filter(p => p.created_at?.startsWith(todayStr));
+        const totalToday = todayPay.reduce((s, p) => s + Number(p.amount), 0);
+        const weekPay = completed.filter(p => new Date(p.created_at) >= weekStart);
+        const totalWeek = weekPay.reduce((s, p) => s + Number(p.amount), 0);
+        const monthPay = completed.filter(p => {
+          const d = new Date(p.created_at);
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         });
+        const totalMonth = monthPay.reduce((s, p) => s + Number(p.amount), 0);
+
+        const weekChart: Record<string, number> = {};
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now); d.setDate(now.getDate() - i);
+          weekChart[d.toISOString().split("T")[0]] = 0;
+        }
+        weekPay.forEach(p => {
+          const k = p.created_at?.split("T")[0];
+          if (k && weekChart[k] !== undefined) weekChart[k] += Number(p.amount);
+        });
+        const chartData = Object.entries(weekChart).map(([date, amount], i, arr) => ({
+          day: DAYS[new Date(date).getDay()], date, amount,
+          isToday: i === arr.length - 1,
+        }));
+
+        const monthlyMap: Record<number, number> = {};
+        MONTHS.forEach((_, i) => { monthlyMap[i] = 0; });
+        completed.forEach(p => {
+          const m = new Date(p.created_at).getMonth();
+          monthlyMap[m] = (monthlyMap[m] || 0) + Number(p.amount);
+        });
+        const monthlyData = MONTHS.map((m, i) => ({ month: m, amount: monthlyMap[i] }));
+
+        const methodBreakdown: Record<string, number> = {};
+        todayPay.forEach(p => {
+          methodBreakdown[p.payment_method] = (methodBreakdown[p.payment_method] || 0) + Number(p.amount);
+        });
+
+        const recent8 = payments.slice(0, 5);
+        let recentList: any[] = [];
+        if (recent8.length) {
+          const vendorIds = [...new Set(recent8.map(p => p.vendor_id))];
+          const { data: vendors } = await supabase
+            .from("vendors").select("id, user_id, stalls(stall_number, section)").in("id", vendorIds);
+          const userIds = vendors?.map(v => v.user_id) || [];
+          const { data: profiles } = await supabase
+            .from("profiles").select("user_id, first_name, last_name").in("user_id", userIds);
+          recentList = recent8.map(p => {
+            const v = vendors?.find(v => v.id === p.vendor_id);
+            const pr = profiles?.find(pr => pr.user_id === v?.user_id);
+            const st = v?.stalls as any;
+            return {
+              ...p,
+              vendor_name: pr ? `${pr.first_name} ${pr.last_name}` : "Unknown",
+              stall: st?.stall_number || "—",
+              section: st?.section || "",
+            };
+          });
+        }
+
+        const { data: allVendors } = await supabase.from("vendors").select("id");
+        const totalVendors = allVendors?.length || 0;
+        const paidVendorIds = new Set(monthPay.map(p => p.vendor_id));
+        const paidVendors = paidVendorIds.size;
+
+        return {
+          totalToday, txToday: todayPay.length,
+          totalWeek, txWeek: weekPay.length,
+          totalMonth, txMonth: monthPay.length,
+          pendingCount: pending.length,
+          chartData, monthlyData, methodBreakdown,
+          recentList, totalVendors, paidVendors,
+        };
+      } catch (err) {
+        console.warn("Offline query fallback for cashier dashboard:", err);
+        return {
+          totalToday: 0, txToday: 0,
+          totalWeek: 0, txWeek: 0,
+          totalMonth: 0, txMonth: 0,
+          pendingCount: 0,
+          chartData: [], monthlyData: [], methodBreakdown: {},
+          recentList: [], totalVendors: 0, paidVendors: 0,
+        };
       }
-
-      const { data: allVendors } = await supabase.from("vendors").select("id");
-      const totalVendors = allVendors?.length || 0;
-      const paidVendorIds = new Set(monthPay.map(p => p.vendor_id));
-      const paidVendors = paidVendorIds.size;
-
-      return {
-        totalToday, txToday: todayPay.length,
-        totalWeek, txWeek: weekPay.length,
-        totalMonth, txMonth: monthPay.length,
-        pendingCount: pending.length,
-        chartData, monthlyData, methodBreakdown,
-        recentList, totalVendors, paidVendors,
-      };
     },
   });
 
@@ -249,7 +265,14 @@ const CashierDashboardHome = () => {
     </div>
   );
 
-  const d = data!;
+  const d = data || {
+    totalToday: 0, txToday: 0,
+    totalWeek: 0, txWeek: 0,
+    totalMonth: 0, txMonth: 0,
+    pendingCount: 0,
+    chartData: [], monthlyData: [], methodBreakdown: {},
+    recentList: [], totalVendors: 0, paidVendors: 0,
+  };
   const today = new Date();
   const paidPct = d.totalVendors > 0 ? Math.round(d.paidVendors / d.totalVendors * 100) : 0;
   const methodTotal = Object.values(d.methodBreakdown).reduce((s, v) => s + v, 0);

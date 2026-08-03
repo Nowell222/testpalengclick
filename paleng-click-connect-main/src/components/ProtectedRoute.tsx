@@ -22,8 +22,13 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  // If role hasn't loaded yet, keep showing loading spinner
+  // If role hasn't loaded yet
   if (allowedRoles && !role) {
+    // If browser is offline and user has a valid active session, allow rendering children offline
+    if (!navigator.onLine && user) {
+      return <>{children}</>;
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

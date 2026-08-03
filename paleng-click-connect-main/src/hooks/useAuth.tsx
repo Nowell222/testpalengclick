@@ -26,16 +26,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchRoleAndProfile = async (userId: string) => {
-    const [roleRes, profileRes] = await Promise.all([
-      supabase.rpc("get_user_role", { _user_id: userId }),
-      supabase.from("profiles").select("first_name, last_name, middle_name, contact_number, avatar_url, status, address").eq("user_id", userId).maybeSingle(),
-    ]);
-    if (roleRes.data) setRole(roleRes.data as AppRole);
-    if (profileRes.data) {
-      setProfile(profileRes.data);
-      const status = profileRes.data.status;
-      if (status === "suspended" || status === "delinquent" || status === "closed") {
-        await clearAuth();
+    try {
+      const [roleRes, profileRes] = await Promise.all([
+        supabase.rpc("get_user_role", { _user_id: userId }),
+        supabase.from("profiles").select("first_name, last_name, middle_name, contact_number, avatar_url, status, address").eq("user_id", userId).maybeSingle(),
+      ]);
+
+      if (roleRes.data) {
+        const userRole = roleRes.data as AppRole;
+        setRole(userRole);
+        localStorage.setItem(`palengclick_role_${userId}`, userRole);
+      } else {
+        const cachedRole = localStorage.getItem(`palengclick_role_${userId}`) as AppRole | null;
+        if (cachedRole) setRole(cachedRole);
+      }
+
+      if (profileRes.data) {
+        setProfile(profileRes.data);
+        localStorage.setItem(`palengclick_profile_${userId}`, JSON.stringify(profileRes.data));
+        const status = profileRes.data.status;
+        if (status === "suspended" || status === "delinquent" || status === "closed") {
+          await clearAuth();
+        }
+      } else {
+        const cachedProfileStr = localStorage.getItem(`palengclick_profile_${userId}`);
+        if (cachedProfileStr) {
+          try { setProfile(JSON.parse(cachedProfileStr)); } catch (e) {}
+        }
+      }
+    } catch (err) {
+      console.warn("Offline or network issue while fetching profile/role:", err);
+      const cachedRole = localStorage.getItem(`palengclick_role_${userId}`) as AppRole | null;
+      const cachedProfileStr = localStorage.getItem(`palengclick_profile_${userId}`);
+      if (cachedRole) setRole(cachedRole);
+      if (cachedProfileStr) {
+        try { setProfile(JSON.parse(cachedProfileStr)); } catch (e) {}
       }
     }
   };
@@ -48,6 +73,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearAuth = async () => {
     await supabase.auth.signOut();
+    if (user?.id) {
+      localStorage.removeItem(`palengclick_role_${user.id}`);
+      localStorage.removeItem(`palengclick_profile_${user.id}`);
+    }
     setUser(null);
     setSession(null);
     setRole(null);
@@ -57,7 +86,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sess) => {
-      // Handle expired/invalid refresh token - sign out cleanly
       if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !sess)) {
         setUser(null);
         setSession(null);
@@ -70,7 +98,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
-        setTimeout(() => fetchRoleAndProfile(sess.user.id), 0);
+        const userId = sess.user.id;
+        // Immediately restore cached role & profile so offline navigation works without waiting for network
+        const cachedRole = localStorage.getItem(`palengclick_role_${userId}`) as AppRole | null;
+        const cachedProfileStr = localStorage.getItem(`palengclick_profile_${userId}`);
+        if (cachedRole) setRole(cachedRole);
+        if (cachedProfileStr) {
+          try { setProfile(JSON.parse(cachedProfileStr)); } catch (e) {}
+        }
+
+        fetchRoleAndProfile(userId);
       } else {
         setRole(null);
         setProfile(null);
@@ -85,7 +122,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
 
-    // ── Check account status before allowing access ──────────────────────
     const userId = data.user?.id;
     if (userId) {
       const { data: profileData } = await supabase
@@ -97,7 +133,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const status = profileData?.status as AccountStatus | undefined;
 
       if (status === "suspended" || status === "delinquent" || status === "closed") {
-        // Sign them out immediately — they should not get a session
         await supabase.auth.signOut();
         return { error: null, blockedStatus: status };
       }
@@ -107,6 +142,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (user?.id) {
+      localStorage.removeItem(`palengclick_role_${user.id}`);
+      localStorage.removeItem(`palengclick_profile_${user.id}`);
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
