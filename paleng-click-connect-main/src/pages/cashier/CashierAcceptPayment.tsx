@@ -479,24 +479,34 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
         };
       }
 
-      const { data, error } = await supabase.from("payments").insert(payload).select("reference_number, receipt_number").single();
-      if (error) throw error;
-      const cn1 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
-      await notifyVendor({
-        vendor_user_id: vendor.user_id,
-        vendor_name: `${vendor.profile?.first_name} ${vendor.profile?.last_name}`,
-        stall_number: vendor.stall?.stall_number || "—",
-        section: vendor.stall?.section || "General",
-        amount: payAmount,
-        period_month: periodMonth,
-        period_year: periodYear,
-        payment_method: "cash",
-        payment_type: payType === "full" ? "due" : "staggered",
-        receipt_number: data.receipt_number || "",
-        reference_number: data.reference_number || "",
-        cashier_name: cn1,
-      });
-      return data;
+      try {
+        const { data, error } = await supabase.from("payments").insert(payload).select("reference_number, receipt_number").single();
+        if (error) throw error;
+        const cn1 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
+        await notifyVendor({
+          vendor_user_id: vendor.user_id,
+          vendor_name: `${vendor.profile?.first_name} ${vendor.profile?.last_name}`,
+          stall_number: vendor.stall?.stall_number || "—",
+          section: vendor.stall?.section || "General",
+          amount: payAmount,
+          period_month: periodMonth,
+          period_year: periodYear,
+          payment_method: "cash",
+          payment_type: payType === "full" ? "due" : "staggered",
+          receipt_number: data.receipt_number || "",
+          reference_number: data.reference_number || "",
+          cashier_name: cn1,
+        });
+        return data;
+      } catch (err: any) {
+        console.warn("Online payment insert failed, saving to IndexedDB offline:", err);
+        await saveOfflinePayment(payload);
+        return {
+          reference_number: "OFFLINE-SYNC",
+          receipt_number: "PENDING",
+          offline: true
+        };
+      }
     },
     onSuccess: async (data: any) => {
       const cn = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
@@ -516,8 +526,16 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       ["vendor-statement", "vendor-pay-info", "vendor-history", "cashier-dashboard", "cashier-payment-status", "admin-payments", "admin-dashboard"]
         .forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
 
-      // Reload vendor data instantly so that month tiles immediately refresh to paid!
-      await loadVendorData(vendor);
+      if (data.offline || !navigator.onLine) {
+        toast.success("Payment accepted & saved offline!");
+        if (vendor) {
+          const newPaidMap = { ...(vendor.paidMap || {}) };
+          newPaidMap[periodMonth] = (newPaidMap[periodMonth] || 0) + payAmount;
+          setVendor({ ...vendor, paidMap: newPaidMap });
+        }
+      } else {
+        await loadVendorData(vendor);
+      }
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1161,25 +1179,31 @@ Please contact the cashier or try paying again through another method.`,
         return { reference_number: "OFFLINE-SYNC", receipt_number: "PENDING", offline: true };
       }
 
-      const { data, error } = await supabase.from("payments").insert(payload).select("reference_number, receipt_number").single();
-      if (error) throw error;
-      const cn3 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
-      const now3 = new Date();
-      await notifyVendor({
-        vendor_user_id: manualVendor.user_id,
-        vendor_name: `${manualVendor.profile?.first_name} ${manualVendor.profile?.last_name}`,
-        stall_number: (manualVendor.stall as any)?.stall_number || "—",
-        section: (manualVendor.stall as any)?.section || "General",
-        amount: Number(manualAmount),
-        period_month: now3.getMonth() + 1,
-        period_year: now3.getFullYear(),
-        payment_method: manualMethod,
-        payment_type: "due",
-        receipt_number: data.receipt_number || "",
-        reference_number: data.reference_number || "",
-        cashier_name: cn3,
-      });
-      return data;
+      try {
+        const { data, error } = await supabase.from("payments").insert(payload).select("reference_number, receipt_number").single();
+        if (error) throw error;
+        const cn3 = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
+        const now3 = new Date();
+        await notifyVendor({
+          vendor_user_id: manualVendor.user_id,
+          vendor_name: `${manualVendor.profile?.first_name} ${manualVendor.profile?.last_name}`,
+          stall_number: (manualVendor.stall as any)?.stall_number || "—",
+          section: (manualVendor.stall as any)?.section || "General",
+          amount: Number(manualAmount),
+          period_month: now3.getMonth() + 1,
+          period_year: now3.getFullYear(),
+          payment_method: manualMethod,
+          payment_type: "due",
+          receipt_number: data.receipt_number || "",
+          reference_number: data.reference_number || "",
+          cashier_name: cn3,
+        });
+        return data;
+      } catch (err: any) {
+        console.warn("Online manual payment insert failed, saving offline:", err);
+        await saveOfflinePayment(payload);
+        return { reference_number: "OFFLINE-SYNC", receipt_number: "PENDING", offline: true };
+      }
     },
     onSuccess: (data) => {
       const cn = cashierProfile ? `${cashierProfile.first_name} ${cashierProfile.last_name}` : "Cashier";
