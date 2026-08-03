@@ -1,24 +1,11 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { supabase } from '@/integrations/supabase/client';
 
-interface PalengClickDB extends DBSchema {
+export interface PalengClickDB extends DBSchema {
   offline_payments: {
     key: string;
-    value: {
-      id: string;
-      vendor_id: string;
-      stall_id?: string | null;
-      amount: number;
-      payment_method: string;
-      payment_type: string;
-      period_month?: number | null;
-      period_year?: number | null;
-      processed_by: string;
-      created_at: string;
-      status: string;
-      synced: boolean;
-    };
-    indexes: { 'by-synced': boolean };
+    value: Record<string, any>;
+    indexes: Record<string, any>;
   };
 }
 
@@ -53,7 +40,7 @@ export const syncOfflinePayments = async () => {
   // Use getAll() + JS filter — booleans are not valid IDB keys and
   // cannot be used with getAllFromIndex/countFromIndex queries.
   const allPayments = await db.getAll('offline_payments');
-  const offlinePayments = allPayments.filter(p => !p.synced);
+  const offlinePayments = allPayments.filter((p: any) => !p.synced);
 
   if (offlinePayments.length === 0) return { success: true, count: 0 };
 
@@ -62,8 +49,8 @@ export const syncOfflinePayments = async () => {
   for (const p of offlinePayments) {
     try {
       // Remove local-only fields before syncing
-      const { id, synced, ...dbPayload } = p;
-
+      const { id, synced, ...rawPayload } = p as any;
+      const dbPayload: Record<string, any> = { ...rawPayload };
 
       if (dbPayload.shift_id && typeof dbPayload.shift_id === 'string' && (dbPayload.shift_id.startsWith('offline-shift-') || dbPayload.shift_id.startsWith('shift-'))) {
         dbPayload.shift_id = null;
@@ -72,7 +59,7 @@ export const syncOfflinePayments = async () => {
       const { error } = await supabase.from('payments').insert({
         ...dbPayload,
         status: 'completed',
-      });
+      } as any);
 
       if (!error) {
         // Mark as synced locally
@@ -84,11 +71,10 @@ export const syncOfflinePayments = async () => {
     } catch (e) {
       console.error('Failed to sync payment', e);
     }
-
   }
 
   // Clear synced payments to save space
-  const syncedPayments = allPayments.filter(p => p.synced);
+  const syncedPayments = allPayments.filter((p: any) => p.synced);
   for (const s of syncedPayments) {
     await db.delete('offline_payments', s.id);
   }
@@ -99,8 +85,6 @@ export const syncOfflinePayments = async () => {
 export const getUnsyncedCount = async () => {
   if (!dbPromise) return 0;
   const db = await dbPromise;
-  // Use getAll() + JS filter — boolean is not a valid IDB key
   const all = await db.getAll('offline_payments');
-  return all.filter(p => !p.synced).length;
+  return all.filter((p: any) => !p.synced).length;
 };
-
