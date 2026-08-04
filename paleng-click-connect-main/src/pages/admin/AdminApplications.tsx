@@ -220,10 +220,16 @@ const AdminApplications = () => {
       });
       
       if (res.error) {
-        if (res.error.message?.includes("Failed to send a request")) {
-          throw new Error("Connection failed: Unable to approve application. Please check your network or verify if local Deno is running.");
+        let errorMsg = res.error.message;
+        try {
+          const body = await res.error.context?.json();
+          if (body?.error) errorMsg = body.error;
+        } catch (e) {}
+        if (res.data?.error) errorMsg = res.data.error;
+        if (errorMsg.includes("Failed to send a request")) {
+          errorMsg = "Connection failed: Unable to approve application. Please check your network or verify if local Deno is running.";
         }
-        throw new Error(res.error.message);
+        throw new Error(errorMsg);
       }
       if (res.data?.error) throw new Error(res.data.error);
 
