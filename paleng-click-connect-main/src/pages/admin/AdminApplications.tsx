@@ -257,6 +257,9 @@ const AdminApplications = () => {
       toast.success("Vendor approved and account created!");
       queryClient.invalidateQueries({ queryKey: ["vendor-applications"] });
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stall-history-list"] });
+      queryClient.invalidateQueries({ queryKey: ["bplo-history-stalls"] });
+      queryClient.invalidateQueries({ queryKey: ["bplo-history-ownership"] });
       setShowApprovalModal(false);
       setSelectedApp(null);
     },

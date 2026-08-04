@@ -337,6 +337,34 @@ Deno.serve(async (req: Request) => {
         })
       }
 
+      if (vendorData?.stall_id) {
+        // Update stall_ownership_history for the closing vendor to set ended_at and status closed
+        await supabaseAdmin
+          .from('stall_ownership_history')
+          .update({ ended_at: new Date().toISOString(), status: 'closed' })
+          .eq('vendor_id', vendorData.id)
+          .is('ended_at', null);
+
+        // If no history record existed yet for this vendor, insert one
+        const { data: existingHist } = await supabaseAdmin
+          .from('stall_ownership_history')
+          .select('id')
+          .eq('vendor_id', vendorData.id)
+          .maybeSingle();
+
+        if (!existingHist) {
+          await supabaseAdmin
+            .from('stall_ownership_history')
+            .insert({
+              stall_id: vendorData.stall_id,
+              vendor_id: vendorData.id,
+              started_at: new Date().toISOString(),
+              ended_at: new Date().toISOString(),
+              status: 'closed'
+            });
+        }
+      }
+
       // 3.5. If transferring ownership, assign the stall to the new vendor record
       if (targetVendorId && vendorData?.stall_id) {
         const { error: transferErr } = await supabaseAdmin
@@ -349,6 +377,15 @@ Deno.serve(async (req: Request) => {
             status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
+
+        await supabaseAdmin
+          .from('stall_ownership_history')
+          .insert({
+            stall_id: vendorData.stall_id,
+            vendor_id: targetVendorId,
+            started_at: new Date().toISOString(),
+            status: 'active'
+          });
       }
 
       // 4. Vacate the stall if they had one (only if not transferring to a new owner)

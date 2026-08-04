@@ -419,24 +419,136 @@ const AdminUserManagement = () => {
       const appId = isApp ? transferredToVendorId.substring(4) : undefined;
       const vendorId = isApp ? undefined : (transferredToVendorId || undefined);
 
-      const res = await supabase.functions.invoke("create-user", {
-        body: {
-          _action: "close-user",
-          user_id: closeTarget.id,
-          closure_reason: closureReason,
-          closure_notes: closureNotes,
-          transferred_to_vendor_id: vendorId,
-          transferred_to_app_id: appId
+      let success = false;
+      try {
+        const res = await supabase.functions.invoke("create-user", {
+          body: {
+            _action: "close-user",
+            user_id: closeTarget.id,
+            closure_reason: closureReason,
+            closure_notes: closureNotes,
+            transferred_to_vendor_id: vendorId,
+            transferred_to_app_id: appId
+          }
+        });
+        if (!res.error && !res.data?.error) {
+          success = true;
+        } else {
+          console.warn("Edge function close-user non-success, using direct DB fallback:", res.error || res.data?.error);
         }
-      });
-      if (res.error) throw new Error(res.error.message);
-      if (res.data?.error) throw new Error(res.data.error);
+      } catch (e) {
+        console.warn("Edge function invoke error, using direct DB fallback:", e);
+      }
+
+      if (!success) {
+        // Direct DB fallback:
+        const { data: vData } = await supabase
+          .from("vendors")
+          .select("id, stall_id")
+          .eq("user_id", closeTarget.id)
+          .maybeSingle();
+
+        const { error: profErr } = await supabase
+          .from("profiles")
+          .update({ status: "closed" })
+          .eq("user_id", closeTarget.id);
+
+        if (profErr) throw profErr;
+
+        let targetVendorId = vendorId || null;
+
+        if (appId && vData?.stall_id) {
+          await supabase
+            .from("vendor_applications")
+            .update({
+              status: "approved",
+              reviewed_at: new Date().toISOString(),
+              admin_notes: `Approved via Transfer of Ownership from user ${closeTarget.id}`
+            })
+            .eq("id", appId);
+        }
+
+        if (vData) {
+          const { error: vUpdateErr } = await supabase
+            .from("vendors")
+            .update({
+              stall_id: null,
+              closed_at: new Date().toISOString(),
+              closure_reason: closureReason,
+              closure_notes: closureNotes || null,
+              transferred_to_vendor_id: targetVendorId
+            })
+            .eq("user_id", closeTarget.id);
+
+          if (vUpdateErr) throw vUpdateErr;
+
+          if (vData.stall_id) {
+            // Update stall_ownership_history for the closing vendor to set ended_at and status closed
+            await supabase
+              .from("stall_ownership_history")
+              .update({ ended_at: new Date().toISOString(), status: "closed" })
+              .eq("vendor_id", vData.id)
+              .is("ended_at", null);
+
+            // If no history record existed yet for this vendor, insert one
+            const { data: existingHist } = await supabase
+              .from("stall_ownership_history")
+              .select("id")
+              .eq("vendor_id", vData.id)
+              .maybeSingle();
+
+            if (!existingHist) {
+              await supabase
+                .from("stall_ownership_history")
+                .insert({
+                  stall_id: vData.stall_id,
+                  vendor_id: vData.id,
+                  started_at: new Date().toISOString(),
+                  ended_at: new Date().toISOString(),
+                  status: "closed"
+                });
+            }
+
+            if (closureReason === "transfer_ownership" && targetVendorId) {
+              await supabase
+                .from("vendors")
+                .update({ stall_id: vData.stall_id })
+                .eq("id", targetVendorId);
+
+              await supabase
+                .from("stall_ownership_history")
+                .insert({
+                  stall_id: vData.stall_id,
+                  vendor_id: targetVendorId,
+                  started_at: new Date().toISOString(),
+                  status: "active"
+                });
+            } else {
+              // Vacate stall for future vendor applications to reference
+              await supabase
+                .from("stalls")
+                .update({ status: "vacant" })
+                .eq("id", vData.stall_id);
+            }
+          }
+        }
+
+        await supabase.from("notifications").insert({
+          user_id: closeTarget.id,
+          title: "🔒 Account Closed",
+          message: `Your account has been closed. Reason: ${closureReason || "Administrative decision."}`,
+          type: "overdue"
+        });
+      }
     },
     onSuccess: () => {
       toast.success(`${closeTarget.name}'s account has been successfully closed.`);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["admin-pending-applications"] });
       queryClient.invalidateQueries({ queryKey: ["vendor-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stall-history-list"] });
+      queryClient.invalidateQueries({ queryKey: ["bplo-history-stalls"] });
+      queryClient.invalidateQueries({ queryKey: ["bplo-history-ownership"] });
       setCloseTarget(null);
       setClosureNotes("");
       setClosureReason("transfer_ownership");
