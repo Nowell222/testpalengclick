@@ -271,6 +271,17 @@ const AdminUserManagement = () => {
   };
 
   const generateStallNumber = async (section: string) => {
+    if (section && section.toLowerCase().includes("bolante")) {
+      setForm(f => ({
+        ...f,
+        stall_number: "",
+        monthly_rate_2026: "0",
+        monthly_rate_2027: "0",
+        monthly_rate_2028: "0",
+        area_measurement: ""
+      }));
+      return;
+    }
     setGeneratingStall(true);
     try {
       const prefix = SECTION_PREFIX[section] || "G";
@@ -286,7 +297,7 @@ const AdminUserManagement = () => {
   };
 
   useEffect(() => {
-    if (showCreate && form.role === "vendor" && !form.stall_number) {
+    if (showCreate && form.role === "vendor" && !form.stall_number && !form.section.toLowerCase().includes("bolante")) {
       generateStallNumber(form.section);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,6 +317,7 @@ const AdminUserManagement = () => {
       if (!form.first_name.trim()) throw new Error("First name is required");
       if (!form.last_name.trim()) throw new Error("Last name is required");
       const isBolanteSec = form.section && form.section.toLowerCase().includes("bolante");
+      if (form.role === "vendor" && assignStall && !isBolanteSec && !form.stall_number.trim()) throw new Error("Stall number is required");
       if (form.role === "vendor" && assignStall && !isBolanteSec && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
       const res = await supabase.functions.invoke("create-user", {
         body: {
@@ -1748,26 +1760,39 @@ const AdminUserManagement = () => {
                             {SECTIONS.map(s => <option key={s}>{s}</option>)}
                           </select>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label>Stall Number <span className="text-accent">*</span> <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Auto</span></Label>
-                          <div className="flex gap-2">
-                            <Input 
-                              placeholder="e.g. G-001" 
-                              className="h-11 rounded-xl font-mono flex-1" 
-                              value={form.stall_number} 
-                              onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
-                              onBlur={e => lookupStallDetails(e.target.value, setForm)}
-                            />
-                            <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
-                              {generatingStall ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="space-y-1.5"><Label>Location / Remarks</Label><Input placeholder="e.g. Near entrance" className="h-11 rounded-xl" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
-                        <div className="space-y-1.5">
-                          <Label>Area Measurement (sqm)</Label>
-                          <Input placeholder="e.g. 12.8" className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
-                        </div>
+                        {(() => {
+                          const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
+                          return (
+                            <>
+                              <div className="space-y-1.5">
+                                <Label>
+                                  Stall Number {!isBolanteSection && <span className="text-accent">*</span>}
+                                  {!isBolanteSection && <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Auto</span>}
+                                </Label>
+                                <div className="flex gap-2">
+                                  <Input 
+                                    placeholder={isBolanteSection ? "No Stall (Bolante Vendor)" : "e.g. G-001"} 
+                                    className="h-11 rounded-xl font-mono flex-1" 
+                                    value={isBolanteSection ? "" : form.stall_number} 
+                                    disabled={isBolanteSection}
+                                    onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
+                                    onBlur={e => !isBolanteSection && lookupStallDetails(e.target.value, setForm)}
+                                  />
+                                  {!isBolanteSection && (
+                                    <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
+                                      {generatingStall ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-1.5"><Label>Location / Remarks</Label><Input placeholder="e.g. Near entrance" className="h-11 rounded-xl" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
+                              <div className="space-y-1.5">
+                                <Label>Area Measurement (sqm)</Label>
+                                <Input placeholder={isBolanteSection ? "N/A (Bolante)" : "e.g. 12.8"} className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-3 mt-4">
@@ -1785,38 +1810,61 @@ const AdminUserManagement = () => {
                         </div>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-3 mt-4">
-                        <div className="space-y-1.5">
-                          <Label>Monthly Rate 2026 (₱) <span className="text-accent">*</span></Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                            <Input type="number" placeholder="e.g. 3840" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2026} onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} />
+                      {(() => {
+                        const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
+                        return (
+                          <div className="grid gap-4 sm:grid-cols-3 mt-4">
+                            <div className="space-y-1.5">
+                              <Label>Monthly Rate 2026 (₱) {!isBolanteSection && <span className="text-accent">*</span>}</Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                                <Input 
+                                  type="number" 
+                                  placeholder={isBolanteSection ? "0 (No Monthly Rent)" : "e.g. 3840"} 
+                                  step="0.01" min="0" 
+                                  className="h-11 rounded-xl pl-7 font-mono" 
+                                  value={isBolanteSection ? "0" : form.monthly_rate_2026} 
+                                  disabled={isBolanteSection}
+                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} 
+                                />
+                              </div>
+                              {form.area_measurement && form.monthly_rate_2026 && Number(form.area_measurement) > 0 && !isBolanteSection && (
+                                <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2026) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
+                              )}
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Monthly Rate 2027 (₱)</Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                                <Input 
+                                  type="number" 
+                                  placeholder={isBolanteSection ? "0 (No Monthly Rent)" : "e.g. 4608"} 
+                                  step="0.01" min="0" 
+                                  className="h-11 rounded-xl pl-7 font-mono" 
+                                  value={isBolanteSection ? "0" : form.monthly_rate_2027} 
+                                  disabled={isBolanteSection}
+                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} 
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Monthly Rate 2028 (₱)</Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                                <Input 
+                                  type="number" 
+                                  placeholder={isBolanteSection ? "0 (No Monthly Rent)" : "e.g. 5760"} 
+                                  step="0.01" min="0" 
+                                  className="h-11 rounded-xl pl-7 font-mono" 
+                                  value={isBolanteSection ? "0" : form.monthly_rate_2028} 
+                                  disabled={isBolanteSection}
+                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} 
+                                />
+                              </div>
+                            </div>
                           </div>
-                          {form.area_measurement && form.monthly_rate_2026 && Number(form.area_measurement) > 0 && (
-                            <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2026) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                          )}
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Monthly Rate 2027 (₱)</Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                            <Input type="number" placeholder="e.g. 4608" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2027} onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} />
-                          </div>
-                          {form.area_measurement && form.monthly_rate_2027 && Number(form.area_measurement) > 0 && (
-                            <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2027) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                          )}
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Monthly Rate 2028 (₱)</Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                            <Input type="number" placeholder="e.g. 5760" step="0.01" min="0" className="h-11 rounded-xl pl-7 font-mono" value={form.monthly_rate_2028} onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} />
-                          </div>
-                          {form.area_measurement && form.monthly_rate_2028 && Number(form.area_measurement) > 0 && (
-                            <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2028) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                          )}
-                        </div>
-                      </div>
+                        );
+                      })()}
                     </>
                   )}
                 </div>
