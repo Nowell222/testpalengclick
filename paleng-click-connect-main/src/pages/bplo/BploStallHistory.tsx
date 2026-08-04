@@ -43,16 +43,62 @@ export default function BploStallHistory() {
     "Vegetable Section - Extension",
   ];
 
-  // Fetch all stalls
+  // Fetch all stalls and vendors (including Bolante accounts without physical stalls)
   const { data: stalls = [], isLoading: loadingStalls, refetch: refetchStalls } = useQuery<Stall[]>({
     queryKey: ["bplo-history-stalls"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("stalls")
-        .select("id, stall_number, section, status, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, location")
-        .order("stall_number", { ascending: true });
-      if (error) throw error;
-      return data || [];
+      const [stallsRes, vendorsRes, profilesRes, appsRes] = await Promise.all([
+        supabase
+          .from("stalls")
+          .select("id, stall_number, section, status, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, location")
+          .order("stall_number", { ascending: true }),
+        supabase
+          .from("vendors")
+          .select("id, user_id, stall_id, business_permit_number, award_receipt_number, award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, stalls(id, stall_number, section, status, location)"),
+        supabase
+          .from("profiles")
+          .select("user_id, first_name, middle_name, last_name, contact_number, address, status"),
+        supabase
+          .from("vendor_applications")
+          .select("applicant_user_id, preferred_section, email")
+      ]);
+
+      const stallsData: any[] = stallsRes.data ? [...stallsRes.data] : [];
+      const vendorsData = vendorsRes.data || [];
+      const profilesData = profilesRes.data || [];
+      const appsData = appsRes.data || [];
+
+      // For every vendor who doesn't have a stall in the stalls table (e.g. Bolante vendors / accounts), add them to directory
+      vendorsData.forEach((v: any) => {
+        const hasStallInTable = v.stall_id && stallsData.some(s => s.id === v.stall_id);
+        if (!hasStallInTable) {
+          const profile = profilesData.find(p => p.user_id === v.user_id);
+          const app = appsData.find(a => a.applicant_user_id === v.user_id);
+          const fullName = profile ? [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(" ") : "Vendor Account";
+          const sectionName = v.stalls?.section || app?.preferred_section || "Outside the Building - Bolante";
+          const stallNum = v.stalls?.stall_number || `BOLANTE (${profile?.last_name || v.id.substring(0, 4)})`;
+
+          stallsData.push({
+            id: `virtual-vendor-${v.id}`,
+            real_vendor_id: v.id,
+            user_id: v.user_id,
+            stall_number: stallNum,
+            section: sectionName,
+            status: profile?.status === "closed" ? "closed" : (v.stalls?.status || "occupied"),
+            monthly_rate: 0,
+            monthly_rate_2026: 0,
+            monthly_rate_2027: 0,
+            monthly_rate_2028: 0,
+            location: "Bolante Section / No Monthly Rent",
+            is_virtual: true,
+            vendor_name: fullName,
+            vendor_record: v,
+            profile_record: profile
+          });
+        }
+      });
+
+      return stallsData;
     }
   });
 
@@ -63,7 +109,28 @@ export default function BploStallHistory() {
     queryFn: async () => {
       if (!selectedStall?.id) return [];
       
-      const { data: historyData, error: historyError } = await supabase
+      // Virtual entry handling for Bolante / unassigned vendors
+      if ((selectedStall as any).is_virtual) {
+        const v = (selectedStall as any).vendor_record;
+        const profile = (selectedStall as any).profile_record;
+        return [
+          {
+            id: `hist-virtual-${v.id}`,
+            stall_id: selectedStall.id,
+            vendor_id: v.id,
+            started_at: v.award_date || v.created_at || new Date().toISOString(),
+            ended_at: v.closed_at || (profile?.status === "closed" ? new Date().toISOString() : null),
+            status: profile?.status === "closed" ? "closed" : "active",
+            vendors: {
+              ...v,
+              profiles: profile,
+              last_payment_date: v.award_payment_date || null
+            }
+          }
+        ];
+      }
+
+      const { data: historyData } = await supabase
         .from("stall_ownership_history")
         .select(`
           id,
@@ -88,14 +155,44 @@ export default function BploStallHistory() {
         .eq("stall_id", selectedStall.id)
         .order("started_at", { ascending: false });
 
-      if (historyError) throw historyError;
-      if (!historyData || historyData.length === 0) return [];
+      let result: any[] = historyData ? [...historyData] : [];
 
-      const userIds = historyData
+      // Fallback: If stall_ownership_history has no records for physical stall, query vendors directly
+      if (result.length === 0) {
+        const { data: directVendors } = await supabase
+          .from("vendors")
+          .select(`
+            id,
+            user_id,
+            business_permit_number,
+            award_receipt_number,
+            award_payment_date,
+            award_date,
+            qr_code,
+            closed_at,
+            closure_reason,
+            closure_notes
+          `)
+          .eq("stall_id", selectedStall.id);
+
+        if (directVendors && directVendors.length > 0) {
+          result = directVendors.map(v => ({
+            id: `hist-direct-${v.id}`,
+            stall_id: selectedStall.id,
+            vendor_id: v.id,
+            started_at: v.award_date || new Date().toISOString(),
+            ended_at: v.closed_at || null,
+            status: v.closed_at ? "closed" : "active",
+            vendors: v
+          }));
+        }
+      }
+
+      const userIds = result
         .map((h: any) => h.vendors?.user_id)
         .filter(Boolean);
 
-      const vendorIds = historyData
+      const vendorIds = result
         .map((h: any) => h.vendor_id)
         .filter(Boolean);
 
@@ -115,19 +212,15 @@ export default function BploStallHistory() {
             : Promise.resolve({ data: [], error: null })
         ]);
 
-        if (profilesRes.error) throw profilesRes.error;
-        if (paymentsRes.error) throw paymentsRes.error;
-
-        const profilesData = profilesRes.data;
+        const profilesData = profilesRes.data || [];
         const paymentsData = paymentsRes.data || [];
 
-        return historyData.map((h: any) => {
-          // Find last payment date for this vendor
+        return result.map((h: any) => {
           const vendorPayments = paymentsData.filter((p: any) => p.vendor_id === h.vendor_id);
           const lastPaymentDate = vendorPayments.length > 0 ? vendorPayments[0].created_at : null;
 
           if (h.vendors && h.vendors.user_id) {
-            const profile = profilesData?.find((p) => p.user_id === h.vendors.user_id);
+            const profile = profilesData.find((p) => p.user_id === h.vendors.user_id);
             return {
               ...h,
               vendors: {
@@ -144,7 +237,7 @@ export default function BploStallHistory() {
         });
       }
 
-      return historyData;
+      return result;
     }
   });
 
@@ -152,7 +245,9 @@ export default function BploStallHistory() {
   const filteredStalls = useMemo(() => {
     return stalls.filter(s => {
       const term = search.toLowerCase();
-      const matchSearch = s.stall_number.toLowerCase().includes(term) || (s.location || "").toLowerCase().includes(term);
+      const matchSearch = s.stall_number.toLowerCase().includes(term) ||
+                          (s.location || "").toLowerCase().includes(term) ||
+                          ((s as any).vendor_name || "").toLowerCase().includes(term);
       const matchSection = filterSection === "all" || s.section === filterSection;
       return matchSearch && matchSection;
     });

@@ -184,7 +184,8 @@ const AdminApplications = () => {
 
   const approveMutation = useMutation({
     mutationFn: async () => {
-      if (assignStall) {
+      const isBolanteSec = section && section.toLowerCase().includes("bolante");
+      if (assignStall && !isBolanteSec) {
         if (!stallNumber.trim()) throw new Error("Stall number is required");
         if (!monthlyRate2026 || Number(monthlyRate2026) <= 0) throw new Error("Valid monthly rate is required");
       }

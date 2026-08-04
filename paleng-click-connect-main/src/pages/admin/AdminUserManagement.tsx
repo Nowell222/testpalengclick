@@ -305,8 +305,8 @@ const AdminUserManagement = () => {
       if (form.password.length < 6) throw new Error("Password must be at least 6 characters");
       if (!form.first_name.trim()) throw new Error("First name is required");
       if (!form.last_name.trim()) throw new Error("Last name is required");
-      if (form.role === "vendor" && assignStall && !form.stall_number.trim()) throw new Error("Stall number is required");
-      if (form.role === "vendor" && assignStall && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
+      const isBolanteSec = form.section && form.section.toLowerCase().includes("bolante");
+      if (form.role === "vendor" && assignStall && !isBolanteSec && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
       const res = await supabase.functions.invoke("create-user", {
         body: {
           email: form.email.trim(), password: form.password,

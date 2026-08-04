@@ -447,7 +447,8 @@ Deno.serve(async (req: Request) => {
     const effectiveRate = parsedRate ?? rate2026;
 
     const hasStall = stall_number && stall_number.trim().length > 0;
-    if (role === 'vendor' && hasStall && (effectiveRate === null || isNaN(effectiveRate) || effectiveRate <= 0)) {
+    const isBolante = section && String(section).toLowerCase().includes('bolante');
+    if (role === 'vendor' && hasStall && !isBolante && (effectiveRate === null || isNaN(effectiveRate) || effectiveRate <= 0)) {
       return new Response(JSON.stringify({ error: `Monthly fee is required for vendor accounts with an assigned stall (received: ${monthly_rate})` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
