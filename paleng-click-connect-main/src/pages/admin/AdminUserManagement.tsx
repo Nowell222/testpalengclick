@@ -1613,99 +1613,99 @@ const AdminUserManagement = () => {
               </div>
               <button onClick={() => { setShowCreate(false); setForm({ ...emptyForm }); }} className="rounded-lg p-1.5 hover:bg-secondary"><X className="h-5 w-5 text-muted-foreground" /></button>
             </div>
-            <div className="p-6 space-y-6">
-              {/* Role */}
-              <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Account Role</Label>
-                <div className="flex gap-3">
-                  {(["vendor", "cashier", "bplo", "eemo"] as const).map(r => {
-                    const cfg = ROLE_CONFIG[r];
-                    return (
-                      <button key={r} onClick={() => setForm(f => ({ ...f, role: r }))}
-                        className={`flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${form.role === r ? "border-primary bg-primary/5 ring-2 ring-primary/20 text-foreground" : "bg-card text-muted-foreground hover:bg-secondary/50"}`}>
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${cfg.color}`}><cfg.icon className="h-3.5 w-3.5" /></div>
-                        {cfg.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* Credentials */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Login Credentials</p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label>Email <span className="text-accent">*</span></Label>
-                    <Input placeholder="email@example.com" className="h-11 rounded-xl" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Password <span className="text-accent">*</span></Label>
-                    <div className="relative">
-                      <Input type={showPwd ? "text" : "password"} placeholder="Min. 6 characters" className="h-11 rounded-xl pr-10" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
-                      <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                {/* ── Left Column: Role, Credentials, Personal Info, Stall Reference ── */}
+                <div className="space-y-4">
+                  {/* Role */}
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">Account Role</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(["vendor", "cashier", "bplo", "eemo"] as const).map(r => {
+                        const cfg = ROLE_CONFIG[r];
+                        return (
+                          <button key={r} type="button" onClick={() => setForm(f => ({ ...f, role: r }))}
+                            className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-medium transition-all ${form.role === r ? "border-primary bg-primary/5 ring-2 ring-primary/20 text-foreground font-bold" : "bg-card text-muted-foreground hover:bg-secondary/50"}`}>
+                            <div className={`flex h-5 w-5 items-center justify-center rounded-md ${cfg.color}`}><cfg.icon className="h-3 w-3" /></div>
+                            {cfg.label}
+                          </button>
+                        );
+                      })}
                     </div>
-                    {form.password && form.password.length < 6 && <p className="text-xs text-accent">Password must be at least 6 characters</p>}
-                  </div>
-                </div>
-              </div>
-              {/* Personal */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Personal Information</p>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-1.5"><Label>First Name <span className="text-accent">*</span></Label><Input placeholder="First name" className="h-11 rounded-xl" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
-                  <div className="space-y-1.5"><Label>Middle Name</Label><Input placeholder="Optional" className="h-11 rounded-xl" value={form.middle_name} onChange={e => setForm(f => ({ ...f, middle_name: e.target.value }))} /></div>
-                  <div className="space-y-1.5"><Label>Last Name <span className="text-accent">*</span></Label><Input placeholder="Last name" className="h-11 rounded-xl" value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
-                  <div className="space-y-1.5"><Label>Contact Number</Label><Input placeholder="09XX XXX XXXX" className="h-11 rounded-xl" value={form.contact_number} onChange={e => setForm(f => ({ ...f, contact_number: e.target.value }))} /></div>
-                  <div className="space-y-1.5 sm:col-span-2"><Label>Address</Label><Input placeholder="Home address" className="h-11 rounded-xl" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
-                </div>
-              </div>
-              {/* Stall (vendor only) */}
-              {form.role === "vendor" && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Stall Information</p>
-                  
-                  <div className="flex items-center gap-2 mb-4 bg-secondary/30 p-3 rounded-xl">
-                    <input
-                      type="checkbox"
-                      id="assignStall"
-                      className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
-                      checked={assignStall}
-                      onChange={e => {
-                        setAssignStall(e.target.checked);
-                        if (!e.target.checked) {
-                          setForm(f => ({ ...f, stall_number: "", monthly_rate_2026: "", monthly_rate_2027: "", monthly_rate_2028: "" }));
-                        }
-                      }}
-                    />
-                    <Label htmlFor="assignStall" className="cursor-pointer text-xs font-semibold text-foreground">
-                      Assign Stall and Rates now
-                    </Label>
                   </div>
 
-                  {assignStall && (
-                    <>
-                      {(() => {
+                  {/* Credentials */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Login Credentials</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Email <span className="text-accent">*</span></Label>
+                        <Input placeholder="email@example.com" className="h-10 rounded-xl text-xs" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Password <span className="text-accent">*</span></Label>
+                        <div className="relative">
+                          <Input type={showPwd ? "text" : "password"} placeholder="Min. 6 characters" className="h-10 rounded-xl text-xs pr-9" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+                          <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                            {showPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>
+                        </div>
+                        {form.password && form.password.length < 6 && <p className="text-[11px] text-accent">Min. 6 characters required</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Personal Information */}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Personal Information</p>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="space-y-1"><Label className="text-xs">First Name <span className="text-accent">*</span></Label><Input placeholder="First name" className="h-10 rounded-xl text-xs" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label className="text-xs">Middle Name</Label><Input placeholder="Optional" className="h-10 rounded-xl text-xs" value={form.middle_name} onChange={e => setForm(f => ({ ...f, middle_name: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label className="text-xs">Last Name <span className="text-accent">*</span></Label><Input placeholder="Last name" className="h-10 rounded-xl text-xs" value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label className="text-xs">Contact Number</Label><Input placeholder="09XX XXX XXXX" className="h-10 rounded-xl text-xs" value={form.contact_number} onChange={e => setForm(f => ({ ...f, contact_number: e.target.value }))} /></div>
+                      <div className="space-y-1 sm:col-span-2"><Label className="text-xs">Address</Label><Input placeholder="Home address" className="h-10 rounded-xl text-xs" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></div>
+                    </div>
+                  </div>
+
+                  {/* Stall Checkbox & Reference Closed Account */}
+                  {form.role === "vendor" && (
+                    <div className="space-y-3 pt-1 border-t border-slate-100">
+                      <div className="flex items-center gap-2 bg-secondary/30 p-2.5 rounded-xl">
+                        <input
+                          type="checkbox"
+                          id="assignStall"
+                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                          checked={assignStall}
+                          onChange={e => {
+                            setAssignStall(e.target.checked);
+                            if (!e.target.checked) {
+                              setForm(f => ({ ...f, stall_number: "", monthly_rate_2026: "", monthly_rate_2027: "", monthly_rate_2028: "" }));
+                            }
+                          }}
+                        />
+                        <Label htmlFor="assignStall" className="cursor-pointer text-xs font-semibold text-foreground">
+                          Assign Stall and Rates now
+                        </Label>
+                      </div>
+
+                      {assignStall && (() => {
                         const activeOccupiedStalls = users
                           .filter((u: any) => u.status !== "closed" && u.role === "vendor" && u.stall && u.stall !== "—")
                           .map((u: any) => u.stall);
 
                         const closedVendors = users.filter((u: any) => {
                           if (u.status !== "closed" || u.role !== "vendor") return false;
-                          
                           const hist = stallHistory.find((h: any) => h.vendor_id === u.vendor_id);
                           const lastStallNum = hist?.stalls?.stall_number;
                           if (!lastStallNum) return true;
-
                           return !activeOccupiedStalls.includes(lastStallNum);
                         });
 
                         if (closedVendors.length === 0) return null;
                         return (
-                          <div className="mb-4 space-y-1.5">
+                          <div className="space-y-1">
                             <Label className="text-xs font-semibold text-muted-foreground">Reference Closed Account (Pre-fill Stall Details)</Label>
                             <select
-                              className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              className="h-10 w-full rounded-xl border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                               onChange={e => {
                                 const vendorId = e.target.value;
                                 if (vendorId) {
@@ -1738,142 +1738,169 @@ const AdminUserManagement = () => {
                                 );
                               })}
                             </select>
-                            <p className="text-[10px] text-muted-foreground">
-                              Selecting a closed account will auto-populate its previous stall number, section, area, and rates.
-                            </p>
                           </div>
                         );
                       })()}
+                    </div>
+                  )}
+                </div>
 
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="space-y-1.5">
-                          <Label>Section <span className="text-accent">*</span></Label>
-                          <select 
-                            className="h-11 w-full rounded-xl border bg-background px-3 text-sm" 
-                            value={form.section} 
-                            onChange={e => {
-                              const newSection = e.target.value;
-                              setForm(f => ({ ...f, section: newSection }));
-                              generateStallNumber(newSection);
-                            }}
-                          >
-                            {SECTIONS.map(s => <option key={s}>{s}</option>)}
-                          </select>
-                        </div>
-                        {(() => {
-                          const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
-                          return (
-                            <>
-                              <div className="space-y-1.5">
-                                <Label>
+                {/* ── Right Column: Section, Stall, Permit & Rates ── */}
+                <div className="space-y-4">
+                  {form.role === "vendor" && assignStall ? (
+                    <>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Section & Stall Details</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Section <span className="text-accent">*</span></Label>
+                            <select 
+                              className="h-10 w-full rounded-xl border bg-background px-3 text-xs" 
+                              value={form.section} 
+                              onChange={e => {
+                                const newSection = e.target.value;
+                                setForm(f => ({ ...f, section: newSection }));
+                                generateStallNumber(newSection);
+                              }}
+                            >
+                              {SECTIONS.map(s => <option key={s}>{s}</option>)}
+                            </select>
+                          </div>
+
+                          {(() => {
+                            const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
+                            return (
+                              <div className="space-y-1">
+                                <Label className="text-xs">
                                   Stall Number {!isBolanteSection && <span className="text-accent">*</span>}
-                                  {!isBolanteSection && <span className="ml-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Auto</span>}
+                                  {!isBolanteSection && <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Auto</span>}
                                 </Label>
-                                <div className="flex gap-2">
+                                <div className="flex gap-1.5">
                                   <Input 
                                     placeholder={isBolanteSection ? "No Stall (Bolante Vendor)" : "e.g. G-001"} 
-                                    className="h-11 rounded-xl font-mono flex-1" 
+                                    className="h-10 rounded-xl font-mono text-xs flex-1" 
                                     value={isBolanteSection ? "" : form.stall_number} 
                                     disabled={isBolanteSection}
                                     onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
                                     onBlur={e => !isBolanteSection && lookupStallDetails(e.target.value, setForm)}
                                   />
                                   {!isBolanteSection && (
-                                    <Button type="button" variant="outline" size="icon" className="h-11 w-11 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
-                                      {generatingStall ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
+                                      {generatingStall ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                                     </Button>
                                   )}
                                 </div>
                               </div>
-                              <div className="space-y-1.5"><Label>Location / Remarks</Label><Input placeholder="e.g. Near entrance" className="h-11 rounded-xl" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></div>
-                              <div className="space-y-1.5">
-                                <Label>Area Measurement (sqm)</Label>
-                                <Input placeholder={isBolanteSection ? "N/A (Bolante)" : "e.g. 12.8"} className="h-11 rounded-xl font-mono" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
+                            );
+                          })()}
+
+                          <div className="space-y-1">
+                            <Label className="text-xs">Location / Remarks</Label>
+                            <Input placeholder="e.g. Near entrance" className="h-10 rounded-xl text-xs" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                          </div>
+
+                          {(() => {
+                            const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
+                            return (
+                              <div className="space-y-1">
+                                <Label className="text-xs">Area Measurement (sqm)</Label>
+                                <Input placeholder={isBolanteSection ? "N/A (Bolante)" : "e.g. 12.8"} className="h-10 rounded-xl font-mono text-xs" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
                               </div>
-                            </>
-                          );
-                        })()}
+                            );
+                          })()}
+                        </div>
                       </div>
 
-                      <div className="grid gap-4 sm:grid-cols-3 mt-4">
-                        <div className="space-y-1.5">
-                          <Label>Business Permit Number</Label>
-                          <Input placeholder="e.g. BP-2026-0001" className="h-11 rounded-xl" value={form.business_permit_number} onChange={e => setForm(f => ({ ...f, business_permit_number: e.target.value }))} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Permit Receipt #</Label>
-                          <Input placeholder="e.g. REC-987654" className="h-11 rounded-xl" value={form.award_receipt_number} onChange={e => setForm(f => ({ ...f, award_receipt_number: e.target.value }))} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Date of Payment</Label>
-                          <Input type="date" className="h-11 rounded-xl" value={form.award_payment_date} onChange={e => setForm(f => ({ ...f, award_payment_date: e.target.value }))} />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Permit & Payment Records</p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Business Permit #</Label>
+                            <Input placeholder="BP-2026-0001" className="h-10 rounded-xl text-xs" value={form.business_permit_number} onChange={e => setForm(f => ({ ...f, business_permit_number: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Permit Receipt #</Label>
+                            <Input placeholder="REC-987654" className="h-10 rounded-xl text-xs" value={form.award_receipt_number} onChange={e => setForm(f => ({ ...f, award_receipt_number: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Date of Payment</Label>
+                            <Input type="date" className="h-10 rounded-xl text-xs" value={form.award_payment_date} onChange={e => setForm(f => ({ ...f, award_payment_date: e.target.value }))} />
+                          </div>
                         </div>
                       </div>
 
                       {(() => {
                         const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
                         return (
-                          <div className="grid gap-4 sm:grid-cols-3 mt-4">
-                            <div className="space-y-1.5">
-                              <Label>Monthly Rate 2026 (₱) {!isBolanteSection && <span className="text-accent">*</span>}</Label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                                <Input 
-                                  type="number" 
-                                  placeholder={isBolanteSection ? "0 (No Monthly Rent)" : "e.g. 3840"} 
-                                  step="0.01" min="0" 
-                                  className="h-11 rounded-xl pl-7 font-mono" 
-                                  value={isBolanteSection ? "0" : form.monthly_rate_2026} 
-                                  disabled={isBolanteSection}
-                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} 
-                                />
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Monthly Rates Schedule</p>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Rate 2026 (₱) {!isBolanteSection && <span className="text-accent">*</span>}</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                                  <Input 
+                                    type="number" 
+                                    placeholder={isBolanteSection ? "0 (No Rent)" : "3840"} 
+                                    step="0.01" min="0" 
+                                    className="h-10 rounded-xl pl-6 font-mono text-xs" 
+                                    value={isBolanteSection ? "0" : form.monthly_rate_2026} 
+                                    disabled={isBolanteSection}
+                                    onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} 
+                                  />
+                                </div>
                               </div>
-                              {form.area_measurement && form.monthly_rate_2026 && Number(form.area_measurement) > 0 && !isBolanteSection && (
-                                <p className="text-[10px] text-muted-foreground font-mono">= ₱{(Number(form.monthly_rate_2026) / (Number(form.area_measurement) * 30)).toFixed(2)}/sqm × {form.area_measurement} sqm × 30 days</p>
-                              )}
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label>Monthly Rate 2027 (₱)</Label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                                <Input 
-                                  type="number" 
-                                  placeholder={isBolanteSection ? "0 (No Monthly Rent)" : "e.g. 4608"} 
-                                  step="0.01" min="0" 
-                                  className="h-11 rounded-xl pl-7 font-mono" 
-                                  value={isBolanteSection ? "0" : form.monthly_rate_2027} 
-                                  disabled={isBolanteSection}
-                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} 
-                                />
+                              <div className="space-y-1">
+                                <Label className="text-xs">Rate 2027 (₱)</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                                  <Input 
+                                    type="number" 
+                                    placeholder={isBolanteSection ? "0 (No Rent)" : "4608"} 
+                                    step="0.01" min="0" 
+                                    className="h-10 rounded-xl pl-6 font-mono text-xs" 
+                                    value={isBolanteSection ? "0" : form.monthly_rate_2027} 
+                                    disabled={isBolanteSection}
+                                    onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} 
+                                  />
+                                </div>
                               </div>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label>Monthly Rate 2028 (₱)</Label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                                <Input 
-                                  type="number" 
-                                  placeholder={isBolanteSection ? "0 (No Monthly Rent)" : "e.g. 5760"} 
-                                  step="0.01" min="0" 
-                                  className="h-11 rounded-xl pl-7 font-mono" 
-                                  value={isBolanteSection ? "0" : form.monthly_rate_2028} 
-                                  disabled={isBolanteSection}
-                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} 
-                                />
+                              <div className="space-y-1">
+                                <Label className="text-xs">Rate 2028 (₱)</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                                  <Input 
+                                    type="number" 
+                                    placeholder={isBolanteSection ? "0 (No Rent)" : "5760"} 
+                                    step="0.01" min="0" 
+                                    className="h-10 rounded-xl pl-6 font-mono text-xs" 
+                                    value={isBolanteSection ? "0" : form.monthly_rate_2028} 
+                                    disabled={isBolanteSection}
+                                    onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} 
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
                         );
                       })()}
                     </>
+                  ) : (
+                    <div className="rounded-xl border bg-secondary/30 p-6 text-center text-muted-foreground space-y-2">
+                      <Store className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                      <p className="text-xs font-semibold">No Stall Assigned</p>
+                      <p className="text-[11px]">This account will be created without a stall assignment. You can assign a stall later anytime.</p>
+                    </div>
                   )}
                 </div>
-              )}
-              <div className="flex gap-3 pt-2 border-t">
-                <Button onClick={() => createUser.mutate()} disabled={createUser.isPending} className="gap-2 rounded-xl">
+              </div>
+
+              {/* Bottom Action Buttons */}
+              <div className="flex gap-3 pt-3 border-t">
+                <Button onClick={() => createUser.mutate()} disabled={createUser.isPending} className="gap-2 rounded-xl h-10 px-6 font-semibold">
                   {createUser.isPending ? <><Loader2 className="h-4 w-4 animate-spin" />Creating…</> : <><UserPlus className="h-4 w-4" />Create Account</>}
                 </Button>
-                <Button variant="outline" className="rounded-xl" onClick={() => { setShowCreate(false); setForm({ ...emptyForm }); }}>Cancel</Button>
+                <Button variant="outline" className="rounded-xl h-10 px-5" onClick={() => { setShowCreate(false); setForm({ ...emptyForm }); }}>Cancel</Button>
               </div>
             </div>
           </motion.div>
