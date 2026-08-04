@@ -846,16 +846,16 @@ const AdminUserManagement = () => {
               ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
               : row.monthly_rate !== undefined && row.monthly_rate !== ""
                 ? Number(String(row.monthly_rate).replace(/,/g, ".").trim())
-                : undefined,
+                : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
             monthly_rate_2026: row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
               ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
-              : undefined,
+              : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
             monthly_rate_2027: row.monthly_rate_2027 !== undefined && row.monthly_rate_2027 !== ""
               ? Number(String(row.monthly_rate_2027).replace(/,/g, ".").trim())
-              : undefined,
+              : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
             monthly_rate_2028: row.monthly_rate_2028 !== undefined && row.monthly_rate_2028 !== ""
               ? Number(String(row.monthly_rate_2028).replace(/,/g, ".").trim())
-              : undefined,
+              : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
             area_measurement: (row.area_measurement || "").trim(),
           },
         });
@@ -1445,8 +1445,8 @@ const AdminUserManagement = () => {
 
                   {showPreview && csvRows.length > 0 && !isImporting && (
                     <div className="rounded-xl border overflow-hidden">
-                      {/* Warn if any vendor row is missing monthly_rate */}
-                      {csvRows.some((r: any) => (r.role || "vendor") === "vendor" && (!r.monthly_rate_2026 || r.monthly_rate_2026 === "") && (!r.monthly_rate || r.monthly_rate === "")) && (
+                      {/* Warn if any vendor row (except Bolante) is missing monthly_rate */}
+                      {csvRows.some((r: any) => (r.role || "vendor") === "vendor" && !(r.section || "").toLowerCase().includes("bolante") && (!r.monthly_rate_2026 || r.monthly_rate_2026 === "") && (!r.monthly_rate || r.monthly_rate === "")) && (
                         <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border-b border-amber-200">
                           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                           <p className="text-xs text-amber-800">
@@ -1467,8 +1467,9 @@ const AdminUserManagement = () => {
                           <tbody className="divide-y">
                             {csvRows.map((r: any, i: number) => {
                               const isVendor = (r.role || "vendor") === "vendor";
-                              const missingRate = isVendor && (!r.monthly_rate_2026 || r.monthly_rate_2026 === "") && (!r.monthly_rate || r.monthly_rate === "");
-                              const fmtRate = (v: any) => v ? `₱${Number(String(v).replace(/,/g, ".")).toLocaleString("en-PH")}` : "—";
+                              const isBolante = (r.section || "").toLowerCase().includes("bolante");
+                              const missingRate = isVendor && !isBolante && (!r.monthly_rate_2026 || r.monthly_rate_2026 === "") && (!r.monthly_rate || r.monthly_rate === "");
+                              const fmtRate = (v: any) => isBolante ? "₱0 (Bolante)" : (v ? `₱${Number(String(v).replace(/,/g, ".")).toLocaleString("en-PH")}` : "—");
                               return (
                                 <tr key={i} className={`hover:bg-secondary/30 ${missingRate ? "bg-amber-50/50" : ""}`}>
                                   <td className="px-3 py-2 text-muted-foreground font-mono">{i + 1}</td>

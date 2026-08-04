@@ -656,6 +656,10 @@ export type Database = {
           business_permit_number: string | null
           award_receipt_number: string | null
           award_payment_date: string | null
+          closed_at: string | null
+          closure_reason: string | null
+          closure_notes: string | null
+          transferred_to_vendor_id: string | null
         }
         Insert: {
           award_date?: string | null
@@ -670,6 +674,10 @@ export type Database = {
           business_permit_number?: string | null
           award_receipt_number?: string | null
           award_payment_date?: string | null
+          closed_at?: string | null
+          closure_reason?: string | null
+          closure_notes?: string | null
+          transferred_to_vendor_id?: string | null
         }
         Update: {
           award_date?: string | null
@@ -684,6 +692,10 @@ export type Database = {
           business_permit_number?: string | null
           award_receipt_number?: string | null
           award_payment_date?: string | null
+          closed_at?: string | null
+          closure_reason?: string | null
+          closure_notes?: string | null
+          transferred_to_vendor_id?: string | null
         }
         Relationships: [
           {
