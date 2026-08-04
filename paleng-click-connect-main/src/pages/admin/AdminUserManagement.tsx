@@ -457,6 +457,30 @@ const AdminUserManagement = () => {
 
         let targetVendorId = vendorId || null;
 
+        if (transferredToVendorId.startsWith("user:")) {
+          const targetUserId = transferredToVendorId.substring(5);
+          const { data: targetV } = await supabase
+            .from("vendors")
+            .select("id")
+            .eq("user_id", targetUserId)
+            .maybeSingle();
+
+          if (targetV) {
+            targetVendorId = targetV.id;
+          } else {
+            const { data: newV } = await supabase
+              .from("vendors")
+              .insert({
+                user_id: targetUserId,
+                stall_id: null,
+                award_date: new Date().toISOString().split("T")[0]
+              })
+              .select("id")
+              .single();
+            if (newV) targetVendorId = newV.id;
+          }
+        }
+
         if (appId && vData?.stall_id) {
           await supabase
             .from("vendor_applications")
@@ -1030,7 +1054,7 @@ const AdminUserManagement = () => {
                             {candidates.length > 0 && (
                               <optgroup label="Registered Vendors (No Stall)">
                                 {candidates.map((c: any) => (
-                                  <option key={c.id} value={c.vendor_id}>
+                                  <option key={c.id} value={c.vendor_id || `user:${c.id}`}>
                                     {c.name} ({c.contact})
                                   </option>
                                 ))}
