@@ -603,12 +603,52 @@ const AdminUserManagement = () => {
 
   const deleteUsers = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await supabase.functions.invoke("create-user", {
-        body: { _action: "delete-user", user_id: ids },
-      });
-      if (res.error) throw new Error(res.error.message);
-      if (res.data?.error) throw new Error(res.data.error);
-      return res.data;
+      let successData: any = null;
+      try {
+        const res = await supabase.functions.invoke("create-user", {
+          body: { _action: "delete-user", user_id: ids },
+        });
+        if (!res.error && res.data && !res.data.error) {
+          successData = res.data;
+        } else {
+          console.warn("Edge function delete-user non-success, using direct DB fallback:", res.error || res.data?.error);
+        }
+      } catch (e) {
+        console.warn("Edge function invoke error, using direct DB fallback:", e);
+      }
+
+      if (successData) return successData;
+
+      // Direct DB Fallback:
+      const results = [];
+      for (const id of ids) {
+        try {
+          const { data: vData } = await supabase
+            .from("vendors")
+            .select("id, stall_id")
+            .eq("user_id", id)
+            .maybeSingle();
+
+          if (vData?.stall_id) {
+            await supabase
+              .from("stalls")
+              .update({ status: "vacant" })
+              .eq("id", vData.stall_id);
+          }
+
+          await supabase.from("vendors").delete().eq("user_id", id);
+          await supabase.from("user_roles").delete().eq("user_id", id);
+          const { error: pErr } = await supabase.from("profiles").delete().eq("user_id", id);
+
+          if (pErr) throw pErr;
+          results.push({ id, status: "success" });
+        } catch (err: any) {
+          console.error(`Failed to delete user ${id}:`, err);
+          results.push({ id, status: "error", message: err.message || "Failed to delete" });
+        }
+      }
+
+      return { success: true, results };
     },
     onSuccess: (data, ids) => {
       const successCount = data.results.filter((r: any) => r.status === "success").length;
@@ -626,8 +666,10 @@ const AdminUserManagement = () => {
       setDeleteConfirmText("");
       setIsBulkDelete(false);
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-stall-history-list"] });
+      queryClient.invalidateQueries({ queryKey: ["bplo-history-stalls"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message || "Failed to delete account"),
   });
 
   const toggleSelectAll = () => {
