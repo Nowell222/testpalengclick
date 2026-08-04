@@ -93,6 +93,7 @@ const AdminReports = () => {
     "Building I - 2nd Floor",
     "Building II - 2nd Floor",
     "Bldg 1 & 2 Bolante",
+    "Outside the Building - Bolante",
     "New Building - Mojica",
     "New Building - Kalayaan",
     "Meat Stalls",
@@ -188,25 +189,81 @@ const AdminReports = () => {
     if(!allData) return [];
     return (allData.enriched||[]).filter((p:any)=>{
       const d=p.created_at?.split("T")[0];
-      return d>=dateFrom&&d<=dateTo&&(filterSection==="all"||p.section===filterSection)&&(!search||p.vendor_name.toLowerCase().includes(search.toLowerCase())||p.stall.toLowerCase().includes(search.toLowerCase()))&&p.status==="completed";
+      return d>=dateFrom&&d<=dateTo&&(filterSection==="all"||p.section===filterSection)&&(!search||p.vendor_name.toLowerCase().includes(search.toLowerCase())||p.stall.toLowerCase().includes(search.toLowerCase())||(p.section||"").toLowerCase().includes(search.toLowerCase()))&&p.status==="completed";
     });
   },[allData,dateFrom,dateTo,filterSection,search]);
 
+  const filteredVendorStatus = useMemo(() => {
+    if (!allData) return [];
+    return (allData.vendorStatus || [])
+      .filter((v: any) => filterSection === "all" || v.section === filterSection)
+      .filter((v: any) => !search || 
+        v.name.toLowerCase().includes(search.toLowerCase()) || 
+        v.stall.toLowerCase().includes(search.toLowerCase()) || 
+        (v.contact || "").toLowerCase().includes(search.toLowerCase())
+      );
+  }, [allData, filterSection, search]);
+
+  const filteredDelinquents = useMemo(() => {
+    if (!allData) return [];
+    return (allData.vendorStatus || [])
+      .filter((v: any) => v.monthsOverdue > 0)
+      .filter((v: any) => filterSection === "all" || v.section === filterSection)
+      .filter((v: any) => !search || 
+        v.name.toLowerCase().includes(search.toLowerCase()) || 
+        v.stall.toLowerCase().includes(search.toLowerCase()) || 
+        (v.contact || "").toLowerCase().includes(search.toLowerCase())
+      )
+      .sort((a: any, b: any) => b.outstanding - a.outstanding);
+  }, [allData, filterSection, search]);
+
+  const filteredStalls = useMemo(() => {
+    if (!allData) return [];
+    return (allData.stalls || [])
+      .filter((s: any) => filterSection === "all" || s.section === filterSection)
+      .filter((s: any) => !search || 
+        s.stall_number.toLowerCase().includes(search.toLowerCase()) || 
+        s.section.toLowerCase().includes(search.toLowerCase()) || 
+        (s.location || "").toLowerCase().includes(search.toLowerCase())
+      );
+  }, [allData, filterSection, search]);
+
+  const filteredAnnualData = useMemo(() => {
+    if (!allData) return [];
+    const targetYear = allData.currentYear;
+    const monthlyMap: Record<number, number> = {};
+    MONTHS_SHORT.forEach((_, i) => { monthlyMap[i] = 0; });
+
+    (allData.enriched || [])
+      .filter((p: any) => p.status === "completed")
+      .filter((p: any) => filterSection === "all" || p.section === filterSection)
+      .filter((p: any) => !search || p.vendor_name.toLowerCase().includes(search.toLowerCase()) || p.stall.toLowerCase().includes(search.toLowerCase()))
+      .filter((p: any) => (p.period_year ? p.period_year === targetYear : new Date(p.created_at).getFullYear() === targetYear))
+      .forEach((p: any) => {
+        const m = p.period_month ? p.period_month - 1 : new Date(p.created_at).getMonth();
+        monthlyMap[m] = (monthlyMap[m] || 0) + Number(p.amount);
+      });
+
+    return MONTHS_SHORT.map((m, i) => ({ month: m, amount: monthlyMap[i] }));
+  }, [allData, filterSection, search]);
+
   const stats = useMemo(()=>{
     if(!allData) return {totalYear:0,totalRange:0,txRange:0,pending:0,outstanding:0,vendors:0,paidVendors:0,stalls:0,occupied:0};
-    const completed=(allData.enriched||[]).filter((p:any)=>p.status==="completed");
+    const completed=(allData.enriched||[]).filter((p:any)=>p.status==="completed"&&(filterSection==="all"||p.section===filterSection));
+    const vs = filteredVendorStatus;
+    const st = filteredStalls;
     return {
       totalYear:  completed.reduce((s:number,p:any)=>s+Number(p.amount),0),
       totalRange: rangePayments.reduce((s:number,p:any)=>s+Number(p.amount),0),
       txRange:    rangePayments.length,
-      pending:    (allData.enriched||[]).filter((p:any)=>p.status==="pending").length,
-      outstanding:(allData.vendorStatus||[]).reduce((s:number,v:any)=>s+v.outstanding,0),
-      vendors:    (allData.vendorStatus||[]).length,
-      paidVendors:(allData.vendorStatus||[]).filter((v:any)=>v.thisMonthStatus==="paid").length,
-      stalls:     (allData.stalls||[]).length,
-      occupied:   (allData.stalls||[]).filter((s:any)=>s.status==="occupied").length,
+      pending:    (allData.enriched||[]).filter((p:any)=>p.status==="pending"&&(filterSection==="all"||p.section===filterSection)).length,
+      outstanding:vs.reduce((s:number,v:any)=>s+v.outstanding,0),
+      vendors:    vs.length,
+      paidVendors:vs.filter((v:any)=>v.thisMonthStatus==="paid").length,
+      stalls:     st.length,
+      occupied:   st.filter((s:any)=>s.status==="occupied").length,
     };
-  },[allData,rangePayments]);
+  },[allData,rangePayments,filteredVendorStatus,filteredStalls,filterSection]);
 
   const dailyChartData = useMemo(()=>{
     const map:Record<string,number>={};

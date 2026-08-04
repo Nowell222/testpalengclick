@@ -274,6 +274,7 @@ const VendorApply = () => {
                       <SelectItem value="Building I - 2nd Floor">Building I - 2nd Floor</SelectItem>
                       <SelectItem value="Building II - 2nd Floor">Building II - 2nd Floor</SelectItem>
                       <SelectItem value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</SelectItem>
+                      <SelectItem value="Outside the Building - Bolante">Outside the Building - Bolante</SelectItem>
                       <SelectItem value="New Building - Mojica">New Building - Mojica</SelectItem>
                       <SelectItem value="New Building - Kalayaan">New Building - Kalayaan</SelectItem>
                       <SelectItem value="Meat Stalls">Meat Stalls</SelectItem>

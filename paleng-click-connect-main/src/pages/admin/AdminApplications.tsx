@@ -18,6 +18,7 @@ const SECTION_PREFIX: Record<string, string> = {
   "Building I - 2nd Floor":          "B1F",
   "Building II - 2nd Floor":         "B2F",
   "Bldg 1 & 2 Bolante":              "B12",
+  "Outside the Building - Bolante":   "OBB",
   "New Building - Mojica":           "NBM",
   "New Building - Kalayaan":         "NBK",
   "Meat Stalls":                     "MS",

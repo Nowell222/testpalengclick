@@ -1090,7 +1090,7 @@ Please contact the cashier or try paying again through another method.`,
           body: JSON.stringify({
             vendor_user_id: recipientUserId,
             _push_only: true,
-            _push_title: "❌ Payment Rejected",
+            _push_title: "Payment Rejected",
             _push_body: `Your ${METHOD_CONFIG[p.payment_method]?.label || p.payment_method} payment of ${fmt(Number(p.amount))} was rejected. Please visit the cashier.`,
           }),
         }).catch(() => { });
@@ -1319,7 +1319,7 @@ Please contact the cashier or try paying again through another method.`,
             <div className="px-6 py-4 border-b bg-amber-50 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base text-amber-950 flex items-center gap-2">
-                  <span className="text-lg">⚡</span> Saved Offline Payments
+                  <span className="text-lg"></span> Saved Offline Payments
                 </h3>
                 <p className="text-xs text-amber-800">
                   {offlinePaymentsList.length} transaction(s) stored locally in browser IndexedDB

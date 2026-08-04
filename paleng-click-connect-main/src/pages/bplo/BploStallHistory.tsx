@@ -32,6 +32,7 @@ export default function BploStallHistory() {
     "Building I - 2nd Floor",
     "Building II - 2nd Floor",
     "Bldg 1 & 2 Bolante",
+    "Outside the Building - Bolante",
     "New Building - Mojica",
     "New Building - Kalayaan",
     "Meat Stalls",
