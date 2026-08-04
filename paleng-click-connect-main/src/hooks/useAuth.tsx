@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type AppRole = "admin" | "cashier" | "vendor" | "bplo" | "eemo";
 type AccountStatus = "active" | "suspended" | "delinquent" | "closed";
@@ -117,6 +118,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Realtime profile listener: Instant auto-logout when account is closed, suspended, or delinquent
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`profile-status-listener-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newStatus = payload.new?.status;
+          if (newStatus === "closed" || newStatus === "suspended" || newStatus === "delinquent") {
+            toast.error(
+              newStatus === "closed"
+                ? "🔒 Your account has been closed by the Market Administration."
+                : newStatus === "suspended"
+                ? "⛔ Your account has been suspended."
+                : "⚠️ Your account has been marked delinquent."
+            );
+            await clearAuth();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
