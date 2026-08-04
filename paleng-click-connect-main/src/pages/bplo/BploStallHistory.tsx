@@ -111,14 +111,50 @@ export default function BploStallHistory() {
       
       // Virtual entry handling for Bolante / unassigned vendors
       if ((selectedStall as any).is_virtual) {
-        const v = (selectedStall as any).vendor_record;
-        const profile = (selectedStall as any).profile_record;
-        return [
-          {
-            id: `hist-virtual-${v.id}`,
+        const targetVendorId = (selectedStall as any).real_vendor_id;
+        
+        const [{ data: allVendorsData }, { data: profilesData }] = await Promise.all([
+          supabase
+            .from("vendors")
+            .select("id, user_id, stall_id, business_permit_number, award_receipt_number, award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, transferred_to_vendor_id"),
+          supabase
+            .from("profiles")
+            .select("user_id, first_name, middle_name, last_name, contact_number, address, status")
+        ]);
+
+        const chain: any[] = [];
+        let current = allVendorsData?.find((v: any) => v.id === targetVendorId);
+        
+        // Trace backwards to find previous vendors in transfer chain
+        while (current) {
+          chain.unshift(current);
+          const prev = allVendorsData?.find((v: any) => v.transferred_to_vendor_id === current.id);
+          if (prev && !chain.some(c => c.id === prev.id)) {
+            current = prev;
+          } else {
+            break;
+          }
+        }
+
+        // Trace forwards to find next vendors in transfer chain
+        current = allVendorsData?.find((v: any) => v.id === targetVendorId);
+        while (current && current.transferred_to_vendor_id) {
+          const next = allVendorsData?.find((v: any) => v.id === current.transferred_to_vendor_id);
+          if (next && !chain.some(c => c.id === next.id)) {
+            chain.push(next);
+            current = next;
+          } else {
+            break;
+          }
+        }
+
+        return chain.map((v: any) => {
+          const profile = profilesData?.find((p: any) => p.user_id === v.user_id);
+          return {
+            id: `hist-chain-${v.id}`,
             stall_id: selectedStall.id,
             vendor_id: v.id,
-            started_at: v.award_date || v.created_at || new Date().toISOString(),
+            started_at: v.award_date || new Date().toISOString(),
             ended_at: v.closed_at || (profile?.status === "closed" ? new Date().toISOString() : null),
             status: profile?.status === "closed" ? "closed" : "active",
             vendors: {
@@ -126,8 +162,8 @@ export default function BploStallHistory() {
               profiles: profile,
               last_payment_date: v.award_payment_date || null
             }
-          }
-        ];
+          };
+        });
       }
 
       const { data: historyData } = await supabase

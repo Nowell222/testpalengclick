@@ -57,6 +57,7 @@ const AdminApplications = () => {
   const [generatingStall, setGeneratingStall] = useState(false);
   const [assignStall, setAssignStall] = useState(true);
   const [section, setSection] = useState("");
+  const [selectedClosedVendorId, setSelectedClosedVendorId] = useState<string | null>(null);
 
   // Reject Form State
   const [rejectReason, setRejectReason] = useState("");
@@ -79,12 +80,12 @@ const AdminApplications = () => {
   const { data: closedVendors = [] } = useQuery({
     queryKey: ["admin-applications-closed-vendors"],
     queryFn: async () => {
-      const [{ data: profiles }, { data: roles }, { data: vendors }, { data: history }, { data: schedules }, { data: occupiedStalls }] = await Promise.all([
+      const [{ data: profiles }, { data: roles }, { data: vendors }, { data: history }, { data: apps }, { data: occupiedStalls }] = await Promise.all([
         supabase.from("profiles").select("user_id, first_name, last_name").eq("status", "closed"),
         supabase.from("user_roles").select("user_id").eq("role", "vendor"),
-        supabase.from("vendors").select("id, user_id"),
+        supabase.from("vendors").select("id, user_id, stall_id, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)"),
         supabase.from("stall_ownership_history").select("*, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)").order("started_at", { ascending: false }),
-        supabase.from("payment_schedules").select("vendor_id, stall_id, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)").order("created_at", { ascending: false }),
+        supabase.from("vendor_applications").select("applicant_user_id, preferred_section"),
         supabase.from("stalls").select("stall_number").eq("status", "occupied")
       ]);
       
@@ -95,22 +96,19 @@ const AdminApplications = () => {
       
       const mappedClosed = closedProfiles.map(p => {
         const v = vendors.find(vend => vend.user_id === p.user_id);
-        let lastStall = null;
-        if (v) {
+        const app = apps?.find(a => a.applicant_user_id === p.user_id);
+        let lastStall = v?.stalls || null;
+        if (!lastStall && v) {
           const hist = history?.find(h => h.vendor_id === v.id);
-          if (hist && hist.stalls) {
-            lastStall = hist.stalls;
-          } else {
-            const sched = schedules?.find(s => s.vendor_id === v.id && s.stalls);
-            if (sched && sched.stalls) {
-              lastStall = sched.stalls;
-            }
-          }
+          if (hist && hist.stalls) lastStall = hist.stalls;
         }
+        const section = lastStall?.section || app?.preferred_section || "Outside the Building - Bolante";
+
         return {
           id: p.user_id,
           vendor_id: v?.id,
           name: `${p.first_name} ${p.last_name}`,
+          section,
           lastStall: lastStall as any
         };
       });
@@ -162,16 +160,23 @@ const AdminApplications = () => {
 
   const openApprovalModal = (app: any) => {
     setSelectedApp(app);
-    const hasStallPref = !!app.preferred_section;
-    setAssignStall(hasStallPref);
-    setStallNumber("");
-    setMonthlyRate2026("1450");
-    setMonthlyRate2027("");
-    setMonthlyRate2028("");
+    setSelectedClosedVendorId(null);
+    const prefSection = app.preferred_section || "Vegetable Section";
+    const isBolantePref = prefSection.toLowerCase().includes("bolante");
+    setAssignStall(true);
+    setSection(prefSection);
     setTempPassword("PalengClick123");
-    setSection(app.preferred_section || "Vegetable Section");
-    if (hasStallPref) {
-      generateStallNumber(app.preferred_section);
+
+    if (isBolantePref) {
+      setStallNumber("");
+      setMonthlyRate2026("0");
+      setMonthlyRate2027("0");
+      setMonthlyRate2028("0");
+    } else {
+      setMonthlyRate2026("1450");
+      setMonthlyRate2027("");
+      setMonthlyRate2028("");
+      generateStallNumber(prefSection);
     }
     setShowApprovalModal(true);
   };
@@ -201,13 +206,13 @@ const AdminApplications = () => {
           contact_number: selectedApp.phone_number, 
           address: "N/A",
           role: "vendor", 
-          stall_number: assignStall ? stallNumber : "",
+          stall_number: assignStall && !isBolanteSec ? stallNumber : "",
           section: assignStall ? section : undefined, 
-          location: assignStall ? "San Juan Public Market" : undefined, 
-          monthly_rate: assignStall ? Number(monthlyRate2026) : undefined,
-          monthly_rate_2026: assignStall ? Number(monthlyRate2026) : undefined,
-          monthly_rate_2027: assignStall && monthlyRate2027 ? Number(monthlyRate2027) : undefined,
-          monthly_rate_2028: assignStall && monthlyRate2028 ? Number(monthlyRate2028) : undefined,
+          location: assignStall ? (isBolanteSec ? "Bolante Section / No Monthly Rent" : "San Juan Public Market") : undefined, 
+          monthly_rate: assignStall ? (isBolanteSec ? 0 : Number(monthlyRate2026)) : undefined,
+          monthly_rate_2026: assignStall ? (isBolanteSec ? 0 : Number(monthlyRate2026)) : undefined,
+          monthly_rate_2027: assignStall ? (isBolanteSec ? 0 : (monthlyRate2027 ? Number(monthlyRate2027) : undefined)) : undefined,
+          monthly_rate_2028: assignStall ? (isBolanteSec ? 0 : (monthlyRate2028 ? Number(monthlyRate2028) : undefined)) : undefined,
           business_permit_number: selectedApp.business_permit_number,
           award_receipt_number: selectedApp.award_receipt_number,
           award_payment_date: selectedApp.award_payment_date,
@@ -222,13 +227,22 @@ const AdminApplications = () => {
       }
       if (res.data?.error) throw new Error(res.data.error);
 
-      // 2. Update Application Status
+      // 2. Link closed vendor to new vendor if referencing closed account
+      if (res.data?.user_id && selectedClosedVendorId) {
+        const newUserId = res.data.user_id;
+        const { data: newV } = await supabase.from("vendors").select("id").eq("user_id", newUserId).maybeSingle();
+        if (newV) {
+          await supabase.from("vendors").update({ transferred_to_vendor_id: newV.id }).eq("id", selectedClosedVendorId);
+        }
+      }
+
+      // 3. Update Application Status
       const { error: updateErr } = await supabase
         .from("vendor_applications")
         .update({ 
           status: "approved", 
           reviewed_at: new Date().toISOString(),
-          admin_notes: assignStall ? `Approved. Assigned Stall: ${stallNumber}` : `Approved. Stall will be assigned later.` 
+          admin_notes: assignStall ? (isBolanteSec ? `Approved. Assigned Section: ${section} (Bolante)` : `Approved. Assigned Stall: ${stallNumber}`) : `Approved. Stall will be assigned later.` 
         })
         .eq("id", selectedApp.id);
       
@@ -602,20 +616,33 @@ const AdminApplications = () => {
                           const val = e.target.value;
                           if (val) {
                             const cv = closedVendors.find(c => c.id === val);
-                            if (cv && cv.lastStall) {
-                              setSection(cv.lastStall.section || "");
-                              setStallNumber(cv.lastStall.stall_number || "");
-                              setMonthlyRate2026(cv.lastStall.monthly_rate_2026 !== null ? String(cv.lastStall.monthly_rate_2026) : "1450");
-                              setMonthlyRate2027(cv.lastStall.monthly_rate_2027 !== null ? String(cv.lastStall.monthly_rate_2027) : "");
-                              setMonthlyRate2028(cv.lastStall.monthly_rate_2028 !== null ? String(cv.lastStall.monthly_rate_2028) : "");
+                            if (cv) {
+                              setSelectedClosedVendorId(cv.vendor_id || null);
+                              const secName = cv.section || cv.lastStall?.section || "Outside the Building - Bolante";
+                              setSection(secName);
+                              if (secName.toLowerCase().includes("bolante")) {
+                                setStallNumber("");
+                                setMonthlyRate2026("0");
+                                setMonthlyRate2027("0");
+                                setMonthlyRate2028("0");
+                              } else if (cv.lastStall) {
+                                setStallNumber(cv.lastStall.stall_number || "");
+                                setMonthlyRate2026(cv.lastStall.monthly_rate_2026 !== null ? String(cv.lastStall.monthly_rate_2026) : "1450");
+                                setMonthlyRate2027(cv.lastStall.monthly_rate_2027 !== null ? String(cv.lastStall.monthly_rate_2027) : "");
+                                setMonthlyRate2028(cv.lastStall.monthly_rate_2028 !== null ? String(cv.lastStall.monthly_rate_2028) : "");
+                              }
                             }
+                          } else {
+                            setSelectedClosedVendorId(null);
                           }
                         }}
                         defaultValue=""
                       >
                         <option value="">-- Manual Input / Select Closed Account --</option>
                         {closedVendors.map(cv => {
-                          const stallStr = cv.lastStall?.stall_number ? ` (Stall: ${cv.lastStall.stall_number})` : "";
+                          const stallStr = cv.lastStall?.stall_number 
+                            ? ` (Stall: ${cv.lastStall.stall_number})` 
+                            : ` (${cv.section || "Bolante"})`;
                           return (
                             <option key={cv.id} value={cv.id}>
                               {cv.name}{stallStr}
