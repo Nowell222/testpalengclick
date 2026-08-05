@@ -213,7 +213,7 @@ Deno.serve(async (req: Request) => {
           .eq('stall_id', p_stall_id);
 
         if (directVendors && directVendors.length > 0) {
-          result = directVendors.map(v => ({
+          result = directVendors.map((v: any) => ({
             id: `hist-direct-${v.id}`,
             stall_id: p_stall_id,
             vendor_id: v.id,

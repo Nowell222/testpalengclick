@@ -44,9 +44,9 @@ const STATUS_CONFIG: Record<string, { icon: any; badge: string; text: string; la
 // ── Month SOA print ──────────────────────────────────────────────────────────
 const printMonthSOA = (data: {
   profile: any; stall: any; monthName: string; monthNum: number; year: number;
-  payments: any[]; monthlyRate: number;
+  payments: any[]; monthlyRate: number; preferredSection?: string | null;
 }) => {
-  const { profile, stall, monthName, monthNum, year, payments, monthlyRate } = data;
+  const { profile, stall, monthName, monthNum, year, payments, monthlyRate, preferredSection } = data;
 
   const completed  = payments.filter(p => p.status === "completed");
   const pending    = payments.filter(p => p.status === "pending");
@@ -120,7 +120,7 @@ const printMonthSOA = (data: {
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
-  <div class="info-item"><label>Section</label><p>${stall?.section || queryData?.preferredSection || "General"}</p></div>
+  <div class="info-item"><label>Section</label><p>${stall?.section || preferredSection || "General"}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH",{year:"numeric",month:"long",day:"numeric"})}</p></div>
