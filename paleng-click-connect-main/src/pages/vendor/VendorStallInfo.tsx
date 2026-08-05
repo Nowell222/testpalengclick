@@ -112,14 +112,25 @@ const VendorStallInfo = () => {
     queryFn: async () => {
       if (!stall?.id) return [];
 
-      // Try SECURITY DEFINER RPC first to bypass vendor RLS restrictions on past owner profiles
-      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
-        p_stall_id: stall.id
-      });
+      // 1. Try SECURITY DEFINER RPC first
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
+          p_stall_id: stall.id
+        });
+        if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+          return rpcData;
+        }
+      } catch (e) {}
 
-      if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
-        return rpcData;
-      }
+      // 2. Try Edge Function service-role bypass
+      try {
+        const res = await supabase.functions.invoke("create-user", {
+          body: { _action: "get-stall-history", p_stall_id: stall.id }
+        });
+        if (res.data?.history && Array.isArray(res.data.history) && res.data.history.length > 0) {
+          return res.data.history;
+        }
+      } catch (e) {}
 
       const { data: historyData } = await supabase
         .from("stall_ownership_history")

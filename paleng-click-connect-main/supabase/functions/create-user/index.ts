@@ -157,6 +157,134 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // ── Handle fetching stall ownership history ──────────────────────
+    if (_action === 'get-stall-history') {
+      const p_stall_id = body.p_stall_id || body.stall_id;
+      if (!p_stall_id) {
+        return new Response(JSON.stringify({ error: 'stall_id is required' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // 1. Fetch from stall_ownership_history first
+      const { data: historyData } = await supabaseAdmin
+        .from('stall_ownership_history')
+        .select(`
+          id,
+          stall_id,
+          vendor_id,
+          started_at,
+          ended_at,
+          status,
+          vendors (
+            id,
+            user_id,
+            business_permit_number,
+            award_receipt_number,
+            award_payment_date,
+            award_date,
+            qr_code,
+            closed_at,
+            closure_reason,
+            closure_notes
+          )
+        `)
+        .eq('stall_id', p_stall_id)
+        .order('started_at', { ascending: false });
+
+      let result: any[] = historyData ? [...historyData] : [];
+
+      // 2. Fallback to querying vendors table if history table is empty
+      if (result.length === 0) {
+        const { data: directVendors } = await supabaseAdmin
+          .from('vendors')
+          .select(`
+            id,
+            user_id,
+            business_permit_number,
+            award_receipt_number,
+            award_payment_date,
+            award_date,
+            qr_code,
+            closed_at,
+            closure_reason,
+            closure_notes
+          `)
+          .eq('stall_id', p_stall_id);
+
+        if (directVendors && directVendors.length > 0) {
+          result = directVendors.map(v => ({
+            id: `hist-direct-${v.id}`,
+            stall_id: p_stall_id,
+            vendor_id: v.id,
+            started_at: v.award_date || new Date().toISOString(),
+            ended_at: v.closed_at || null,
+            status: v.closed_at ? 'closed' : 'active',
+            vendors: v
+          }));
+        }
+      }
+
+      // 3. Attach profiles and last payment date
+      const userIds = result.map((h: any) => h.vendors?.user_id).filter(Boolean);
+      const vendorIds = result.map((h: any) => h.vendor_id).filter(Boolean);
+
+      if (userIds.length > 0) {
+        const [profilesRes, paymentsRes] = await Promise.all([
+          supabaseAdmin
+            .from('profiles')
+            .select('user_id, first_name, middle_name, last_name, contact_number, address, status')
+            .in('user_id', userIds),
+          vendorIds.length > 0
+            ? supabaseAdmin
+              .from('payments')
+              .select('vendor_id, created_at')
+              .in('vendor_id', vendorIds)
+              .eq('status', 'completed')
+              .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null })
+        ]);
+
+        const profilesData = profilesRes.data || [];
+        const paymentsData = paymentsRes.data || [];
+
+        result = result.map((h: any) => {
+          const vendorPayments = paymentsData.filter((p: any) => p.vendor_id === h.vendor_id);
+          const lastPaymentDate = vendorPayments.length > 0 ? vendorPayments[0].created_at : null;
+
+          if (h.vendors && h.vendors.user_id) {
+            const pr = profilesData.find((p: any) => p.user_id === h.vendors.user_id);
+            return {
+              ...h,
+              vendors: {
+                ...h.vendors,
+                profiles: pr || null,
+                last_payment_date: lastPaymentDate
+              }
+            };
+          }
+          return {
+            ...h,
+            last_payment_date: lastPaymentDate
+          };
+        });
+      }
+
+      result.sort((a: any, b: any) => {
+        const aCurrent = !a.ended_at && a.status === 'active';
+        const bCurrent = !b.ended_at && b.status === 'active';
+        if (aCurrent && !bCurrent) return -1;
+        if (!aCurrent && bCurrent) return 1;
+        const dateA = new Date(a.started_at || 0).getTime();
+        const dateB = new Date(b.started_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      return new Response(JSON.stringify({ success: true, history: result }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // ── Handle account closure ─────────────────────────────────────────
     if (_action === 'close-user') {
       const { data: adminRole } = await supabaseAdmin.from('user_roles').select('role').eq('user_id', caller.id).eq('role', 'admin').single();
@@ -521,9 +649,9 @@ Deno.serve(async (req: Request) => {
         await supabaseAdmin.from('stall_fee_schedules').delete().eq('stall_id', stallId)
       }
 
-      await supabaseAdmin.from('vendors').insert({ 
-        user_id: newUser.user.id, 
-        stall_id: stallId, 
+      await supabaseAdmin.from('vendors').insert({
+        user_id: newUser.user.id,
+        stall_id: stallId,
         award_date: new Date().toISOString().split('T')[0],
         business_permit_number: business_permit_number || null,
         award_receipt_number: award_receipt_number || null,
