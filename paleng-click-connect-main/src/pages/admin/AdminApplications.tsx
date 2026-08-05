@@ -143,10 +143,17 @@ const AdminApplications = () => {
     }
   };
 
-  const generateStallNumber = async (section: string) => {
+  const generateStallNumber = async (sec: string) => {
+    if (sec && sec.toLowerCase().includes('bolante')) {
+      setStallNumber("");
+      setMonthlyRate2026("0");
+      setMonthlyRate2027("0");
+      setMonthlyRate2028("0");
+      return;
+    }
     setGeneratingStall(true);
     try {
-      const prefix = SECTION_PREFIX[section] || "G";
+      const prefix = SECTION_PREFIX[sec] || "G";
       const { data: existingStalls } = await supabase.from("stalls").select("stall_number").ilike("stall_number", `${prefix}-%`);
       const existingNums = (existingStalls || []).map(s => { const p = s.stall_number?.split("-"); return p?.length === 2 ? parseInt(p[1], 10) : 0; }).filter(n => !isNaN(n) && n > 0);
       let next = 1;
@@ -248,6 +255,8 @@ const AdminApplications = () => {
         .from("vendor_applications")
         .update({
           status: "approved",
+          applicant_user_id: res.data?.user_id || undefined,
+          preferred_section: section,
           reviewed_at: new Date().toISOString(),
           admin_notes: assignStall ? (isBolanteSec ? `Approved. Assigned Section: ${section} (Bolante)` : `Approved. Assigned Stall: ${stallNumber}`) : `Approved. Stall will be assigned later.`
         })
@@ -678,61 +687,73 @@ const AdminApplications = () => {
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground flex justify-between">
-                      <span>Assigned Stall Number</span>
-                      {generatingStall && <span className="text-emerald-600 text-[10px] flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Generating...</span>}
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={stallNumber}
-                        onChange={e => setStallNumber(e.target.value)}
-                        onBlur={e => lookupStallDetails(e.target.value)}
-                        className="h-10 font-mono flex-1"
-                        placeholder="e.g. MS-001"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 rounded-xl shrink-0"
-                        disabled={generatingStall}
-                        onClick={() => generateStallNumber(section)}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
+                  {section && section.toLowerCase().includes('bolante') ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-800 flex items-start gap-3">
+                      <span className="text-2xl leading-none mt-0.5"></span>
+                      <div>
+                        <p className="font-bold text-amber-900">Bolante Section — No Stall Required</p>
+                        <p className="text-xs text-amber-700 mt-1">Bolante vendors do not occupy a physical stall and are not charged monthly rent. No stall number or rate is needed.</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground flex justify-between">
+                        <span>Assigned Stall Number</span>
+                        {generatingStall && <span className="text-emerald-600 text-[10px] flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Generating...</span>}
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={stallNumber}
+                          onChange={e => setStallNumber(e.target.value)}
+                          onBlur={e => lookupStallDetails(e.target.value)}
+                          className="h-10 font-mono flex-1"
+                          placeholder="e.g. MS-001"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-10 w-10 rounded-xl shrink-0"
+                          disabled={generatingStall}
+                          onClick={() => generateStallNumber(section)}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Rate 2026 (₱)</Label>
-                      <Input
-                        type="number"
-                        value={monthlyRate2026}
-                        onChange={e => setMonthlyRate2026(e.target.value)}
-                        className="h-10 font-mono"
-                      />
+                  {!section.toLowerCase().includes('bolante') && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Rate 2026 (₱)</Label>
+                        <Input
+                          type="number"
+                          value={monthlyRate2026}
+                          onChange={e => setMonthlyRate2026(e.target.value)}
+                          className="h-10 font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Rate 2027 (₱)</Label>
+                        <Input
+                          type="number"
+                          value={monthlyRate2027}
+                          onChange={e => setMonthlyRate2027(e.target.value)}
+                          className="h-10 font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Rate 2028 (₱)</Label>
+                        <Input
+                          type="number"
+                          value={monthlyRate2028}
+                          onChange={e => setMonthlyRate2028(e.target.value)}
+                          className="h-10 font-mono"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Rate 2027 (₱)</Label>
-                      <Input
-                        type="number"
-                        value={monthlyRate2027}
-                        onChange={e => setMonthlyRate2027(e.target.value)}
-                        className="h-10 font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Rate 2028 (₱)</Label>
-                      <Input
-                        type="number"
-                        value={monthlyRate2028}
-                        onChange={e => setMonthlyRate2028(e.target.value)}
-                        className="h-10 font-mono"
-                      />
-                    </div>
-                  </div>
+                  )}
                 </>
               )}
 

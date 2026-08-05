@@ -343,7 +343,7 @@ const VendorHistory = () => {
   const payments    = queryData?.payments    || [];
   const profile     = queryData?.profile;
   const stall       = queryData?.stall;
-  const monthlyRate = (stall as any)?.monthly_rate || 1450;
+  const monthlyRate = stall ? ((stall as any)?.monthly_rate_2026 || (stall as any)?.monthly_rate || 0) : 0;
 
   const availableYears = useMemo(() => {
     const years = new Set<number>(payments.map((p: any) => p.period_year).filter(Boolean));

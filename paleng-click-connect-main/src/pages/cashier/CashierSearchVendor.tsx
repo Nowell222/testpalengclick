@@ -44,7 +44,7 @@ const CashierSearchVendor = () => {
         const result = vendorList.map(v => {
           const profile = profiles.find(p => p.user_id === v.user_id);
           const stall = v.stalls as any;
-          const monthlyRate = stall?.monthly_rate_2026 || stall?.monthly_rate || 1450;
+          const monthlyRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
           const vendorPayments = allPayments.filter(p => p.vendor_id === v.id);
           const completedPayments = vendorPayments.filter(p => p.status === "completed" && p.period_year === currentYear);
           const monthPaidMap: Record<number, number> = {};

@@ -64,7 +64,7 @@ const AdminFeeSchedules = () => {
   const customCount   = vendors.filter((v: any) => allSchedules.some((s: any) => s.stall_id === v.stall_id)).length;
   const defaultCount  = vendors.length - customCount;
   const avgRate       = vendors.length > 0
-    ? Math.round(vendors.reduce((s: number, v: any) => s + ((v.stalls as any)?.monthly_rate || 1450), 0) / vendors.length)
+    ? Math.round(vendors.reduce((s: number, v: any) => s + (v.stalls ? ((v.stalls as any)?.monthly_rate || 1450) : 0), 0) / vendors.length)
     : 0;
 
   return (
@@ -171,7 +171,7 @@ const AdminFeeSchedules = () => {
               <tbody className="divide-y">
                 {filtered.map((v: any) => {
                   const st      = v.stalls as any;
-                  const defRate = st?.monthly_rate || 1450;
+                  const defRate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0;
                   const vendorSchedules = allSchedules.filter((s: any) => s.stall_id === v.stall_id);
                   const hasAny  = vendorSchedules.length > 0;
                   return (

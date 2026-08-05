@@ -149,21 +149,29 @@ const AdminUserManagement = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const [{ data: profiles }, { data: roles }, { data: vendors }] = await Promise.all([
+      const [{ data: profiles }, { data: roles }, { data: vendors }, { data: apps }] = await Promise.all([
         supabase.from("profiles").select("*").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("vendors").select("id, user_id, stalls(stall_number, section)"),
+        supabase.from("vendor_applications").select("applicant_user_id, preferred_section"),
       ]);
       if (!profiles) return [];
       return profiles.map(p => {
         const userRole = roles?.find(r => r.user_id === p.user_id);
         const vendorInfo = vendors?.find(v => v.user_id === p.user_id);
+        const app = apps?.find(a => a.applicant_user_id === p.user_id);
         const stall = vendorInfo?.stalls as any;
+        const sectionName = stall?.section || app?.preferred_section || "—";
+        const isBolanteSec = sectionName !== "—" && sectionName.toLowerCase().includes("bolante");
+        let stallDisplay = stall?.stall_number || "—";
+        if (!stall && isBolanteSec) {
+          stallDisplay = "No Stall (Bolante)";
+        }
         return {
           id: p.user_id, name: `${p.first_name} ${p.last_name}`,
           first_name: p.first_name, middle_name: p.middle_name || "", last_name: p.last_name,
           role: userRole?.role || "vendor",
-          stall: stall?.stall_number || "—", section: stall?.section || "—",
+          stall: stallDisplay, section: sectionName,
           contact: p.contact_number || "—", address: p.address || "—",
           status: p.status, created: p.created_at,
           vendor_id: vendorInfo?.id,
@@ -185,9 +193,9 @@ const AdminUserManagement = () => {
           .select("vendor_id, stall_id, stalls(stall_number, section, location, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, area_measurement)")
           .order("created_at", { ascending: false })
       ]);
-      
+
       const mergedHistory = history ? [...history] : [];
-      
+
       if (schedules) {
         schedules.forEach(sched => {
           if (sched.vendor_id && sched.stalls) {
@@ -324,9 +332,9 @@ const AdminUserManagement = () => {
           email: form.email.trim(), password: form.password,
           first_name: form.first_name.trim(), middle_name: form.middle_name.trim(), last_name: form.last_name.trim(),
           contact_number: form.contact_number.trim(), address: form.address.trim(),
-          role: form.role, 
+          role: form.role,
           stall_number: assignStall ? form.stall_number.trim() : "",
-          section: assignStall ? form.section : undefined, 
+          section: assignStall ? form.section : undefined,
           location: assignStall ? form.location.trim() : "",
           monthly_rate: assignStall && form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
           monthly_rate_2026: assignStall && form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
@@ -665,14 +673,14 @@ const AdminUserManagement = () => {
     onSuccess: (data, ids) => {
       const successCount = data.results.filter((r: any) => r.status === "success").length;
       const failCount = data.results.filter((r: any) => r.status === "error").length;
-      
+
       if (successCount > 0) {
         toast.success(`Successfully deleted ${successCount} user${successCount !== 1 ? "s" : ""}.`);
       }
       if (failCount > 0) {
         toast.error(`Failed to delete ${failCount} user${failCount !== 1 ? "s" : ""}.`);
       }
-      
+
       setSelectedUsers([]);
       setDeleteTarget(null);
       setDeleteConfirmText("");
@@ -939,9 +947,9 @@ const AdminUserManagement = () => {
       {/* ── Bulk Delete confirmation modal ─────────────────────────────── */}
       {(deleteTarget || isBulkDelete) && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={() => { setDeleteTarget(null); setIsBulkDelete(false); setDeleteConfirmText(""); }}>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-card rounded-2xl border shadow-2xl w-full max-w-md overflow-hidden" 
+            className="bg-card rounded-2xl border shadow-2xl w-full max-w-md overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6 space-y-4">
@@ -954,7 +962,7 @@ const AdminUserManagement = () => {
                     {isBulkDelete ? `Delete ${selectedUsers.length} Accounts?` : `Delete Account?`}
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {isBulkDelete 
+                    {isBulkDelete
                       ? "This will permanently remove all selected users and their associated data (payments, messages, history). Assigned stalls will be automatically vacated."
                       : <>Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action is permanent and cannot be undone.</>}
                   </p>
@@ -965,8 +973,8 @@ const AdminUserManagement = () => {
                 <p className="text-[11px] font-bold text-red-700 uppercase tracking-wider">Safety Confirmation</p>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-red-800">Type <span className="font-mono font-bold">DELETE</span> to confirm</Label>
-                  <Input 
-                    placeholder="Type DELETE here..." 
+                  <Input
+                    placeholder="Type DELETE here..."
                     className="h-10 rounded-lg border-red-200 bg-white focus:ring-red-200 uppercase"
                     value={deleteConfirmText}
                     onChange={e => setDeleteConfirmText(e.target.value)}
@@ -975,14 +983,14 @@ const AdminUserManagement = () => {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button 
+                <Button
                   variant="destructive" className="flex-1 rounded-xl h-11 font-bold"
                   disabled={deleteConfirmText.toUpperCase() !== "DELETE" || deleteUsers.isPending}
                   onClick={() => deleteUsers.mutate(isBulkDelete ? selectedUsers : [deleteTarget.id])}
                 >
                   {deleteUsers.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4 mr-2" /> Confirm Deletion</>}
                 </Button>
-                <Button 
+                <Button
                   variant="outline" className="flex-1 rounded-xl h-11"
                   onClick={() => { setDeleteTarget(null); setIsBulkDelete(false); setDeleteConfirmText(""); }}
                 >
@@ -1229,8 +1237,8 @@ const AdminUserManagement = () => {
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><UserCircle className="h-3.5 w-3.5" /> Personal Information</p>
                 <div className="grid grid-cols-2 gap-3">
-                   <div className="space-y-1"><Label className="text-xs">First Name *</Label><Input disabled={isReadOnly} className="h-10 rounded-xl" value={editForm.first_name} onChange={ef("first_name")} /></div>
-                   <div className="space-y-1"><Label className="text-xs">Last Name *</Label><Input disabled={isReadOnly} className="h-10 rounded-xl" value={editForm.last_name} onChange={ef("last_name")} /></div>
+                  <div className="space-y-1"><Label className="text-xs">First Name *</Label><Input disabled={isReadOnly} className="h-10 rounded-xl" value={editForm.first_name} onChange={ef("first_name")} /></div>
+                  <div className="space-y-1"><Label className="text-xs">Last Name *</Label><Input disabled={isReadOnly} className="h-10 rounded-xl" value={editForm.last_name} onChange={ef("last_name")} /></div>
                 </div>
                 <div className="space-y-1"><Label className="text-xs">Middle Name</Label><Input disabled={isReadOnly} className="h-10 rounded-xl" value={editForm.middle_name} onChange={ef("middle_name")} placeholder="Optional" /></div>
               </div>
@@ -1754,9 +1762,9 @@ const AdminUserManagement = () => {
                         <div className="grid gap-3 sm:grid-cols-2">
                           <div className="space-y-1">
                             <Label className="text-xs">Section <span className="text-accent">*</span></Label>
-                            <select 
-                              className="h-10 w-full rounded-xl border bg-background px-3 text-xs" 
-                              value={form.section} 
+                            <select
+                              className="h-10 w-full rounded-xl border bg-background px-3 text-xs"
+                              value={form.section}
                               onChange={e => {
                                 const newSection = e.target.value;
                                 setForm(f => ({ ...f, section: newSection }));
@@ -1767,47 +1775,48 @@ const AdminUserManagement = () => {
                             </select>
                           </div>
 
-                          {(() => {
-                            const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
-                            return (
-                              <div className="space-y-1">
-                                <Label className="text-xs">
-                                  Stall Number {!isBolanteSection && <span className="text-accent">*</span>}
-                                  {!isBolanteSection && <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Auto</span>}
-                                </Label>
-                                <div className="flex gap-1.5">
-                                  <Input 
-                                    placeholder={isBolanteSection ? "No Stall (Bolante Vendor)" : "e.g. G-001"} 
-                                    className="h-10 rounded-xl font-mono text-xs flex-1" 
-                                    value={isBolanteSection ? "" : form.stall_number} 
-                                    disabled={isBolanteSection}
-                                    onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
-                                    onBlur={e => !isBolanteSection && lookupStallDetails(e.target.value, setForm)}
-                                  />
-                                  {!isBolanteSection && (
-                                    <Button type="button" variant="outline" size="icon" className="h-10 w-10 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
-                                      {generatingStall ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                                    </Button>
-                                  )}
-                                </div>
+                          {form.section && form.section.toLowerCase().includes("bolante") ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-800 flex items-start gap-2">
+                              <span className="text-lg leading-none mt-0.5"></span>
+                              <div>
+                                <p className="font-semibold text-amber-900">Bolante Section — No Stall Assigned</p>
+                                <p className="text-amber-700 mt-0.5">Bolante vendors do not occupy a physical stall and are not charged monthly rent. No stall number, area, or rate is needed.</p>
                               </div>
-                            );
-                          })()}
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <Label className="text-xs">
+                                Stall Number <span className="text-accent">*</span>
+                                <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Auto</span>
+                              </Label>
+                              <div className="flex gap-1.5">
+                                <Input
+                                  placeholder="e.g. G-001"
+                                  className="h-10 rounded-xl font-mono text-xs flex-1"
+                                  value={form.stall_number}
+                                  onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
+                                  onBlur={e => lookupStallDetails(e.target.value, setForm)}
+                                />
+                                <Button type="button" variant="outline" size="icon" className="h-10 w-10 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
+                                  {generatingStall ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
 
-                          <div className="space-y-1">
-                            <Label className="text-xs">Location / Remarks</Label>
-                            <Input placeholder="e.g. Near entrance" className="h-10 rounded-xl text-xs" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-                          </div>
+                          {!form.section.toLowerCase().includes("bolante") && (
+                            <>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Location / Remarks</Label>
+                                <Input placeholder="e.g. Near entrance" className="h-10 rounded-xl text-xs" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                              </div>
 
-                          {(() => {
-                            const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
-                            return (
                               <div className="space-y-1">
                                 <Label className="text-xs">Area Measurement (sqm)</Label>
-                                <Input placeholder={isBolanteSection ? "N/A (Bolante)" : "e.g. 12.8"} className="h-10 rounded-xl font-mono text-xs" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
+                                <Input placeholder="e.g. 12.8" className="h-10 rounded-xl font-mono text-xs" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
                               </div>
-                            );
-                          })()}
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -1829,61 +1838,55 @@ const AdminUserManagement = () => {
                         </div>
                       </div>
 
-                      {(() => {
-                        const isBolanteSection = form.section && form.section.toLowerCase().includes("bolante");
-                        return (
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Monthly Rates Schedule</p>
-                            <div className="grid gap-3 sm:grid-cols-3">
-                              <div className="space-y-1">
-                                <Label className="text-xs">Rate 2026 (₱) {!isBolanteSection && <span className="text-accent">*</span>}</Label>
-                                <div className="relative">
-                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
-                                  <Input 
-                                    type="number" 
-                                    placeholder={isBolanteSection ? "0 (No Rent)" : "3840"} 
-                                    step="0.01" min="0" 
-                                    className="h-10 rounded-xl pl-6 font-mono text-xs" 
-                                    value={isBolanteSection ? "0" : form.monthly_rate_2026} 
-                                    disabled={isBolanteSection}
-                                    onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))} 
-                                  />
-                                </div>
+                      {!form.section.toLowerCase().includes("bolante") && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Monthly Rates Schedule</p>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Rate 2026 (₱) <span className="text-accent">*</span></Label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                                <Input
+                                  type="number"
+                                  placeholder="3840"
+                                  step="0.01" min="0"
+                                  className="h-10 rounded-xl pl-6 font-mono text-xs"
+                                  value={form.monthly_rate_2026}
+                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2026: e.target.value }))}
+                                />
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Rate 2027 (₱)</Label>
-                                <div className="relative">
-                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
-                                  <Input 
-                                    type="number" 
-                                    placeholder={isBolanteSection ? "0 (No Rent)" : "4608"} 
-                                    step="0.01" min="0" 
-                                    className="h-10 rounded-xl pl-6 font-mono text-xs" 
-                                    value={isBolanteSection ? "0" : form.monthly_rate_2027} 
-                                    disabled={isBolanteSection}
-                                    onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))} 
-                                  />
-                                </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Rate 2027 (₱)</Label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                                <Input
+                                  type="number"
+                                  placeholder="4608"
+                                  step="0.01" min="0"
+                                  className="h-10 rounded-xl pl-6 font-mono text-xs"
+                                  value={form.monthly_rate_2027}
+                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2027: e.target.value }))}
+                                />
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Rate 2028 (₱)</Label>
-                                <div className="relative">
-                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
-                                  <Input 
-                                    type="number" 
-                                    placeholder={isBolanteSection ? "0 (No Rent)" : "5760"} 
-                                    step="0.01" min="0" 
-                                    className="h-10 rounded-xl pl-6 font-mono text-xs" 
-                                    value={isBolanteSection ? "0" : form.monthly_rate_2028} 
-                                    disabled={isBolanteSection}
-                                    onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))} 
-                                  />
-                                </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Rate 2028 (₱)</Label>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                                <Input
+                                  type="number"
+                                  placeholder="5760"
+                                  step="0.01" min="0"
+                                  className="h-10 rounded-xl pl-6 font-mono text-xs"
+                                  value={form.monthly_rate_2028}
+                                  onChange={e => setForm(f => ({ ...f, monthly_rate_2028: e.target.value }))}
+                                />
                               </div>
                             </div>
                           </div>
-                        );
-                      })()}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="rounded-xl border bg-secondary/30 p-6 text-center text-muted-foreground space-y-2">
@@ -1949,9 +1952,9 @@ const AdminUserManagement = () => {
                 <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
                   {!isReadOnly && (
                     <th className="px-4 py-3.5 w-10">
-                      <input 
-                        type="checkbox" 
-                        className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500" 
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
                         checked={filtered.length > 0 && selectedUsers.length === filtered.length}
                         onChange={toggleSelectAll}
                       />
@@ -1976,9 +1979,9 @@ const AdminUserManagement = () => {
                     <tr key={u.id} className={`hover:bg-emerald-50/40 transition-colors ${selectedUsers.includes(u.id) ? "bg-emerald-50/60" : ""}`}>
                       {!isReadOnly && (
                         <td className="px-4 py-3">
-                          <input 
-                            type="checkbox" 
-                            className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500" 
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
                             checked={selectedUsers.includes(u.id)}
                             onChange={() => toggleSelectUser(u.id)}
                           />

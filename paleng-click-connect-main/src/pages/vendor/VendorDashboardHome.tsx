@@ -134,7 +134,7 @@ const VendorDashboardHome = () => {
       const { data: notifications } = await supabase.from("notifications").select("*")
         .eq("user_id", user!.id).eq("read_status", false).order("created_at", { ascending: false }).limit(5);
       const stall = vendor?.stalls as any;
-      const defaultRate = stall?.monthly_rate || 1450;
+      const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
       const { data: schedules } = stall?.id

@@ -133,7 +133,7 @@ const VendorPayOnline = () => {
       if (!vendor) return null;
 
       const stall       = vendor.stalls as any;
-      const defaultRate = stall?.monthly_rate || 1450;
+      const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
       const currentYear = new Date().getFullYear();
 
       const [paymentsRes, schedulesRes] = await Promise.all([
@@ -183,7 +183,7 @@ const VendorPayOnline = () => {
   });
 
   const stall            = data?.stall;
-  const monthlyRate      = data?.monthlyRate || 1450;
+  const monthlyRate      = data?.monthlyRate ?? 0;
   const nextUnpaidMonth  = data?.nextUnpaidMonth || (new Date().getMonth() + 1);
   const remainingBalance = data?.remainingBalance || monthlyRate;
   const paidForNextMonth = data?.paidForNextMonth || 0;

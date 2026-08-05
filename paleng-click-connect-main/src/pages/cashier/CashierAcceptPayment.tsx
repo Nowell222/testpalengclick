@@ -267,7 +267,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
     }
 
     const stall = (v.stalls || v.stall) as any;
-    const defRate = stall?.monthly_rate || 1450;
+    const defRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
 
     const rawPaidMap: Record<number, number> = {};
     payments.forEach((p: any) => {
@@ -445,7 +445,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
     }
   };
 
-  const monthFee = vendor ? vendor.getMonthFee(periodMonth) : 1450;
+  const monthFee = vendor ? vendor.getMonthFee(periodMonth) : 0;
   const alreadyPaid = vendor ? (vendor.paidMap[periodMonth] || 0) : 0;
   const remaining = Math.max(0, monthFee - alreadyPaid);
   const payAmount = payType === "full" ? remaining : (Number(amount) || 0);
@@ -1123,7 +1123,7 @@ Please contact the cashier or try paying again through another method.`,
           stall: { stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate },
           profile: { first_name: c.first_name, last_name: c.last_name }
         });
-        setManualAmount(String(c.monthly_rate || 1450));
+        setManualAmount(String(c.monthly_rate || 0));
         setManualSearching(false);
         return;
       }
@@ -1136,12 +1136,12 @@ Please contact the cashier or try paying again through another method.`,
       const { data: stalls } = await supabase.from("stalls").select("id, stall_number, section, monthly_rate").ilike("stall_number", `%${manualSearch}%`);
       if (stalls?.length) {
         const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("stall_id", stalls[0].id).single();
-        if (v) { const { data: pr } = await supabase.from("profiles").select("*").eq("user_id", v.user_id).single(); setManualVendor({ ...v, stall: v.stalls, profile: pr }); setManualAmount(String(stalls[0].monthly_rate)); setManualSearching(false); return; }
+        if (v) { const { data: pr } = await supabase.from("profiles").select("*").eq("user_id", v.user_id).single(); setManualVendor({ ...v, stall: v.stalls, profile: pr }); setManualAmount(String(stalls[0].monthly_rate || 0)); setManualSearching(false); return; }
       }
       const { data: profiles } = await supabase.from("profiles").select("*").or(`first_name.ilike.%${manualSearch}%,last_name.ilike.%${manualSearch}%`);
       if (profiles?.length) {
         const { data: v } = await supabase.from("vendors").select("id, user_id, stall_id, stalls(*)").eq("user_id", profiles[0].user_id).single();
-        if (v) { setManualVendor({ ...v, stall: v.stalls, profile: profiles[0] }); setManualAmount(String((v.stalls as any)?.monthly_rate || 1450)); setManualSearching(false); return; }
+        if (v) { setManualVendor({ ...v, stall: v.stalls, profile: profiles[0] }); setManualAmount(String((v.stalls as any)?.monthly_rate_2026 || (v.stalls as any)?.monthly_rate || 0)); setManualSearching(false); return; }
       }
       toast.error("Vendor not found");
     } catch (e) {
@@ -1155,7 +1155,7 @@ Please contact the cashier or try paying again through another method.`,
           stall: { stall_number: c.stall_number, section: c.section, monthly_rate: c.monthly_rate },
           profile: { first_name: c.first_name, last_name: c.last_name }
         });
-        setManualAmount(String(c.monthly_rate || 1450));
+        setManualAmount(String(c.monthly_rate || 0));
       } else {
         toast.error("Vendor not found");
       }

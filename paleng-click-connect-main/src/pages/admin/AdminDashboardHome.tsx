@@ -77,16 +77,16 @@ const AdminDashboardHome = () => {
 
       let paidVendors = 0, partialVendors = 0, unpaidVendors = 0;
       vendors.forEach(v => {
-        const st = v.stalls as any; const rate = st?.monthly_rate_2026 || st?.monthly_rate || 1450; const paid = monthPaidByVendor[v.id] || 0;
-        if (paid >= rate) paidVendors++; else if (paid > 0) partialVendors++; else unpaidVendors++;
+        const st = v.stalls as any; const rate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0; const paid = monthPaidByVendor[v.id] || 0;
+        if (rate === 0 || paid >= rate) paidVendors++; else if (paid > 0) partialVendors++; else unpaidVendors++;
       });
 
-      const unpaidList = vendors.filter(v => { const st = v.stalls as any; const rate = st?.monthly_rate_2026 || st?.monthly_rate || 1450; return (monthPaidByVendor[v.id] || 0) < rate; });
+      const unpaidList = vendors.filter(v => { const st = v.stalls as any; const rate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0; return rate > 0 && (monthPaidByVendor[v.id] || 0) < rate; });
       const unpaidIds = unpaidList.map(v => v.user_id);
       const { data: unpaidProfiles } = await supabase.from("profiles").select("user_id,first_name,last_name").in("user_id", unpaidIds);
       const unpaidDetails = unpaidList.map(v => {
         const pr = unpaidProfiles?.find(p => p.user_id === v.user_id);
-        const st = v.stalls as any; const rate = st?.monthly_rate_2026 || st?.monthly_rate || 1450; const paid = monthPaidByVendor[v.id] || 0;
+        const st = v.stalls as any; const rate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0; const paid = monthPaidByVendor[v.id] || 0;
         return { name: pr ? `${pr.first_name} ${pr.last_name}` : "Unknown", stall: st?.stall_number || "—", section: st?.section || "General", remaining: Math.max(0, rate - paid), isPartial: paid > 0 };
       });
 

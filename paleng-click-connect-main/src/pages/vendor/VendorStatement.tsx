@@ -145,7 +145,7 @@ const VendorStatement = () => {
   const schedules = data?.schedules || [];
   // Use year-specific rate, fallback to generic monthly_rate
   const yearRateKey = `monthly_rate_${selectedYear}` as string;
-  const defaultRate = ((stall as any)?.[yearRateKey] ? Number((stall as any)[yearRateKey]) : null) || stall?.monthly_rate || 1450;
+  const defaultRate = stall ? (((stall as any)?.[yearRateKey] ? Number((stall as any)[yearRateKey]) : null) || stall?.monthly_rate || 0) : 0;
   const getMonthFee = (month: number) => {
     const s = schedules.find((s: any) => s.month === month);
     return s ? Number(s.amount) : defaultRate;

@@ -529,6 +529,35 @@ Deno.serve(async (req: Request) => {
         award_receipt_number: award_receipt_number || null,
         award_payment_date: award_payment_date || null
       })
+
+      if (section) {
+        const { data: existingApp } = await supabaseAdmin
+          .from('vendor_applications')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (existingApp) {
+          await supabaseAdmin.from('vendor_applications').update({
+            applicant_user_id: newUser.user.id,
+            preferred_section: section,
+            status: 'approved'
+          }).eq('id', existingApp.id);
+        } else {
+          await supabaseAdmin.from('vendor_applications').insert({
+            applicant_user_id: newUser.user.id,
+            first_name: first_name || '',
+            last_name: last_name || '',
+            email: email,
+            phone_number: contact_number || null,
+            preferred_section: section,
+            status: 'approved',
+            business_permit_number: business_permit_number || null,
+            award_receipt_number: award_receipt_number || null,
+            award_payment_date: award_payment_date || null
+          });
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {

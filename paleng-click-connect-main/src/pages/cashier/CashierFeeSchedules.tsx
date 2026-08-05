@@ -14,8 +14,8 @@ const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFrac
 
 const VendorFeeEditor = ({ vendor, year, onClose }: { vendor: any; year: number; onClose: () => void }) => {
   const queryClient = useQueryClient();
-  const stall       = vendor.stalls as any;
-  const defaultRate = stall?.monthly_rate || 1450;
+  const stall       = vendor?.stalls as any;
+  const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
   const { data: schedules = [], isLoading } = useQuery({
     queryKey: ["fee-schedule", vendor.stall_id, year],
     enabled: !!vendor.stall_id,
@@ -402,7 +402,7 @@ const CashierFeeSchedules = () => {
               <tbody className="divide-y">
                 {filtered.map((v: any) => {
                   const st      = v.stalls as any;
-                  const defRate = st?.monthly_rate || 1450;
+                  const defRate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0;
                   const vendorSchedules = allSchedules.filter((s: any) => s.stall_id === v.stall_id);
                   const hasAny  = vendorSchedules.length > 0;
                   return (

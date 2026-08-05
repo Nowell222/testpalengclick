@@ -122,7 +122,7 @@ const CashierReports = () => {
           contact:      pr?.contact_number || "—",
           stall_number: st?.stall_number || "—",
           section:      st?.section || "General",
-          monthly_rate: st?.monthly_rate_2026 || st?.monthly_rate || 1450,
+          monthly_rate: st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0,
         };
       });
 
@@ -132,7 +132,7 @@ const CashierReports = () => {
       const vendorStatus = vendors.map(v => {
         const st   = v.stalls as any;
         const pr   = profiles?.find(pr => pr.user_id === v.user_id);
-        const rate = st?.monthly_rate_2026 || st?.monthly_rate || 1450;
+        const rate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0;
         const vPay = payments.filter(p => p.vendor_id === v.id && p.status === "completed" && p.period_year === currentYear);
         const map: Record<number,number> = {};
         vPay.forEach(p => { if (p.period_month) map[p.period_month] = (map[p.period_month]||0)+Number(p.amount); });

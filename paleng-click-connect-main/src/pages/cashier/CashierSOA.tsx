@@ -18,8 +18,8 @@ const MONTHS = [
 
 // ─── Helper: build SOA data for one vendor (with cascade + per-month fee schedules) ──
 const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] = []) => {
-  const stall = vendor.stalls as any;
-  const defaultRate = stall?.monthly_rate || 1450;
+  const stall = vendor?.stalls as any;
+  const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 

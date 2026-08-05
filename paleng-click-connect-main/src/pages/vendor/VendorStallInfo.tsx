@@ -71,7 +71,13 @@ const VendorStallInfo = () => {
       const { data: vendor } = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      return { vendor, profile, stall: vendor?.stalls as any, email: authUser?.email || "" };
+      // Fetch preferred_section from vendor_applications to detect Bolante
+      const { data: appData } = await supabase
+        .from("vendor_applications")
+        .select("preferred_section")
+        .eq("applicant_user_id", user!.id)
+        .maybeSingle();
+      return { vendor, profile, stall: vendor?.stalls as any, email: authUser?.email || "", preferredSection: appData?.preferred_section || null };
     },
   });
 
@@ -96,6 +102,9 @@ const VendorStallInfo = () => {
   const vendor = data?.vendor;
   const profile = data?.profile;
   const isActive = profile?.status === "active";
+  // Bolante vendors have no stall and their preferred section includes 'bolante'
+  const preferredSection = data?.preferredSection || null;
+  const isBolante = !stall && !!preferredSection && preferredSection.toLowerCase().includes('bolante');
 
   const { data: stallHistory = [], isLoading: loadingHistory } = useQuery({
     queryKey: ["vendor-stall-history", stall?.id],
@@ -520,7 +529,7 @@ const VendorStallInfo = () => {
             {profile?.first_name} {profile?.last_name}
           </p>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
-            Stall #{stall?.stall_number || "—"} · {stall?.section || "General"} Section
+            Stall #{stall?.stall_number || "—"} · {stall?.section || (isBolante ? preferredSection : "General")} Section
           </p>
           <div className="flex items-center gap-1.5 rounded-full px-4 py-1.5 mt-3"
             style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.4)" }}>
@@ -567,6 +576,23 @@ const VendorStallInfo = () => {
           <div className="space-y-4">
 
             {/* Stall Details */}
+            {isBolante ? (
+              <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <span style={{ fontSize: 28, lineHeight: 1 }}>🏪</span>
+                <div>
+                  <p style={{ fontWeight: 800, color: "#92400e", fontSize: 15, marginBottom: 4 }}>Bolante Section Vendor</p>
+                  <p style={{ fontSize: 13, color: "#b45309", lineHeight: 1.5 }}>
+                    You are registered under the <strong>{preferredSection}</strong> section. Bolante vendors do not occupy a fixed physical stall and are not charged monthly rent.
+                  </p>
+                  <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#92400e" }}>No Stall Number</span>
+                    <span style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#92400e" }}>No Monthly Rent</span>
+                    <span style={{ borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: isActive ? "#065f46" : "#991b1b", background: isActive ? "#d1fae5" : "#fee2e2", border: `1px solid ${isActive ? "#a7f3d0" : "#fecaca"}` }}
+                      >{isActive ? "Active" : "Suspended"}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
                 <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -619,70 +645,73 @@ const VendorStallInfo = () => {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Monthly Rates by Year — Desktop */}
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <TrendingUp size={15} color="#16a34a" />
+            {!isBolante && (
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <TrendingUp size={15} color="#16a34a" />
+                  </div>
+                  <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Monthly Rates by Year</span>
                 </div>
-                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Monthly Rates by Year</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
-                {[2026, 2027, 2028].map((year, i) => {
-                  const rateKey = `monthly_rate_${year}` as string;
-                  const yearRate = (stall as any)?.[rateKey] ? Number((stall as any)[rateKey]) : null;
-                  const area = stall?.area_measurement ? parseFloat(stall.area_measurement) : null;
-                  const baseRate = (yearRate && area && area > 0) ? (yearRate / (area * 30)) : null;
-                  const isExpanded = expandedYear === year;
-                  return (
-                    <div key={year} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", cursor: yearRate ? "pointer" : "default" }}
-                      onClick={() => yearRate && setExpandedYear(isExpanded ? null : year)}>
-                      <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{year} Rate</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <p style={{ fontSize: 20, fontWeight: 800, color: yearRate ? "#16a34a" : "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
-                          {yearRate ? fmt(yearRate) : "Not set"}
-                        </p>
-                        {yearRate && (
-                          isExpanded
-                            ? <ChevronUp size={14} color="#94a3b8" />
-                            : <ChevronDown size={14} color="#94a3b8" />
-                        )}
-                      </div>
-                      {isExpanded && yearRate && (
-                        <div style={{ marginTop: 12, padding: "12px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10 }}>
-                          {baseRate && area ? (
-                            <>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Base Rate:</span>
-                                <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>₱{baseRate.toFixed(2)} / sqm</span>
-                              </div>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Area:</span>
-                                <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{area} sqm</span>
-                              </div>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingBottom: 8, borderBottom: "1px dashed #cbd5e1" }}>
-                                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Days:</span>
-                                <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>30</span>
-                              </div>
-                              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 800 }}>Total Monthly:</span>
-                                <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(yearRate)}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <div style={{ textAlign: "center", padding: "4px 0" }}>
-                              <p style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>Breakdown unavailable</p>
-                              <p style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Area measurement is not set for this stall.</p>
-                            </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+                  {[2026, 2027, 2028].map((year, i) => {
+                    const rateKey = `monthly_rate_${year}` as string;
+                    const yearRate = (stall as any)?.[rateKey] ? Number((stall as any)[rateKey]) : null;
+                    const area = stall?.area_measurement ? parseFloat(stall.area_measurement) : null;
+                    const baseRate = (yearRate && area && area > 0) ? (yearRate / (area * 30)) : null;
+                    const isExpanded = expandedYear === year;
+                    return (
+                      <div key={year} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", cursor: yearRate ? "pointer" : "default" }}
+                        onClick={() => yearRate && setExpandedYear(isExpanded ? null : year)}>
+                        <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{year} Rate</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <p style={{ fontSize: 20, fontWeight: 800, color: yearRate ? "#16a34a" : "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {yearRate ? fmt(yearRate) : "Not set"}
+                          </p>
+                          {yearRate && (
+                            isExpanded
+                              ? <ChevronUp size={14} color="#94a3b8" />
+                              : <ChevronDown size={14} color="#94a3b8" />
                           )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        {isExpanded && yearRate && (
+                          <div style={{ marginTop: 12, padding: "12px 16px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+                            {baseRate && area ? (
+                              <>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Base Rate:</span>
+                                  <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>₱{baseRate.toFixed(2)} / sqm</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Area:</span>
+                                  <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{area} sqm</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingBottom: 8, borderBottom: "1px dashed #cbd5e1" }}>
+                                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Days:</span>
+                                  <span style={{ fontSize: 11, color: "#0f172a", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>30</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                  <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 800 }}>Total Monthly:</span>
+                                  <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{fmt(yearRate)}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ textAlign: "center", padding: "4px 0" }}>
+                                <p style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>Breakdown unavailable</p>
+                                <p style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Area measurement is not set for this stall.</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Stall Ownership History Dropdown Card — Desktop */}
             {renderStallHistoryDropdown()}
@@ -937,6 +966,25 @@ const VendorStallInfo = () => {
         <div className="lg:hidden space-y-3">
 
           {/* Stall Details Card */}
+          {isBolante ? (
+            <div className="rounded-2xl overflow-hidden"
+              style={{ border: "1px solid #fde68a", background: "#fffbeb", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+              <div className="flex items-start gap-4 p-4">
+                <span style={{ fontSize: 32, lineHeight: 1 }}>🏪</span>
+                <div>
+                  <p className="font-extrabold text-amber-900 text-sm">Bolante Section Vendor</p>
+                  <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                    You are registered under the <strong>{preferredSection}</strong> section. Bolante vendors do not occupy a fixed physical stall and are not charged monthly rent.
+                  </p>
+                  <div className="flex gap-2 flex-wrap mt-3">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">No Stall Number</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">No Monthly Rent</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>{isActive ? 'Active' : 'Suspended'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="rounded-2xl bg-white overflow-hidden"
             style={{ border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
             <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
@@ -1028,8 +1076,10 @@ const VendorStallInfo = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Monthly Rates by Year — Mobile */}
+          {!isBolante && (
           <div className="rounded-2xl bg-white overflow-hidden"
             style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
@@ -1095,6 +1145,7 @@ const VendorStallInfo = () => {
               })}
             </div>
           </div>
+          )}
 
           {/* Stall Ownership History Dropdown Card — Mobile */}
           {renderStallHistoryDropdown()}

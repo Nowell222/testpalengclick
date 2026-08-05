@@ -74,7 +74,7 @@ export default function BploDelinquents() {
       const vendorStatus = vendors.map(v => {
         const pr = profiles?.find(p => p.user_id === v.user_id);
         const st = v.stalls as any;
-        const rate = st?.monthly_rate_2026 || st?.monthly_rate || 1450;
+        const rate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0;
         
         // Filter payments for this specific vendor in the current year
         const vPay = payments.filter(p => p.vendor_id === v.id);

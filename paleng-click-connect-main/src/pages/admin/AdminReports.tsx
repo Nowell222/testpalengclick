@@ -135,7 +135,7 @@ const AdminReports = () => {
         const pr=profiles?.find(pr=>pr.user_id===v?.user_id);
         const st=v?.stalls as any;
         const rateKey = `monthly_rate_${targetYear}`;
-        const rate = st?.[rateKey] || st?.monthly_rate_2026 || st?.monthly_rate || 1450;
+        const rate = st ? (st[rateKey] || st.monthly_rate_2026 || st.monthly_rate || 0) : 0;
         return {...p,vendor_name:pr?`${pr.first_name} ${pr.last_name}`:"Unknown",stall:st?.stall_number||"—",section:st?.section||"General",monthly_rate:rate};
       });
 
@@ -143,7 +143,7 @@ const AdminReports = () => {
         const pr=profiles?.find(p=>p.user_id===v.user_id);
         const st=v.stalls as any;
         const rateKey = `monthly_rate_${targetYear}`;
-        const rate = st?.[rateKey] || st?.monthly_rate_2026 || st?.monthly_rate || 1450;
+        const rate = st ? (st[rateKey] || st.monthly_rate_2026 || st.monthly_rate || 0) : 0;
         const vPay=completed.filter(p=>p.vendor_id===v.id&&p.period_year===targetYear);
         const map:Record<number,number>={};
         vPay.forEach(p=>{if(p.period_month)map[p.period_month]=(map[p.period_month]||0)+Number(p.amount);});
