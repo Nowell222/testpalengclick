@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Search, RefreshCw, Layers, Calendar, BadgeInfo, Loader2, Store, CheckCircle, XCircle
 } from "lucide-react";
@@ -20,8 +21,10 @@ interface Stall {
 }
 
 const BPLO_GRAD = "linear-gradient(160deg, #0d1e36 0%, #1e3a8a 70%, #3b82f6 100%)";
+const ADMIN_GRAD = "linear-gradient(160deg, #0d3320 0%, #0f6e56 70%, #10b981 100%)";
 
 export default function BploStallHistory() {
+  const { role } = useAuth();
   const [search, setSearch] = useState("");
   const [filterSection, setFilterSection] = useState("all");
   const [selectedStall, setSelectedStall] = useState<Stall | null>(null);
@@ -310,20 +313,31 @@ export default function BploStallHistory() {
   return (
     <div className="space-y-6">
       {/* Hero Header */}
-      <div className="rounded-2xl p-6 relative overflow-hidden text-white" style={{ background: BPLO_GRAD, boxShadow: "0 20px 48px rgba(30, 58, 138, 0.15)" }}>
-        <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
-        <div className="relative flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1 text-blue-200">BPLO Registry</p>
-            <h1 className="text-2xl font-extrabold">Stall Ownership Histories</h1>
-            <p className="text-xs mt-1 text-blue-100">Review historical owner timelines, transitions, and permit details for San Juan Public Market stalls.</p>
+      {(() => {
+        const isEemoOrAdmin = role === "eemo" || role === "admin";
+        const heroGrad = isEemoOrAdmin ? ADMIN_GRAD : BPLO_GRAD;
+        const registryTag = role === "eemo" ? "Viewer Registry" : (role === "admin" ? "Municipal Registry" : "BPLO Registry");
+        const subtextColor = isEemoOrAdmin ? "text-emerald-200" : "text-blue-200";
+        const descColor = isEemoOrAdmin ? "text-emerald-100" : "text-blue-100";
+        const shadowColor = isEemoOrAdmin ? "0 20px 48px rgba(15, 110, 86, 0.15)" : "0 20px 48px rgba(30, 58, 138, 0.15)";
+
+        return (
+          <div className="rounded-2xl p-6 relative overflow-hidden text-white" style={{ background: heroGrad, boxShadow: shadowColor }}>
+            <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+            <div className="relative flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] mb-1 ${subtextColor}`}>{registryTag}</p>
+                <h1 className="text-2xl font-extrabold">Stall Ownership Histories</h1>
+                <p className={`text-xs mt-1 ${descColor}`}>Review historical owner timelines, transitions, and permit details for San Juan Public Market stalls.</p>
+              </div>
+              <Button onClick={() => refetchStalls()} variant="outline" className="h-10 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border">
+                <RefreshCw size={14} /> Refresh Directory
+              </Button>
+            </div>
           </div>
-          <Button onClick={() => refetchStalls()} variant="outline" className="h-10 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border">
-            <RefreshCw size={14} /> Refresh Directory
-          </Button>
-        </div>
-      </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Stall Directory */}
@@ -360,18 +374,19 @@ export default function BploStallHistory() {
             ) : (
               filteredStalls.map((s) => {
                 const isSelected = selectedStall?.id === s.id;
+                const isEemoOrAdmin = role === "eemo" || role === "admin";
                 return (
                   <div
                     key={s.id}
                     onClick={() => setSelectedStall(s)}
                     className={`p-3.5 rounded-xl cursor-pointer transition-all border ${
                       isSelected 
-                        ? "bg-blue-50 border-blue-200 shadow-sm" 
+                        ? (isEemoOrAdmin ? "bg-emerald-50 border-emerald-200 shadow-sm" : "bg-blue-50 border-blue-200 shadow-sm") 
                         : "bg-white border-transparent hover:bg-slate-50/80 hover:border-slate-200"
                     }`}
                   >
                     <div className="flex justify-between items-start">
-                      <p className={`font-black text-sm font-mono ${isSelected ? "text-blue-900" : "text-slate-900"}`}>Stall {s.stall_number}</p>
+                      <p className={`font-black text-sm font-mono ${isSelected ? (isEemoOrAdmin ? "text-emerald-900" : "text-blue-900") : "text-slate-900"}`}>Stall {s.stall_number}</p>
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                         s.status === "occupied"
                           ? "bg-emerald-50 text-emerald-700"
@@ -394,36 +409,41 @@ export default function BploStallHistory() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-[600px] flex flex-col">
           {selectedStall ? (
             <>
-              <div className="border-b bg-gradient-to-r from-blue-50/50 to-transparent px-6 py-4 flex items-center justify-between shrink-0">
-                <div>
-                  <h2 className="font-extrabold text-slate-900 text-base">Stall {selectedStall.stall_number} Timeline</h2>
-                  <p className="text-xs text-slate-400 font-semibold mt-0.5">{selectedStall.section} · {selectedStall.location || "No location remarks"}</p>
-                </div>
-                <div className="text-right flex items-center gap-4">
-                  <div className="border-r border-slate-200 pr-4">
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Base Rate</p>
-                    <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{(selectedStall.monthly_rate || 0).toLocaleString()}</p>
-                  </div>
-                  {selectedStall.monthly_rate_2026 && (
-                    <div className="border-r border-slate-200 pr-4">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">2026 Rate</p>
-                      <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{selectedStall.monthly_rate_2026.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {selectedStall.monthly_rate_2027 && (
-                    <div className="border-r border-slate-200 pr-4">
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">2027 Rate</p>
-                      <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{selectedStall.monthly_rate_2027.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {selectedStall.monthly_rate_2028 && (
+              {(() => {
+                const isEemoOrAdmin = role === "eemo" || role === "admin";
+                return (
+                  <div className={`border-b bg-gradient-to-r ${isEemoOrAdmin ? "from-emerald-50/50" : "from-blue-50/50"} to-transparent px-6 py-4 flex items-center justify-between shrink-0`}>
                     <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">2028 Rate</p>
-                      <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{selectedStall.monthly_rate_2028.toLocaleString()}</p>
+                      <h2 className="font-extrabold text-slate-900 text-base">Stall {selectedStall.stall_number} Timeline</h2>
+                      <p className="text-xs text-slate-400 font-semibold mt-0.5">{selectedStall.section} · {selectedStall.location || "No location remarks"}</p>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div className="text-right flex items-center gap-4">
+                      <div className="border-r border-slate-200 pr-4">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Base Rate</p>
+                        <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{(selectedStall.monthly_rate || 0).toLocaleString()}</p>
+                      </div>
+                      {selectedStall.monthly_rate_2026 && (
+                        <div className="border-r border-slate-200 pr-4">
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">2026 Rate</p>
+                          <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{selectedStall.monthly_rate_2026.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {selectedStall.monthly_rate_2027 && (
+                        <div className="border-r border-slate-200 pr-4">
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">2027 Rate</p>
+                          <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{selectedStall.monthly_rate_2027.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {selectedStall.monthly_rate_2028 && (
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">2028 Rate</p>
+                          <p className="font-bold text-sm text-slate-700 font-mono mt-0.5">₱{selectedStall.monthly_rate_2028.toLocaleString()}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="flex-1 overflow-y-auto p-6">
                 {loadingHistory ? (
