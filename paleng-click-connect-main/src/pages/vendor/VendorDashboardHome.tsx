@@ -122,6 +122,7 @@ const VendorDashboardHome = () => {
     queryFn: async () => {
       const { data: vendor } = await supabase.from("vendors").select("*, stalls(*)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", user!.id).single();
+      const { data: appData } = await supabase.from("vendor_applications").select("preferred_section").eq("applicant_user_id", user!.id).maybeSingle();
       const { data: confirmedPayments } = await supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").order("created_at", { ascending: false });
       const { data: submissions } = await supabase.from("payment_submissions")
         .select("*").eq("vendor_id", vendor?.id || "").in("status", ["pending", "rejected"]).order("created_at", { ascending: false });
@@ -134,6 +135,9 @@ const VendorDashboardHome = () => {
       const { data: notifications } = await supabase.from("notifications").select("*")
         .eq("user_id", user!.id).eq("read_status", false).order("created_at", { ascending: false }).limit(5);
       const stall = vendor?.stalls as any;
+      const preferredSection = appData?.preferred_section || null;
+      const isBolante = !stall && !!preferredSection && preferredSection.toLowerCase().includes('bolante');
+      const sectionName = stall?.section || (isBolante ? preferredSection : (preferredSection || "General"));
       const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
@@ -179,6 +183,7 @@ const VendorDashboardHome = () => {
         isCurrentMonthPaid, paidThisMonth, remainingThisMonth, nextUnpaidMonth,
         allPaid: nextUnpaidMonth > 12, totalPaidYear, monthsPaid, totalOutstanding,
         chartData, currentMonth, currentYear, unreadNotifs: notifications || [],
+        sectionName, isBolante, preferredSection,
       };
     },
   });
@@ -259,7 +264,7 @@ const VendorDashboardHome = () => {
           }}>
             <div style={{ fontSize: 8, letterSpacing: 2.5, textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>Your Stall</div>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginTop: 2 }}>
-              {stall?.stall_number || "—"} · {stall?.section || "General"} Section
+              {stall?.stall_number || "—"} · {d.sectionName} Section
             </div>
             {(stall?.area_measurement || vendor?.business_permit_number) && (
               <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
@@ -608,7 +613,7 @@ const VendorDashboardHome = () => {
             <div className="rounded-xl px-3 py-2 text-right"
               style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
               <p className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.6)" }}>Your Stall</p>
-              <p className="text-white text-sm font-bold">{stall?.stall_number || "—"} · {stall?.section || "General"}</p>
+              <p className="text-white text-sm font-bold">{stall?.stall_number || "—"} · {d.sectionName}</p>
               {(stall?.area_measurement || vendor?.business_permit_number) && (
                 <p className="text-white text-[10px] font-semibold mt-0.5 opacity-80">
                   {stall?.area_measurement ? `Size: ${stall.area_measurement} sqm` : ""}
@@ -721,7 +726,7 @@ const VendorDashboardHome = () => {
                 <p className="text-white font-bold text-sm mb-1">Your Stall QR Code</p>
                 <p className="text-[11px] mb-3 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>Show this to the cashier for payment processing.</p>
                 <div className="inline-block rounded-xl px-3 py-1 text-[11px] font-semibold text-white" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
-                  Stall {stall?.stall_number || "—"} · {stall?.section || "General"} Section
+                  Stall {stall?.stall_number || "—"} · {d.sectionName} Section
                 </div>
               </div>
               <div className="bg-white rounded-xl p-2 shrink-0">

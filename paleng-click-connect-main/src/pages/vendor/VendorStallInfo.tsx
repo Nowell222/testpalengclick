@@ -111,7 +111,7 @@ const VendorStallInfo = () => {
     enabled: !!stall?.id,
     queryFn: async () => {
       if (!stall?.id) return [];
-      
+
       // Try SECURITY DEFINER RPC first to bypass vendor RLS restrictions on past owner profiles
       const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
         p_stall_id: stall.id
@@ -194,11 +194,11 @@ const VendorStallInfo = () => {
             .in("user_id", userIds),
           vendorIds.length > 0
             ? supabase
-                .from("payments")
-                .select("vendor_id, created_at")
-                .in("vendor_id", vendorIds)
-                .eq("status", "completed")
-                .order("created_at", { ascending: false })
+              .from("payments")
+              .select("vendor_id, created_at")
+              .in("vendor_id", vendorIds)
+              .eq("status", "completed")
+              .order("created_at", { ascending: false })
             : Promise.resolve({ data: [], error: null })
         ]);
 
@@ -242,7 +242,7 @@ const VendorStallInfo = () => {
   const renderStallHistoryDropdown = () => {
     return (
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-        <div 
+        <div
           onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", cursor: "pointer", background: showHistoryDropdown ? "#f8fafc" : "#fff" }}
         >
@@ -283,30 +283,28 @@ const VendorStallInfo = () => {
                   return (
                     <div key={h.id} className="relative">
                       {/* Timeline Bullet */}
-                      <span className={`absolute -left-[33px] top-1 h-4 w-4 rounded-full border-2 bg-white flex items-center justify-center ${
-                        isCurrent 
-                          ? "border-emerald-500 shadow-sm" 
-                          : h.status === 'transferred' 
-                            ? "border-blue-500" 
-                            : "border-slate-300"
-                      }`}>
+                      <span className={`absolute -left-[33px] top-1 h-4 w-4 rounded-full border-2 bg-white flex items-center justify-center ${isCurrent
+                        ? "border-emerald-500 shadow-sm"
+                        : h.status === 'transferred'
+                          ? "border-blue-500"
+                          : "border-slate-300"
+                        }`}>
                         {isCurrent && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
                       </span>
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">{name}</h4>
-                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                            isCurrent 
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-                              : h.status === 'transferred' 
-                                ? "bg-blue-50 text-blue-700 border border-blue-100" 
-                                : "bg-slate-100 text-slate-700"
-                          }`}>
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCurrent
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                            : h.status === 'transferred'
+                              ? "bg-blue-50 text-blue-700 border border-blue-100"
+                              : "bg-slate-100 text-slate-700"
+                            }`}>
                             {isCurrent ? "CURRENT OWNER" : (h.status ? h.status.toUpperCase() : "CLOSED")}
                           </span>
                         </div>
-                        
+
                         <p className="text-xs text-slate-400 flex items-center gap-1 font-semibold">
                           <Calendar className="h-3.5 w-3.5 text-slate-400" />
                           {new Date(h.started_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} — {h.ended_at ? new Date(h.ended_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "Present"}
@@ -315,20 +313,20 @@ const VendorStallInfo = () => {
                         {vendorObj && (
                           <div className="mt-2 bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs space-y-3 text-slate-600 shadow-sm">
                             <p className="font-bold text-slate-700 flex items-center gap-1 border-b pb-1.5"><BadgeInfo size={13} className="text-blue-600" /> Owner Registry Info:</p>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
                               <p><span className="text-slate-400">Owner Name:</span> <strong className="text-slate-700">{profileObj ? [profileObj.first_name, profileObj.middle_name, profileObj.last_name].filter(Boolean).join(" ") : "—"}</strong></p>
                               <p><span className="text-slate-400">Account Status:</span> <strong className="text-slate-700 capitalize">{profileObj?.status || "—"}</strong></p>
-                              
+
                               <p><span className="text-slate-400">Contact Number:</span> <strong className="text-slate-700">{profileObj?.contact_number || "—"}</strong></p>
                               <p><span className="text-slate-400">Registered Address:</span> <strong className="text-slate-700">{profileObj?.address || "—"}</strong></p>
-                              
+
                               <p><span className="text-slate-400">Award Date:</span> <strong className="text-slate-700">{vendorObj.award_date ? new Date(vendorObj.award_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</strong></p>
                               <p><span className="text-slate-400">Last Payment Date:</span> <strong className="text-slate-700">{vendorObj.last_payment_date ? new Date(vendorObj.last_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "No payments found"}</strong></p>
-                              
+
                               <p><span className="text-slate-400">Permit Number:</span> <strong className="text-slate-700">{vendorObj.business_permit_number || "—"}</strong></p>
                               <p><span className="text-slate-400">Permit Receipt #:</span> <strong className="text-slate-700">{vendorObj.award_receipt_number || "—"}</strong></p>
-                              
+
                               <p><span className="text-slate-400">Date of Payment:</span> <strong className="text-slate-700">{vendorObj.award_payment_date ? new Date(vendorObj.award_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</strong></p>
                               <p><span className="text-slate-400">QR Code:</span> <strong className="text-slate-700 font-mono text-[10px] break-all">{vendorObj.qr_code || "—"}</strong></p>
                             </div>
@@ -578,7 +576,7 @@ const VendorStallInfo = () => {
             {/* Stall Details */}
             {isBolante ? (
               <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "flex-start", gap: 14 }}>
-                <span style={{ fontSize: 28, lineHeight: 1 }}>🏪</span>
+                <span style={{ fontSize: 28, lineHeight: 1 }}></span>
                 <div>
                   <p style={{ fontWeight: 800, color: "#92400e", fontSize: 15, marginBottom: 4 }}>Bolante Section Vendor</p>
                   <p style={{ fontSize: 13, color: "#b45309", lineHeight: 1.5 }}>
@@ -588,63 +586,63 @@ const VendorStallInfo = () => {
                     <span style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#92400e" }}>No Stall Number</span>
                     <span style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#92400e" }}>No Monthly Rent</span>
                     <span style={{ borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: isActive ? "#065f46" : "#991b1b", background: isActive ? "#d1fae5" : "#fee2e2", border: `1px solid ${isActive ? "#a7f3d0" : "#fecaca"}` }}
-                      >{isActive ? "Active" : "Suspended"}</span>
+                    >{isActive ? "Active" : "Suspended"}</span>
                   </div>
                 </div>
               </div>
             ) : (
-            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <MapPin size={15} color={DS.blue600} />
+              <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <MapPin size={15} color={DS.blue600} />
+                  </div>
+                  <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Stall Details</span>
                 </div>
-                <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>Stall Details</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
-                {[
-                  { label: "Stall #", value: stall?.stall_number || "—", mono: true, large: true },
-                  { label: "Section", value: stall?.section || "General" },
-                  { label: "Location", value: stall?.location || "—" },
-                ].map((f, i) => (
-                  <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", borderBottom: "1px solid #f1f5f9" }}>
-                    <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
-                    <p style={{ fontSize: f.large ? 28 : 15, fontWeight: 800, color: "#0f172a", fontFamily: f.mono ? "'JetBrains Mono', monospace" : "inherit" }}>{f.value}</p>
-                  </div>
-                ))}
-                {[
-                  { label: "Area", value: stall?.area_measurement ? `${stall.area_measurement} sqm` : "—", isArea: true },
-                  { label: "Status", value: isActive ? "Active" : "Suspended", color: isActive ? "#16a34a" : "#dc2626", dot: true },
-                  { label: "Award Date", value: vendor?.award_date ? new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—" },
-                ].map((f, i) => (
-                  <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", borderBottom: "1px solid #f1f5f9" }}>
-                    <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {f.dot && <div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color, flexShrink: 0 }} />}
-                      {editing && f.isArea ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <Input className="h-8 w-24 rounded-lg text-sm px-2" value={form.area_measurement} onChange={set("area_measurement")} placeholder="e.g. 12.8" disabled={role === 'vendor'} />
-                          <span style={{ fontSize: 13, color: "#64748b" }}>sqm</span>
-                        </div>
-                      ) : (
-                        <p style={{ fontSize: 15, fontWeight: 700, color: f.color || "#0f172a" }}>{f.value}</p>
-                      )}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+                  {[
+                    { label: "Stall #", value: stall?.stall_number || "—", mono: true, large: true },
+                    { label: "Section", value: stall?.section || "General" },
+                    { label: "Location", value: stall?.location || "—" },
+                  ].map((f, i) => (
+                    <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", borderBottom: "1px solid #f1f5f9" }}>
+                      <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
+                      <p style={{ fontSize: f.large ? 28 : 15, fontWeight: 800, color: "#0f172a", fontFamily: f.mono ? "'JetBrains Mono', monospace" : "inherit" }}>{f.value}</p>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                  {[
+                    { label: "Area", value: stall?.area_measurement ? `${stall.area_measurement} sqm` : "—", isArea: true },
+                    { label: "Status", value: isActive ? "Active" : "Suspended", color: isActive ? "#16a34a" : "#dc2626", dot: true },
+                    { label: "Award Date", value: vendor?.award_date ? new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—" },
+                  ].map((f, i) => (
+                    <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none", borderBottom: "1px solid #f1f5f9" }}>
+                      <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {f.dot && <div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color, flexShrink: 0 }} />}
+                        {editing && f.isArea ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Input className="h-8 w-24 rounded-lg text-sm px-2" value={form.area_measurement} onChange={set("area_measurement")} placeholder="e.g. 12.8" disabled={role === 'vendor'} />
+                            <span style={{ fontSize: 13, color: "#64748b" }}>sqm</span>
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: 15, fontWeight: 700, color: f.color || "#0f172a" }}>{f.value}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+                  {[
+                    { label: "Permit Number", value: vendor?.business_permit_number || "—" },
+                    { label: "Permit Receipt #", value: vendor?.award_receipt_number || "—" },
+                    { label: "Date of Payment", value: vendor?.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—" },
+                  ].map((f, i) => (
+                    <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none" }}>
+                      <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{f.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
-                {[
-                  { label: "Permit Number", value: vendor?.business_permit_number || "—" },
-                  { label: "Permit Receipt #", value: vendor?.award_receipt_number || "—" },
-                  { label: "Date of Payment", value: vendor?.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—" },
-                ].map((f, i) => (
-                  <div key={f.label} style={{ padding: "16px 20px", borderRight: i < 2 ? "1px solid #f1f5f9" : "none" }}>
-                    <p style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: 1.5, color: "#94a3b8", fontWeight: 700, marginBottom: 6 }}>{f.label}</p>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{f.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
             )}
 
             {/* Monthly Rates by Year — Desktop */}
@@ -970,7 +968,7 @@ const VendorStallInfo = () => {
             <div className="rounded-2xl overflow-hidden"
               style={{ border: "1px solid #fde68a", background: "#fffbeb", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
               <div className="flex items-start gap-4 p-4">
-                <span style={{ fontSize: 32, lineHeight: 1 }}>🏪</span>
+                <span style={{ fontSize: 32, lineHeight: 1 }}></span>
                 <div>
                   <p className="font-extrabold text-amber-900 text-sm">Bolante Section Vendor</p>
                   <p className="text-xs text-amber-700 mt-1 leading-relaxed">
@@ -985,166 +983,166 @@ const VendorStallInfo = () => {
               </div>
             </div>
           ) : (
-          <div className="rounded-2xl bg-white overflow-hidden"
-            style={{ border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
-                <MapPin className="h-4 w-4" style={{ color: DS.blue600 }} />
+            <div className="rounded-2xl bg-white overflow-hidden"
+              style={{ border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.blue50 }}>
+                  <MapPin className="h-4 w-4" style={{ color: DS.blue600 }} />
+                </div>
+                <span className="font-bold text-slate-900">Stall Details</span>
               </div>
-              <span className="font-bold text-slate-900">Stall Details</span>
-            </div>
-            <div className="grid grid-cols-2 gap-0">
-              <div className="p-4 border-b border-r border-slate-50">
-                <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Stall #</p>
-                <p className="text-2xl font-black mt-1" style={{ color: DS.blue900, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {stall?.stall_number || "—"}
-                </p>
-              </div>
-              <div className="p-4 border-b border-slate-50">
-                <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Section</p>
-                <p className="text-lg font-black text-slate-900 mt-1">{stall?.section || "General"}</p>
-              </div>
-              <div className="p-4 border-r border-slate-50">
-                <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Area</p>
-                {editing ? (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Input className="h-8 w-20 rounded-md text-sm px-2 font-black" style={{ fontFamily: "'JetBrains Mono', monospace" }} value={form.area_measurement} onChange={set("area_measurement")} placeholder="12.8" disabled={role === 'vendor'} />
-                    <span className="text-xs font-bold text-slate-500">sqm</span>
-                  </div>
-                ) : (
-                  <p className="text-lg font-black text-slate-900 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {stall?.area_measurement ? `${stall.area_measurement} sqm` : "—"}
+              <div className="grid grid-cols-2 gap-0">
+                <div className="p-4 border-b border-r border-slate-50">
+                  <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Stall #</p>
+                  <p className="text-2xl font-black mt-1" style={{ color: DS.blue900, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {stall?.stall_number || "—"}
                   </p>
-                )}
-              </div>
-              <div className="p-4">
-                <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Status</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className={`w-2 h-2 rounded-full ${isActive ? "bg-green-500" : "bg-red-500"}`} />
-                  <span className={`text-sm font-bold ${isActive ? "text-green-600" : "text-red-600"}`}>
-                    {isActive ? "Active" : "Suspended"}
-                  </span>
+                </div>
+                <div className="p-4 border-b border-slate-50">
+                  <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Section</p>
+                  <p className="text-lg font-black text-slate-900 mt-1">{stall?.section || "General"}</p>
+                </div>
+                <div className="p-4 border-r border-slate-50">
+                  <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Area</p>
+                  {editing ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input className="h-8 w-20 rounded-md text-sm px-2 font-black" style={{ fontFamily: "'JetBrains Mono', monospace" }} value={form.area_measurement} onChange={set("area_measurement")} placeholder="12.8" disabled={role === 'vendor'} />
+                      <span className="text-xs font-bold text-slate-500">sqm</span>
+                    </div>
+                  ) : (
+                    <p className="text-lg font-black text-slate-900 mt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {stall?.area_measurement ? `${stall.area_measurement} sqm` : "—"}
+                    </p>
+                  )}
+                </div>
+                <div className="p-4">
+                  <p className="text-[9.5px] uppercase tracking-wide text-slate-400 font-semibold">Status</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <div className={`w-2 h-2 rounded-full ${isActive ? "bg-green-500" : "bg-red-500"}`} />
+                    <span className={`text-sm font-bold ${isActive ? "text-green-600" : "text-red-600"}`}>
+                      {isActive ? "Active" : "Suspended"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="border-t border-slate-50 divide-y divide-slate-50">
-              {vendor?.award_date && (
+              <div className="border-t border-slate-50 divide-y divide-slate-50">
+                {vendor?.award_date && (
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
+                      <Calendar className="h-4 w-4" style={{ color: DS.blue600 }} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Award Date</p>
+                      <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                        {new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
+                    <FileText className="h-4 w-4" style={{ color: DS.blue600 }} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Permit Number</p>
+                    <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                      {vendor?.business_permit_number || "—"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
+                    <FileText className="h-4 w-4" style={{ color: DS.blue600 }} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Award Receipt #</p>
+                    <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                      {vendor?.award_receipt_number || "—"}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 px-4 py-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
                     <Calendar className="h-4 w-4" style={{ color: DS.blue600 }} />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Award Date</p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Date of Payment</p>
                     <p className="text-sm font-semibold text-slate-900 mt-0.5">
-                      {new Date(vendor.award_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}
+                      {vendor?.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—"}
                     </p>
                   </div>
                 </div>
-              )}
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
-                  <FileText className="h-4 w-4" style={{ color: DS.blue600 }} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Permit Number</p>
-                  <p className="text-sm font-semibold text-slate-900 mt-0.5">
-                    {vendor?.business_permit_number || "—"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
-                  <FileText className="h-4 w-4" style={{ color: DS.blue600 }} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Award Receipt #</p>
-                  <p className="text-sm font-semibold text-slate-900 mt-0.5">
-                    {vendor?.award_receipt_number || "—"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: DS.blue50 }}>
-                  <Calendar className="h-4 w-4" style={{ color: DS.blue600 }} />
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Date of Payment</p>
-                  <p className="text-sm font-semibold text-slate-900 mt-0.5">
-                    {vendor?.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) : "—"}
-                  </p>
-                </div>
               </div>
             </div>
-          </div>
           )}
 
           {/* Monthly Rates by Year — Mobile */}
           {!isBolante && (
-          <div className="rounded-2xl bg-white overflow-hidden"
-            style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#dcfce7" }}>
-                <TrendingUp className="h-4 w-4" style={{ color: "#16a34a" }} />
+            <div className="rounded-2xl bg-white overflow-hidden"
+              style={{ border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#dcfce7" }}>
+                  <TrendingUp className="h-4 w-4" style={{ color: "#16a34a" }} />
+                </div>
+                <span className="font-bold text-slate-900">Monthly Rates by Year</span>
               </div>
-              <span className="font-bold text-slate-900">Monthly Rates by Year</span>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {[2026, 2027, 2028].map((year) => {
-                const rateKey = `monthly_rate_${year}` as string;
-                const yearRate = (stall as any)?.[rateKey] ? Number((stall as any)[rateKey]) : null;
-                const area = stall?.area_measurement ? parseFloat(stall.area_measurement) : null;
-                const baseRate = (yearRate && area && area > 0) ? (yearRate / (area * 30)) : null;
-                const isExpanded = expandedYear === year;
-                return (
-                  <div key={year} className="px-4 py-3" style={{ cursor: yearRate ? "pointer" : "default" }}
-                    onClick={() => yearRate && setExpandedYear(isExpanded ? null : year)}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{year} Rate</p>
-                        <p className="text-lg font-black mt-0.5" style={{ color: yearRate ? "#16a34a" : "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
-                          {yearRate ? fmt(yearRate) : "Not set"}
-                        </p>
-                      </div>
-                      {yearRate && (
-                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
-                          {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+              <div className="divide-y divide-slate-50">
+                {[2026, 2027, 2028].map((year) => {
+                  const rateKey = `monthly_rate_${year}` as string;
+                  const yearRate = (stall as any)?.[rateKey] ? Number((stall as any)[rateKey]) : null;
+                  const area = stall?.area_measurement ? parseFloat(stall.area_measurement) : null;
+                  const baseRate = (yearRate && area && area > 0) ? (yearRate / (area * 30)) : null;
+                  const isExpanded = expandedYear === year;
+                  return (
+                    <div key={year} className="px-4 py-3" style={{ cursor: yearRate ? "pointer" : "default" }}
+                      onClick={() => yearRate && setExpandedYear(isExpanded ? null : year)}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">{year} Rate</p>
+                          <p className="text-lg font-black mt-0.5" style={{ color: yearRate ? "#16a34a" : "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                            {yearRate ? fmt(yearRate) : "Not set"}
+                          </p>
                         </div>
-                      )}
-                    </div>
-                    {isExpanded && yearRate && (
-                      <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                        {baseRate && area ? (
-                          <>
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Base Rate</span>
-                              <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>₱{baseRate.toFixed(2)} / sqm</span>
-                            </div>
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Area</span>
-                              <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{area} sqm</span>
-                            </div>
-                            <div className="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-slate-300">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Days</span>
-                              <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>30</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-green-600 font-black uppercase tracking-wide">Total Monthly</span>
-                              <span className="text-sm text-green-600 font-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{fmt(yearRate)}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-center py-1">
-                            <p className="text-[11px] text-red-600 font-bold">Breakdown unavailable</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5">Area measurement is not set for this stall.</p>
+                        {yearRate && (
+                          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center">
+                            {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {isExpanded && yearRate && (
+                        <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                          {baseRate && area ? (
+                            <>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Base Rate</span>
+                                <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>₱{baseRate.toFixed(2)} / sqm</span>
+                              </div>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Area</span>
+                                <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{area} sqm</span>
+                              </div>
+                              <div className="flex justify-between items-center mb-2 pb-2 border-b border-dashed border-slate-300">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Days</span>
+                                <span className="text-xs font-bold text-slate-900" style={{ fontFamily: "'JetBrains Mono', monospace" }}>30</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-green-600 font-black uppercase tracking-wide">Total Monthly</span>
+                                <span className="text-sm text-green-600 font-black" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{fmt(yearRate)}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-center py-1">
+                              <p className="text-[11px] text-red-600 font-bold">Breakdown unavailable</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">Area measurement is not set for this stall.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
           )}
 
           {/* Stall Ownership History Dropdown Card — Mobile */}

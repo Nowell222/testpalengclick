@@ -77,7 +77,7 @@ const getPrintHTML = (data: any) => {
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
-  <div class="info-item"><label>Section</label><p>${stall?.section || "General"}</p></div>
+  <div class="info-item"><label>Section</label><p>${stall?.section || data?.preferredSection || "General"}</p></div>
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
   <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
@@ -125,11 +125,12 @@ const VendorStatement = () => {
     queryFn: async () => {
       const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, location, area_measurement)").eq("user_id", user!.id).single();
       const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
+      const { data: appData } = await supabase.from("vendor_applications").select("preferred_section").eq("applicant_user_id", user!.id).maybeSingle();
       const [paymentsRes, schedulesRes] = await Promise.all([
         supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true }),
         vendor?.stall_id ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall_id).eq("year", selectedYear) : Promise.resolve({ data: [] }),
       ]);
-      return { vendor, profile, payments: paymentsRes.data || [], stall: vendor?.stalls as any, schedules: schedulesRes.data || [] };
+      return { vendor, profile, payments: paymentsRes.data || [], stall: vendor?.stalls as any, schedules: schedulesRes.data || [], preferredSection: appData?.preferred_section || null };
     },
   });
 
@@ -416,7 +417,7 @@ const VendorStatement = () => {
             {[
               { label: "Vendor Name", value: `${profile?.first_name} ${profile?.last_name}` },
               { label: "Stall Number", value: stall?.stall_number || "—" },
-              { label: "Section", value: stall?.section || "General" },
+              { label: "Section", value: stall?.section || data?.preferredSection || "General" },
               { label: "Location", value: stall?.location || "—" },
               { label: "Monthly Rate", value: fmt(monthlyRate) },
               { label: "Date Printed", value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },

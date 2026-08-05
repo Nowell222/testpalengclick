@@ -120,7 +120,7 @@ const printMonthSOA = (data: {
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
-  <div class="info-item"><label>Section</label><p>${stall?.section || "General"}</p></div>
+  <div class="info-item"><label>Section</label><p>${stall?.section || queryData?.preferredSection || "General"}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH",{year:"numeric",month:"long",day:"numeric"})}</p></div>
@@ -333,10 +333,12 @@ const VendorHistory = () => {
         is_submission:  true,   // flag so UI can show "Awaiting verification"
       }));
 
+      const { data: appData } = await supabase.from("vendor_applications").select("preferred_section").eq("applicant_user_id", user!.id).maybeSingle();
+
       // Merge: submissions first (pending on top), then confirmed
       const merged = [...pendingRows, ...(confirmedPayments || [])];
 
-      return { payments: merged, vendor, profile, stall: vendor.stalls as any };
+      return { payments: merged, vendor, profile, stall: vendor.stalls as any, preferredSection: appData?.preferred_section || null };
     },
   });
 
