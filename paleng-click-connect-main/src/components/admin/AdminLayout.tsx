@@ -3,7 +3,7 @@ import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard, Users, CreditCard, QrCode, MessageSquare, Newspaper,
-  FileBarChart, LogOut, Menu, X, Loader2,
+  FileBarChart, LogOut, Menu, X, Loader2, History,
   DollarSign, ClipboardList, Settings, Store, type LucideIcon,
 } from "lucide-react";
 import PushNotificationBanner from "@/components/PushNotificationBanner";
@@ -19,6 +19,7 @@ const adminNav: NavItem[] = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "User Management", path: "/admin/users", icon: Users },
   { label: "Applications", path: "/admin/applications", icon: Store },
+  { label: "Stall History", path: "/admin/history", icon: History },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "QR Code", path: "/admin/qr-codes", icon: QrCode },
   { label: "SMS", path: "/admin/sms", icon: MessageSquare },

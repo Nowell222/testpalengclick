@@ -878,6 +878,10 @@ export type Database = {
         Args: { p_stall_id: string; p_area_measurement: string | null }
         Returns: undefined
       }
+      get_stall_ownership_history_details: {
+        Args: { p_stall_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "cashier" | "vendor" | "bplo" | "eemo"

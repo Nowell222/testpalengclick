@@ -251,7 +251,7 @@ export default function BploStallHistory() {
         const profilesData = profilesRes.data || [];
         const paymentsData = paymentsRes.data || [];
 
-        return result.map((h: any) => {
+        const mapped = result.map((h: any) => {
           const vendorPayments = paymentsData.filter((p: any) => p.vendor_id === h.vendor_id);
           const lastPaymentDate = vendorPayments.length > 0 ? vendorPayments[0].created_at : null;
 
@@ -271,9 +271,27 @@ export default function BploStallHistory() {
             last_payment_date: lastPaymentDate
           };
         });
+
+        return mapped.sort((a: any, b: any) => {
+          const aCurrent = !a.ended_at && a.status === 'active';
+          const bCurrent = !b.ended_at && b.status === 'active';
+          if (aCurrent && !bCurrent) return -1;
+          if (!aCurrent && bCurrent) return 1;
+          const dateA = new Date(a.started_at || 0).getTime();
+          const dateB = new Date(b.started_at || 0).getTime();
+          return dateB - dateA;
+        });
       }
 
-      return result;
+      return result.sort((a: any, b: any) => {
+        const aCurrent = !a.ended_at && a.status === 'active';
+        const bCurrent = !b.ended_at && b.status === 'active';
+        if (aCurrent && !bCurrent) return -1;
+        if (!aCurrent && bCurrent) return 1;
+        const dateA = new Date(a.started_at || 0).getTime();
+        const dateB = new Date(b.started_at || 0).getTime();
+        return dateB - dateA;
+      });
     }
   });
 

@@ -122,9 +122,27 @@ export default function BploDashboard() {
           }
           return h;
         });
-        setStallHistory(merged);
+        const sortHistory = (arr: any[]) => [...arr].sort((a: any, b: any) => {
+          const aCurrent = !a.ended_at && a.status === 'active';
+          const bCurrent = !b.ended_at && b.status === 'active';
+          if (aCurrent && !bCurrent) return -1;
+          if (!aCurrent && bCurrent) return 1;
+          const dateA = new Date(a.started_at || 0).getTime();
+          const dateB = new Date(b.started_at || 0).getTime();
+          return dateB - dateA;
+        });
+        setStallHistory(sortHistory(merged));
       } else {
-        setStallHistory(historyData);
+        const sortHistory = (arr: any[]) => [...arr].sort((a: any, b: any) => {
+          const aCurrent = !a.ended_at && a.status === 'active';
+          const bCurrent = !b.ended_at && b.status === 'active';
+          if (aCurrent && !bCurrent) return -1;
+          if (!aCurrent && bCurrent) return 1;
+          const dateA = new Date(a.started_at || 0).getTime();
+          const dateB = new Date(b.started_at || 0).getTime();
+          return dateB - dateA;
+        });
+        setStallHistory(sortHistory(historyData));
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to load stall ownership history");

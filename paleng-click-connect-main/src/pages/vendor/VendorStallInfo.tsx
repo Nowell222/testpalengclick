@@ -4,7 +4,7 @@ import {
   QrCode, MapPin, User, Calendar, Loader2, Edit3, Save, X,
   Download, Phone, Home, CheckCircle2, Mail, Lock, Eye, EyeOff,
   UserCircle, AlertCircle, LogOut, ChevronDown, ChevronUp, TrendingUp,
-  Camera, FileText,
+  Camera, FileText, History, BadgeInfo,
 } from "lucide-react";
 import { useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,6 +53,8 @@ const VendorStallInfo = () => {
   const [emailChanged, setEmailChanged] = useState(false);
   const [expandedYear, setExpandedYear] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
+  const [selectedHistoryOwnerId, setSelectedHistoryOwnerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -94,6 +96,255 @@ const VendorStallInfo = () => {
   const vendor = data?.vendor;
   const profile = data?.profile;
   const isActive = profile?.status === "active";
+
+  const { data: stallHistory = [], isLoading: loadingHistory } = useQuery({
+    queryKey: ["vendor-stall-history", stall?.id],
+    enabled: !!stall?.id,
+    queryFn: async () => {
+      if (!stall?.id) return [];
+      
+      // Try SECURITY DEFINER RPC first to bypass vendor RLS restrictions on past owner profiles
+      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
+        p_stall_id: stall.id
+      });
+
+      if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+        return rpcData;
+      }
+
+      const { data: historyData } = await supabase
+        .from("stall_ownership_history")
+        .select(`
+          id,
+          stall_id,
+          vendor_id,
+          started_at,
+          ended_at,
+          status,
+          vendors (
+            id,
+            user_id,
+            business_permit_number,
+            award_receipt_number,
+            award_payment_date,
+            award_date,
+            qr_code,
+            closed_at,
+            closure_reason,
+            closure_notes
+          )
+        `)
+        .eq("stall_id", stall.id)
+        .order("started_at", { ascending: false });
+
+      let result: any[] = historyData ? [...historyData] : [];
+
+      if (result.length === 0) {
+        const { data: directVendors } = await supabase
+          .from("vendors")
+          .select(`
+            id,
+            user_id,
+            business_permit_number,
+            award_receipt_number,
+            award_payment_date,
+            award_date,
+            qr_code,
+            closed_at,
+            closure_reason,
+            closure_notes
+          `)
+          .eq("stall_id", stall.id);
+
+        if (directVendors && directVendors.length > 0) {
+          result = directVendors.map(v => ({
+            id: `hist-direct-${v.id}`,
+            stall_id: stall.id,
+            vendor_id: v.id,
+            started_at: v.award_date || new Date().toISOString(),
+            ended_at: v.closed_at || null,
+            status: v.closed_at ? "closed" : "active",
+            vendors: v
+          }));
+        }
+      }
+
+      const userIds = result
+        .map((h: any) => h.vendors?.user_id)
+        .filter(Boolean);
+
+      const vendorIds = result
+        .map((h: any) => h.vendor_id)
+        .filter(Boolean);
+
+      if (userIds.length > 0) {
+        const [profilesRes, paymentsRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("user_id, first_name, middle_name, last_name, contact_number, address, status")
+            .in("user_id", userIds),
+          vendorIds.length > 0
+            ? supabase
+                .from("payments")
+                .select("vendor_id, created_at")
+                .in("vendor_id", vendorIds)
+                .eq("status", "completed")
+                .order("created_at", { ascending: false })
+            : Promise.resolve({ data: [], error: null })
+        ]);
+
+        const profilesData = profilesRes.data || [];
+        const paymentsData = paymentsRes.data || [];
+
+        result = result.map((h: any) => {
+          const vendorPayments = paymentsData.filter((p: any) => p.vendor_id === h.vendor_id);
+          const lastPaymentDate = vendorPayments.length > 0 ? vendorPayments[0].created_at : null;
+
+          if (h.vendors && h.vendors.user_id) {
+            const pr = profilesData.find((p) => p.user_id === h.vendors.user_id);
+            return {
+              ...h,
+              vendors: {
+                ...h.vendors,
+                profiles: pr || null,
+                last_payment_date: lastPaymentDate
+              }
+            };
+          }
+          return {
+            ...h,
+            last_payment_date: lastPaymentDate
+          };
+        });
+      }
+
+      return result.sort((a: any, b: any) => {
+        const aCurrent = !a.ended_at && a.status === 'active';
+        const bCurrent = !b.ended_at && b.status === 'active';
+        if (aCurrent && !bCurrent) return -1;
+        if (!aCurrent && bCurrent) return 1;
+        const dateA = new Date(a.started_at || 0).getTime();
+        const dateB = new Date(b.started_at || 0).getTime();
+        return dateB - dateA;
+      });
+    }
+  });
+
+  const renderStallHistoryDropdown = () => {
+    return (
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+        <div 
+          onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", cursor: "pointer", background: showHistoryDropdown ? "#f8fafc" : "#fff" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: DS.blue50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <History size={15} color={DS.blue600} />
+            </div>
+            <div>
+              <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14, display: "block" }}>Stall Ownership History</span>
+              <span style={{ fontSize: 11, color: "#64748b" }}>Click to view past & current owners</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+              {stallHistory.length} Record{stallHistory.length !== 1 ? "s" : ""}
+            </span>
+            {showHistoryDropdown ? <ChevronUp size={18} color="#64748b" /> : <ChevronDown size={18} color="#64748b" />}
+          </div>
+        </div>
+
+        {showHistoryDropdown && (
+          <div style={{ padding: "20px 24px", borderTop: "1px solid #f1f5f9" }}>
+            {loadingHistory ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-slate-400 text-xs">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <span>Loading ownership timeline...</span>
+              </div>
+            ) : stallHistory.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">No past ownership records recorded for Stall #{stall?.stall_number || "—"}.</p>
+            ) : (
+              <div className="relative border-l-2 border-slate-200 pl-6 ml-3 space-y-8 my-2">
+                {stallHistory.map((h: any) => {
+                  const vendorObj = h.vendors;
+                  const profileObj = vendorObj?.profiles;
+                  const name = profileObj ? [profileObj.first_name, profileObj.middle_name, profileObj.last_name].filter(Boolean).join(" ") : "Unknown Vendor";
+                  const isCurrent = !h.ended_at && h.status === 'active';
+
+                  return (
+                    <div key={h.id} className="relative">
+                      {/* Timeline Bullet */}
+                      <span className={`absolute -left-[33px] top-1 h-4 w-4 rounded-full border-2 bg-white flex items-center justify-center ${
+                        isCurrent 
+                          ? "border-emerald-500 shadow-sm" 
+                          : h.status === 'transferred' 
+                            ? "border-blue-500" 
+                            : "border-slate-300"
+                      }`}>
+                        {isCurrent && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                      </span>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">{name}</h4>
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            isCurrent 
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
+                              : h.status === 'transferred' 
+                                ? "bg-blue-50 text-blue-700 border border-blue-100" 
+                                : "bg-slate-100 text-slate-700"
+                          }`}>
+                            {isCurrent ? "CURRENT OWNER" : (h.status ? h.status.toUpperCase() : "CLOSED")}
+                          </span>
+                        </div>
+                        
+                        <p className="text-xs text-slate-400 flex items-center gap-1 font-semibold">
+                          <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                          {new Date(h.started_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} — {h.ended_at ? new Date(h.ended_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "Present"}
+                        </p>
+
+                        {vendorObj && (
+                          <div className="mt-2 bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs space-y-3 text-slate-600 shadow-sm">
+                            <p className="font-bold text-slate-700 flex items-center gap-1 border-b pb-1.5"><BadgeInfo size={13} className="text-blue-600" /> Owner Registry Info:</p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                              <p><span className="text-slate-400">Owner Name:</span> <strong className="text-slate-700">{profileObj ? [profileObj.first_name, profileObj.middle_name, profileObj.last_name].filter(Boolean).join(" ") : "—"}</strong></p>
+                              <p><span className="text-slate-400">Account Status:</span> <strong className="text-slate-700 capitalize">{profileObj?.status || "—"}</strong></p>
+                              
+                              <p><span className="text-slate-400">Contact Number:</span> <strong className="text-slate-700">{profileObj?.contact_number || "—"}</strong></p>
+                              <p><span className="text-slate-400">Registered Address:</span> <strong className="text-slate-700">{profileObj?.address || "—"}</strong></p>
+                              
+                              <p><span className="text-slate-400">Award Date:</span> <strong className="text-slate-700">{vendorObj.award_date ? new Date(vendorObj.award_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</strong></p>
+                              <p><span className="text-slate-400">Last Payment Date:</span> <strong className="text-slate-700">{vendorObj.last_payment_date ? new Date(vendorObj.last_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "No payments found"}</strong></p>
+                              
+                              <p><span className="text-slate-400">Permit Number:</span> <strong className="text-slate-700">{vendorObj.business_permit_number || "—"}</strong></p>
+                              <p><span className="text-slate-400">Permit Receipt #:</span> <strong className="text-slate-700">{vendorObj.award_receipt_number || "—"}</strong></p>
+                              
+                              <p><span className="text-slate-400">Date of Payment:</span> <strong className="text-slate-700">{vendorObj.award_payment_date ? new Date(vendorObj.award_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</strong></p>
+                              <p><span className="text-slate-400">QR Code:</span> <strong className="text-slate-700 font-mono text-[10px] break-all">{vendorObj.qr_code || "—"}</strong></p>
+                            </div>
+
+                            {(vendorObj.closed_at || h.ended_at || vendorObj.closure_reason) && (
+                              <div className="mt-2 pt-2 border-t border-slate-200/60 grid grid-cols-1 gap-y-1 bg-red-50/30 p-2.5 rounded-lg border border-red-100/50">
+                                <p className="font-semibold text-red-950/80 mb-1">Closure Details:</p>
+                                <p><span className="text-slate-400">Closure Date:</span> <strong className="text-slate-700">{vendorObj.closed_at ? new Date(vendorObj.closed_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : (h.ended_at ? new Date(h.ended_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—")}</strong></p>
+                                <p><span className="text-slate-400">Reason:</span> <strong className="text-slate-700">{vendorObj.closure_reason || "—"}</strong></p>
+                                {vendorObj.closure_notes && <p><span className="text-slate-400">Notes:</span> <strong className="text-slate-700">{vendorObj.closure_notes}</strong></p>}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const saveAll = useMutation({
     mutationFn: async () => {
@@ -432,6 +683,9 @@ const VendorStallInfo = () => {
                 })}
               </div>
             </div>
+
+            {/* Stall Ownership History Dropdown Card — Desktop */}
+            {renderStallHistoryDropdown()}
 
             {/* Personal Information */}
             <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", overflow: "hidden" }}>
@@ -841,6 +1095,9 @@ const VendorStallInfo = () => {
               })}
             </div>
           </div>
+
+          {/* Stall Ownership History Dropdown Card — Mobile */}
+          {renderStallHistoryDropdown()}
 
           {/* QR Code Card */}
           <div className="rounded-2xl bg-white overflow-hidden"

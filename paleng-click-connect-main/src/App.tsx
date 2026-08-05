@@ -79,6 +79,7 @@ const App = () => (
               <Route index element={<AdminDashboardHome />} />
               <Route path="users" element={<AdminUserManagement />} />
               <Route path="applications" element={<AdminApplications />} />
+              <Route path="history" element={<BploStallHistory />} />
               <Route path="payments" element={<AdminPayments />} />
               <Route path="qr-codes" element={<AdminQRCodes />} />
               <Route path="sms" element={<AdminSMS />} />
