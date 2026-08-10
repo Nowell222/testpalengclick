@@ -604,24 +604,6 @@ const AdminApplications = () => {
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="flex items-center space-x-2 pb-3 border-b">
-                <input
-                  type="checkbox"
-                  id="assignStallApproval"
-                  checked={assignStall}
-                  onChange={e => {
-                    setAssignStall(e.target.checked);
-                    if (e.target.checked) {
-                      generateStallNumber(selectedApp.preferred_section);
-                    } else {
-                      setStallNumber("");
-                    }
-                  }}
-                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                />
-                <Label htmlFor="assignStallApproval" className="text-sm font-semibold cursor-pointer select-none">Assign Stall Details Now</Label>
-              </div>
-
               {closedVendors.length > 0 && (
                 <div className="space-y-1.5 pb-2 border-b">
                   <Label className="text-xs text-muted-foreground font-medium">Reference Closed Account / Transfer of Ownership</Label>
