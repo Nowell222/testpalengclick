@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { preloadVendorDirectory, getCachedVendorsDirectory } from "@/lib/vendorCache";
 
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 const CashierSearchVendor = () => {
@@ -121,7 +121,7 @@ const CashierSearchVendor = () => {
     );
   });
 
-  const paidCount   = vendors.filter((v: any) => v.isCurrentMonthPaid).length;
+  const paidCount = vendors.filter((v: any) => v.isCurrentMonthPaid).length;
   const unpaidCount = vendors.length - paidCount;
 
   return (
@@ -137,15 +137,15 @@ const CashierSearchVendor = () => {
       {!isLoading && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Vendors",   value: vendors.length, icon: Users,        iconBg: "bg-blue-100",    iconColor: "#0ea5e9",  glow: "#0ea5e9",  gradient: "from-blue-50 to-blue-50/40"    },
-            { label: "Paid This Month", value: paidCount,      icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981",  glow: "#10b981",  gradient: "from-emerald-50 to-emerald-50/40" },
-            { label: "Unpaid / Partial",value: unpaidCount,    icon: AlertCircle,  iconBg: unpaidCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: unpaidCount > 0 ? "#f59e0b" : "#10b981", glow: unpaidCount > 0 ? "#f59e0b" : "#10b981", gradient: unpaidCount > 0 ? "from-amber-50 to-amber-50/40" : "from-emerald-50 to-emerald-50/40" },
+            { label: "Total Vendors", value: vendors.length, icon: Users, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/40" },
+            { label: "Paid This Month", value: paidCount, icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/40" },
+            { label: "Unpaid / Partial", value: unpaidCount, icon: AlertCircle, iconBg: unpaidCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: unpaidCount > 0 ? "#f59e0b" : "#10b981", glow: unpaidCount > 0 ? "#f59e0b" : "#10b981", gradient: unpaidCount > 0 ? "from-amber-50 to-amber-50/40" : "from-emerald-50 to-emerald-50/40" },
           ].map(c => (
             <div key={c.label}
-                 className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`}
-                 style={{ minHeight: 100 }}>
+              className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`}
+              style={{ minHeight: 100 }}>
               <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity`}
-                   style={{ background: c.glow }} />
+                style={{ background: c.glow }} />
               <div className="flex items-center justify-between z-10">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
@@ -198,7 +198,7 @@ const CashierSearchVendor = () => {
             <table className="w-full text-sm table-zebra">
               <thead>
                 <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
-                  {["Vendor","Stall","Section","Monthly Rate","This Month","Outstanding","Account","Actions"].map(h => (
+                  {["Vendor", "Stall", "Section", "Monthly Rate", "This Month", "Outstanding", "Account", "Actions"].map(h => (
                     <th key={h} className="px-4 py-3.5 text-left font-semibold text-emerald-100 text-xs uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -224,11 +224,10 @@ const CashierSearchVendor = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
-                        v.accountStatus === "active"
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${v.accountStatus === "active"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : "bg-red-50 text-red-600 border-red-200"
-                      }`}>
+                        }`}>
                         {v.accountStatus}
                       </span>
                     </td>
@@ -326,9 +325,9 @@ const CashierSearchVendor = () => {
                 <p className="section-label mb-3">Payment Summary — {new Date().getFullYear()}</p>
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   {[
-                    { label: "Total Paid",    value: fmt(selected.totalPaidYear),   color: "text-emerald-700" },
-                    { label: "Outstanding",   value: fmt(selected.totalOutstanding), color: selected.totalOutstanding > 0 ? "text-red-600" : "text-emerald-700" },
-                    { label: "Transactions",  value: String(selected.completedCount), color: "text-foreground" },
+                    { label: "Total Paid", value: fmt(selected.totalPaidYear), color: "text-emerald-700" },
+                    { label: "Outstanding", value: fmt(selected.totalOutstanding), color: selected.totalOutstanding > 0 ? "text-red-600" : "text-emerald-700" },
+                    { label: "Transactions", value: String(selected.completedCount), color: "text-foreground" },
                   ].map(c => (
                     <div key={c.label} className="rounded-xl bg-white border p-3 text-center">
                       <p className={`font-mono font-bold text-base ${c.color}`}>{c.value}</p>
@@ -360,7 +359,7 @@ const CashierSearchVendor = () => {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b">
-                          {["Date","Period","Amount","Method","Status"].map(h => (
+                          {["Date", "Period", "Amount", "Method", "Status"].map(h => (
                             <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground">{h}</th>
                           ))}
                         </tr>
@@ -369,7 +368,7 @@ const CashierSearchVendor = () => {
                         {selected.payments.map((p: any) => (
                           <tr key={p.id} className="hover:bg-slate-50/60">
                             <td className="px-3 py-2 text-muted-foreground">{new Date(p.created_at).toLocaleDateString("en-PH")}</td>
-                            <td className="px-3 py-2 text-muted-foreground">{p.period_month && p.period_year ? `${MONTHS[p.period_month - 1].slice(0,3)} ${p.period_year}` : "—"}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{p.period_month && p.period_year ? `${MONTHS[p.period_month - 1].slice(0, 3)} ${p.period_year}` : "—"}</td>
                             <td className="px-3 py-2 font-mono font-semibold text-foreground">{fmt(Number(p.amount))}</td>
                             <td className="px-3 py-2 capitalize text-muted-foreground">{p.payment_method}</td>
                             <td className="px-3 py-2">

@@ -14,46 +14,44 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
 const DS = {
   gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
-  gradientCard:   "linear-gradient(135deg, #1a3a5f 0%, #2563eb 100%)",
+  gradientCard: "linear-gradient(135deg, #1a3a5f 0%, #2563eb 100%)",
   blue900: "#0d2240",
   blue600: "#2563eb",
 };
 
 const BANK_DETAILS = {
-  bankName:      "Land Bank of the Philippines",
-  accountName:   "Municipality of San Juan, Batangas",
-  accountNumber: "0000-0000-00",
-  instapayQR:    "/bankqr.png",
-  notes:         "Pay via InstaPay, bank transfer, GCash, or Maya to this account.",
+  bankName: "Land Bank of the Philippines",
+  accountName: "Municipality of San Juan, Batangas",
+  accountNumber: "09260714277",
+  instapayQR: "/bankqr.png",
+  notes: "Pay via InstaPay, bank transfer, GCash, or Maya to this account.",
 };
 
 // ─── Step Bar ──────────────────────────────────────────────────────────────────
 const Steps = ({ current }: { current: 1 | 2 | 3 | 4 }) => (
   <div className="flex items-center px-5 py-4 bg-white border-b border-slate-100">
     {[
-      { n: 1, label: "Review"  },
-      { n: 2, label: "Pay"     },
-      { n: 3, label: "Upload"  },
-      { n: 4, label: "Done"    },
+      { n: 1, label: "Review" },
+      { n: 2, label: "Pay" },
+      { n: 3, label: "Upload" },
+      { n: 4, label: "Done" },
     ].map((s, i) => (
       <div key={s.n} className="flex items-center flex-1">
         <div className="flex flex-col items-center">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
-            current === s.n  ? "text-white" :
-            current > s.n    ? "bg-green-600 text-white" :
-            "bg-slate-100 text-slate-400"
-          }`} style={current === s.n ? { background: DS.blue600, boxShadow: `0 2px 8px rgba(37,99,235,0.35)` } : {}}>
+          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${current === s.n ? "text-white" :
+            current > s.n ? "bg-green-600 text-white" :
+              "bg-slate-100 text-slate-400"
+            }`} style={current === s.n ? { background: DS.blue600, boxShadow: `0 2px 8px rgba(37,99,235,0.35)` } : {}}>
             {current > s.n ? <CheckCircle2 className="h-4 w-4" /> : s.n}
           </div>
-          <span className={`text-[10px] mt-1 font-medium uppercase tracking-wide ${
-            current >= s.n ? "text-slate-700" : "text-slate-400"
-          } ${current === s.n ? "font-bold" : ""}`}
-          style={current === s.n ? { color: DS.blue600 } : {}}>
+          <span className={`text-[10px] mt-1 font-medium uppercase tracking-wide ${current >= s.n ? "text-slate-700" : "text-slate-400"
+            } ${current === s.n ? "font-bold" : ""}`}
+            style={current === s.n ? { color: DS.blue600 } : {}}>
             {s.label}
           </span>
         </div>
@@ -69,9 +67,9 @@ const Steps = ({ current }: { current: 1 | 2 | 3 | 4 }) => (
 const OCRResult = ({ data }: { data: any }) => {
   const fields = [
     { label: "Reference No.", value: data.reference_number, mono: true },
-    { label: "Amount",        value: data.amount ? fmt(Number(data.amount)) : null },
-    { label: "Date & Time",   value: data.datetime },
-    { label: "Recipient",     value: data.recipient },
+    { label: "Amount", value: data.amount ? fmt(Number(data.amount)) : null },
+    { label: "Date & Time", value: data.datetime },
+    { label: "Recipient", value: data.recipient },
   ].filter(f => f.value);
 
   if (!fields.length) return null;
@@ -104,22 +102,22 @@ const OCRResult = ({ data }: { data: any }) => {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 const VendorPayOnline = () => {
-  const { user }    = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const fileRef     = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const [step,            setStep]           = useState<1|2|3|4>(1);
-  const [payType,         setPayType]        = useState<"full"|"staggered">("full");
-  const [staggeredAmount, setStaggeredAmount]= useState("");
-  const [receiptFile,     setReceiptFile]    = useState<File | null>(null);
-  const [receiptPreview,  setReceiptPreview] = useState<string | null>(null);
-  const [ocrData,         setOcrData]        = useState<any | null>(null);
-  const [ocrLoading,      setOcrLoading]     = useState(false);
-  const [submissionId,    setSubmissionId]   = useState<string | null>(null);
-  
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [payType, setPayType] = useState<"full" | "staggered">("full");
+  const [staggeredAmount, setStaggeredAmount] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [ocrData, setOcrData] = useState<any | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+
   // Manual overrides for OCR or direct entry
-  const [refNum,          setRefNum]         = useState("");
-  const [paidAmount,      setPaidAmount]     = useState("");
+  const [refNum, setRefNum] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-pay-info", user?.id],
@@ -132,7 +130,7 @@ const VendorPayOnline = () => {
         .single();
       if (!vendor) return null;
 
-      const stall       = vendor.stalls as any;
+      const stall = vendor.stalls as any;
       const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
       const currentYear = new Date().getFullYear();
 
@@ -144,11 +142,12 @@ const VendorPayOnline = () => {
           .eq("period_year", currentYear),
         stall?.id
           ? supabase.from("stall_fee_schedules")
-              .select("*").eq("stall_id", stall.id).eq("year", currentYear)
+            .select("*").eq("stall_id", stall.id).eq("year", currentYear)
           : Promise.resolve({ data: [] }),
       ]);
 
-      const payments  = paymentsRes.data  || [];
+
+      const payments = paymentsRes.data || [];
       const schedules = schedulesRes.data || [];
       const getMonthFee = (m: number) => {
         const s = schedules.find((s: any) => s.month === m);
@@ -163,10 +162,10 @@ const VendorPayOnline = () => {
       const effectiveMap: Record<number, number> = {};
       let carry = 0;
       for (let m = 1; m <= 12; m++) {
-        const due_m    = getMonthFee(m);
+        const due_m = getMonthFee(m);
         const credited = (rawPaidMap[m] || 0) + carry;
         effectiveMap[m] = credited;
-        carry           = credited >= due_m ? credited - due_m : 0;
+        carry = credited >= due_m ? credited - due_m : 0;
       }
 
       let nextUnpaidMonth = 13;
@@ -174,7 +173,7 @@ const VendorPayOnline = () => {
         if (effectiveMap[m] < getMonthFee(m)) { nextUnpaidMonth = m; break; }
       }
 
-      const monthlyRate      = getMonthFee(nextUnpaidMonth);
+      const monthlyRate = getMonthFee(nextUnpaidMonth);
       const paidForNextMonth = effectiveMap[nextUnpaidMonth] || 0;
       const remainingBalance = Math.max(0, monthlyRate - paidForNextMonth);
 
@@ -182,13 +181,13 @@ const VendorPayOnline = () => {
     },
   });
 
-  const stall            = data?.stall;
-  const monthlyRate      = data?.monthlyRate ?? 0;
-  const nextUnpaidMonth  = data?.nextUnpaidMonth || (new Date().getMonth() + 1);
+  const stall = data?.stall;
+  const monthlyRate = data?.monthlyRate ?? 0;
+  const nextUnpaidMonth = data?.nextUnpaidMonth || (new Date().getMonth() + 1);
   const remainingBalance = data?.remainingBalance || monthlyRate;
   const paidForNextMonth = data?.paidForNextMonth || 0;
-  const payAmount        = payType === "full" ? remainingBalance : Number(staggeredAmount || 0);
-  const canProceed       = payType === "full" || (!!staggeredAmount && Number(staggeredAmount) > 0 && Number(staggeredAmount) <= remainingBalance);
+  const payAmount = payType === "full" ? remainingBalance : Number(staggeredAmount || 0);
+  const canProceed = payType === "full" || (!!staggeredAmount && Number(staggeredAmount) > 0 && Number(staggeredAmount) <= remainingBalance);
 
   const handleFileSelect = async (file: File) => {
     setReceiptFile(file);
@@ -220,13 +219,13 @@ const VendorPayOnline = () => {
       // ── Step 2: Extract Reference Number ────────────────────────────
       // Expanded keywords for modern Gcash, Paymaya, and Bank apps
       const refKeywords = [
-        "Reference Number", "Reference no", "Ref no", "Ref #", "Trace", "Ref", 
+        "Reference Number", "Reference no", "Ref no", "Ref #", "Trace", "Ref",
         "Transaction ID", "Trans ID", "Transaction No", "InstaPay Ref", "Reference"
       ].join("|");
-      
+
       const refRegex = new RegExp(`(?:${refKeywords})\\s*[:\\.]?\\s*([A-Z0-9-]{6,25})`, "i");
       const refMatch = cleanText.match(refRegex);
-      
+
       let extractedRef = refMatch ? refMatch[1] : null;
 
       if (!extractedRef) {
@@ -237,7 +236,7 @@ const VendorPayOnline = () => {
         const mayaPattern = cleanText.match(/\b\d{12}\b/);
         // 3. BN- style (Common in some merchant systems)
         const bnPattern = cleanText.match(/\b[A-Z]{2}-\d{8}-\d{8,}\b/i);
-        
+
         if (gcashPattern) extractedRef = gcashPattern[0];
         else if (mayaPattern) extractedRef = mayaPattern[0];
         else if (bnPattern) extractedRef = bnPattern[0];
@@ -247,12 +246,12 @@ const VendorPayOnline = () => {
           extractedRef = digitMatches?.find(m => !m.startsWith("09")) || null;
         }
       }
-      
+
       // ── Step 3: Extract Amount ──────────────────────────────────────
       // Look for currency labels followed by numbers
       const amountRegex = /(?:Total\s*Amount(?:\s*Sent)?|Amount\s*Sent|Total|Amount|PHP|P|₱|Amount Paid)\s*[:\.]?\s*(?:PHP|P|₱)?\s*([\d,]+\.\d{2})/i;
       const amountMatch = cleanText.match(amountRegex);
-      
+
       // Sanitation: Remove commas and currency symbols
       let extractedAmount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
 
@@ -285,7 +284,7 @@ const VendorPayOnline = () => {
       if (!receiptFile) throw new Error("Please upload your payment receipt.");
       if (!data?.vendor) throw new Error("Vendor data not found.");
 
-      const ext      = receiptFile.name.split(".").pop() || "jpg";
+      const ext = receiptFile.name.split(".").pop() || "jpg";
       const filePath = `${user!.id}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("payment-receipts")
@@ -297,25 +296,28 @@ const VendorPayOnline = () => {
         .getPublicUrl(filePath);
       const receiptUrl = urlData.publicUrl;
 
+       /*
+   
+      */
       const { data: submission, error: subError } = await supabase
         .from("payment_submissions")
         .insert({
-          vendor_id:      data.vendor.id,
+          vendor_id: data.vendor.id,
           vendor_user_id: user!.id,
-          stall_id:       data.vendor.stall_id || null,
-          amount:         payAmount,
-          period_month:   nextUnpaidMonth,
-          period_year:    new Date().getFullYear(),
+          stall_id: data.vendor.stall_id || null,
+          amount: payAmount,
+          period_month: nextUnpaidMonth,
+          period_year: new Date().getFullYear(),
           payment_method: "instapay",
-          payment_type:   payType === "full" ? "due" : "staggered",
-          receipt_url:    receiptUrl,
-          receipt_path:   filePath,
-          ocr_reference:  refNum || null,
-          ocr_amount:     (paidAmount && !isNaN(Number(paidAmount))) ? Number(paidAmount) : null,
-          ocr_datetime:   ocrData?.datetime         || null,
-          ocr_recipient:  ocrData?.recipient        || null,
-          ocr_raw:        ocrData ? JSON.stringify(ocrData) : null,
-          status:         "pending",
+          payment_type: payType === "full" ? "due" : "staggered",
+          receipt_url: receiptUrl,
+          receipt_path: filePath,
+          ocr_reference: refNum || null,
+          ocr_amount: (paidAmount && !isNaN(Number(paidAmount))) ? Number(paidAmount) : null,
+          ocr_datetime: ocrData?.datetime || null,
+          ocr_recipient: ocrData?.recipient || null,
+          ocr_raw: ocrData ? JSON.stringify(ocrData) : null,
+          status: "pending",
         })
         .select("id")
         .single();
@@ -331,9 +333,9 @@ const VendorPayOnline = () => {
         await supabase.from("notifications").insert(
           cashiers.map((c: any) => ({
             user_id: c.user_id,
-            title:   `📋 New Online Payment — ${fmt(payAmount)}`,
+            title: `📋 New Online Payment — ${fmt(payAmount)}`,
             message: `Vendor ${vendorName} submitted a payment receipt for ${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}.\n• Amount: ${fmt(payAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`,
-            type:    "info",
+            type: "info",
           }))
         );
       }
@@ -396,11 +398,11 @@ const VendorPayOnline = () => {
         <div className="rounded-2xl border bg-card p-5 space-y-2.5 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Submission Summary</p>
           {[
-            { label: "Stall",      value: `${stall?.stall_number} — ${stall?.section}` },
-            { label: "Period",     value: `${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}` },
-            { label: "Amount",     value: fmt(payAmount) },
-            { label: "Reference",  value: refNum || "—" },
-            { label: "Status",     value: "⏳ Pending cashier review" },
+            { label: "Stall", value: `${stall?.stall_number} — ${stall?.section}` },
+            { label: "Period", value: `${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}` },
+            { label: "Amount", value: fmt(payAmount) },
+            { label: "Reference", value: refNum || "—" },
+            { label: "Status", value: "⏳ Pending cashier review" },
           ].map(r => (
             <div key={r.label} className="flex justify-between">
               <span className="text-muted-foreground">{r.label}</span>
@@ -554,8 +556,8 @@ const VendorPayOnline = () => {
               <div className="px-5 py-5 space-y-4">
                 <div className="space-y-3 text-sm">
                   {[
-                    { label: "Bank",           value: BANK_DETAILS.bankName },
-                    { label: "Account Name",   value: BANK_DETAILS.accountName },
+                    { label: "Bank", value: BANK_DETAILS.bankName },
+                    { label: "Account Name", value: BANK_DETAILS.accountName },
                     { label: "Account Number", value: BANK_DETAILS.accountNumber, mono: true },
                   ].map(r => (
                     <div key={r.label} className="flex items-start justify-between gap-3">
@@ -641,11 +643,10 @@ const VendorPayOnline = () => {
             {/* Upload area */}
             <div
               onClick={() => !receiptFile && fileRef.current?.click()}
-              className={`rounded-2xl border-2 border-dashed transition-all ${
-                receiptFile
-                  ? "border-blue-300 bg-blue-50"
-                  : "border-border bg-card hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-              } p-6`}>
+              className={`rounded-2xl border-2 border-dashed transition-all ${receiptFile
+                ? "border-blue-300 bg-blue-50"
+                : "border-border bg-card hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                } p-6`}>
 
               {!receiptFile ? (
                 <div className="flex flex-col items-center gap-3 text-center">
@@ -681,7 +682,7 @@ const VendorPayOnline = () => {
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Scanning receipt…
                       </div>
-                      <Button 
+                      <Button
                         variant="secondary" size="sm" className="h-9 rounded-xl text-xs gap-1.5"
                         onClick={(e) => { e.stopPropagation(); setOcrLoading(false); }}
                       >
@@ -695,7 +696,7 @@ const VendorPayOnline = () => {
                       <div className="space-y-3">
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference Number <span className="text-red-500">*</span></Label>
-                          <Input 
+                          <Input
                             placeholder="e.g. 0012 3456 789"
                             value={refNum}
                             onChange={(e) => setRefNum(e.target.value)}
@@ -704,7 +705,7 @@ const VendorPayOnline = () => {
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actual Amount Paid (₱) <span className="text-red-500">*</span></Label>
-                          <Input 
+                          <Input
                             type="number"
                             placeholder="0.00"
                             value={paidAmount}

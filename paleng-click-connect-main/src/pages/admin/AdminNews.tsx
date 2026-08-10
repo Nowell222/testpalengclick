@@ -321,7 +321,7 @@ const AdminNews = () => {
         const m = i + 1; if (m > cm) return sum;
         return sum + Math.max(0, getRate(m) - (effMap[m] || 0));
       }, 0);
-
+      
       const soaData = {
         __soa: true,
         year: yr,

@@ -14,8 +14,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
@@ -24,21 +24,21 @@ const DS = {
   blue900: "#0d2240",
   blue800: "#1a3a5f",
   blue600: "#2563eb",
-  blue50:  "#eff6ff",
+  blue50: "#eff6ff",
   blue100: "#dbeafe",
 };
 
 const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string }> = {
-  gcash:    { icon: Smartphone, color: "bg-blue-500",  label: "GCash"    },
-  paymaya:  { icon: Smartphone, color: "bg-green-600", label: "Maya"     },
-  instapay: { icon: Building2,  color: "bg-primary",   label: "InstaPay" },
-  cash:     { icon: Banknote,   color: "bg-slate-500", label: "Cash"     },
+  gcash: { icon: Smartphone, color: "bg-blue-500", label: "GCash" },
+  paymaya: { icon: Smartphone, color: "bg-green-600", label: "Maya" },
+  instapay: { icon: Building2, color: "bg-primary", label: "InstaPay" },
+  cash: { icon: Banknote, color: "bg-slate-500", label: "Cash" },
 };
 
 const STATUS_CONFIG: Record<string, { icon: any; badge: string; text: string; label: string }> = {
-  completed: { icon: CheckCircle2, badge: "bg-green-100 text-green-700 border-green-200",  text: "text-green-600",  label: "Completed" },
-  pending:   { icon: Clock,        badge: "bg-amber-100 text-amber-700 border-amber-200",  text: "text-amber-600", label: "Pending"   },
-  failed:    { icon: AlertCircle,  badge: "bg-red-100 text-red-700 border-red-200",        text: "text-red-500",   label: "Failed"    },
+  completed: { icon: CheckCircle2, badge: "bg-green-100 text-green-700 border-green-200", text: "text-green-600", label: "Completed" },
+  pending: { icon: Clock, badge: "bg-amber-100 text-amber-700 border-amber-200", text: "text-amber-600", label: "Pending" },
+  failed: { icon: AlertCircle, badge: "bg-red-100 text-red-700 border-red-200", text: "text-red-500", label: "Failed" },
 };
 
 // ── Month SOA print ──────────────────────────────────────────────────────────
@@ -48,19 +48,19 @@ const printMonthSOA = (data: {
 }) => {
   const { profile, stall, monthName, monthNum, year, payments, monthlyRate, preferredSection } = data;
 
-  const completed  = payments.filter(p => p.status === "completed");
-  const pending    = payments.filter(p => p.status === "pending");
-  const totalPaid  = completed.reduce((s, p) => s + Number(p.amount), 0);
-  const totalPend  = pending.reduce((s, p) => s + Number(p.amount), 0);
-  const balance    = Math.max(0, monthlyRate - totalPaid);
-  const isPaid     = totalPaid >= monthlyRate;
+  const completed = payments.filter(p => p.status === "completed");
+  const pending = payments.filter(p => p.status === "pending");
+  const totalPaid = completed.reduce((s, p) => s + Number(p.amount), 0);
+  const totalPend = pending.reduce((s, p) => s + Number(p.amount), 0);
+  const balance = Math.max(0, monthlyRate - totalPaid);
+  const isPaid = totalPaid >= monthlyRate;
 
-  const ML: Record<string,string> = { gcash:"GCash", paymaya:"Maya", instapay:"InstaPay", cash:"Cash at Cashier" };
+  const ML: Record<string, string> = { gcash: "GCash", paymaya: "Maya", instapay: "InstaPay", cash: "Cash at Cashier" };
 
   const txRows = payments.map(p => `
     <tr>
-      <td>${new Date(p.created_at).toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric"})}</td>
-      <td>${new Date(p.created_at).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})}</td>
+      <td>${new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</td>
+      <td>${new Date(p.created_at).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</td>
       <td class="mono">${p.receipt_number || "—"}</td>
       <td class="mono">${p.reference_number || "—"}</td>
       <td>${ML[p.payment_method] || p.payment_method}</td>
@@ -87,7 +87,7 @@ const printMonthSOA = (data: {
   .sum-box{border:1px solid #ddd;border-radius:4px;padding:8px;text-align:center}
   .sum-box .lbl{font-size:8px;text-transform:uppercase;letter-spacing:0.5px;color:#666}
   .sum-box .val{font-size:14px;font-weight:bold;font-family:monospace;margin-top:3px}
-  .sum-box.paid .val{color:#27ae60} .sum-box.bal .val{color:${isPaid?"#27ae60":"#c0392b"}} .sum-box.pend .val{color:#d4a017}
+  .sum-box.paid .val{color:#27ae60} .sum-box.bal .val{color:${isPaid ? "#27ae60" : "#c0392b"}} .sum-box.pend .val{color:#d4a017}
   table{width:100%;border-collapse:collapse;margin-bottom:12px}
   thead tr{background:#111;color:#fff}
   thead th{padding:6px 8px;text-align:left;font-size:10px}
@@ -123,7 +123,7 @@ const printMonthSOA = (data: {
   <div class="info-item"><label>Section</label><p>${stall?.section || preferredSection || "General"}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
-  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH",{year:"numeric",month:"long",day:"numeric"})}</p></div>
+  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
 </div>
 <div class="summary">
   <div class="sum-box"><div class="lbl">Monthly Due</div><div class="val">${fmt(monthlyRate)}</div></div>
@@ -180,10 +180,9 @@ const HistoryCard = ({ p }: { p: any }) => {
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-start gap-3">
-          <div className={`mt-0.5 flex h-10 h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-            p.status === "completed" ? "bg-green-100" :
-            p.status === "pending"   ? "bg-amber-100"  : "bg-red-100"
-          }`}>
+          <div className={`mt-0.5 flex h-10 h-10 w-10 shrink-0 items-center justify-center rounded-full ${p.status === "completed" ? "bg-green-100" :
+            p.status === "pending" ? "bg-amber-100" : "bg-red-100"
+            }`}>
             <StatusIcon className={`h-5 w-5 ${statusCfg.text}`} />
           </div>
           <div>
@@ -229,11 +228,10 @@ const HistoryCard = ({ p }: { p: any }) => {
               </div>
               <span className="text-xs text-slate-500">{methodCfg.label}</span>
             </div>
-            <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-              p.payment_type === "staggered"
-                ? "border-blue-200 bg-blue-50 text-blue-700"
-                : "border-slate-200 bg-slate-50 text-slate-500"
-            }`}>
+            <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${p.payment_type === "staggered"
+              ? "border-blue-200 bg-blue-50 text-blue-700"
+              : "border-slate-200 bg-slate-50 text-slate-500"
+              }`}>
               {p.payment_type === "staggered" ? "Partial" : "Full Payment"}
             </span>
             <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -275,20 +273,20 @@ const HistoryCard = ({ p }: { p: any }) => {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const VendorHistory = () => {
-  const { user }   = useAuth();
-  const printRef   = useRef<HTMLIFrameElement>(null);
-  const currentYear  = new Date().getFullYear();
+  const { user } = useAuth();
+  const printRef = useRef<HTMLIFrameElement>(null);
+  const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  const [search,        setSearch]        = useState("");
-  const [filterStatus,  setFilterStatus]  = useState("all");
-  const [filterMethod,  setFilterMethod]  = useState("all");
-  const [filterMonth,   setFilterMonth]   = useState<string>("all");
-  const [filterYear,    setFilterYear]    = useState<number>(currentYear);
-  const [showFilters,   setShowFilters]   = useState(false);
-  const [viewMode,      setViewMode]      = useState<"card" | "table">("card");
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterMethod, setFilterMethod] = useState("all");
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<number>(currentYear);
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
   // "period" = filter by billing period month | "paid" = filter by transaction date month
-  const [filterBy,      setFilterBy]      = useState<"period" | "paid">("period");
+  const [filterBy, setFilterBy] = useState<"period" | "paid">("period");
 
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["vendor-history", user?.id],
@@ -319,18 +317,18 @@ const VendorHistory = () => {
 
       // Normalise submissions to look like payment rows
       const pendingRows = (submissions || []).map((s: any) => ({
-        id:             `sub_${s.id}`,
-        vendor_id:      s.vendor_id,
-        amount:         s.amount,
-        status:         s.status === "rejected" ? "failed" : "pending",
+        id: `sub_${s.id}`,
+        vendor_id: s.vendor_id,
+        amount: s.amount,
+        status: s.status === "rejected" ? "failed" : "pending",
         payment_method: s.payment_method || "instapay",
-        payment_type:   s.payment_type   || "due",
-        period_month:   s.period_month,
-        period_year:    s.period_year,
+        payment_type: s.payment_type || "due",
+        period_month: s.period_month,
+        period_year: s.period_year,
         reference_number: s.ocr_reference || null,
-        receipt_url:    s.receipt_url     || null,
-        created_at:     s.created_at,
-        is_submission:  true,   // flag so UI can show "Awaiting verification"
+        receipt_url: s.receipt_url || null,
+        created_at: s.created_at,
+        is_submission: true,   // flag so UI can show "Awaiting verification"
       }));
 
       const { data: appData } = await supabase.from("vendor_applications").select("preferred_section").eq("applicant_user_id", user!.id).maybeSingle();
@@ -342,9 +340,9 @@ const VendorHistory = () => {
     },
   });
 
-  const payments    = queryData?.payments    || [];
-  const profile     = queryData?.profile;
-  const stall       = queryData?.stall;
+  const payments = queryData?.payments || [];
+  const profile = queryData?.profile;
+  const stall = queryData?.stall;
   const monthlyRate = stall ? ((stall as any)?.monthly_rate_2026 || (stall as any)?.monthly_rate || 0) : 0;
 
   const availableYears = useMemo(() => {
@@ -358,8 +356,8 @@ const VendorHistory = () => {
     return {
       totalPaid: completed.reduce((s: number, p: any) => s + Number(p.amount), 0),
       completed: completed.length,
-      pending:   payments.filter((p: any) => p.status === "pending").length,
-      total:     payments.length,
+      pending: payments.filter((p: any) => p.status === "pending").length,
+      total: payments.length,
     };
   }, [payments]);
 
@@ -370,23 +368,23 @@ const VendorHistory = () => {
       const matchSearch = !search ||
         period.includes(search.toLowerCase()) ||
         (p.reference_number || "").toLowerCase().includes(search.toLowerCase()) ||
-        (p.receipt_number   || "").toLowerCase().includes(search.toLowerCase()) ||
-        (p.payment_method   || "").toLowerCase().includes(search.toLowerCase());
+        (p.receipt_number || "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.payment_method || "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === "all" || p.status === filterStatus;
       const matchMethod = filterMethod === "all" || p.payment_method === filterMethod;
 
       // Filter by billing period month OR by transaction (paid-on) date month
       let matchMonth = true;
-      let matchYear  = true;
+      let matchYear = true;
       if (filterMonth !== "all") {
         if (filterBy === "period") {
           matchMonth = p.period_month === Number(filterMonth);
-          matchYear  = !p.period_year || p.period_year === filterYear;
+          matchYear = !p.period_year || p.period_year === filterYear;
         } else {
           // "paid" mode — filter by the date the payment was made
           const paidDate = new Date(p.created_at);
           matchMonth = paidDate.getMonth() + 1 === Number(filterMonth);
-          matchYear  = paidDate.getFullYear() === filterYear;
+          matchYear = paidDate.getFullYear() === filterYear;
         }
       } else {
         // When no month filter, still apply year
@@ -426,9 +424,9 @@ const VendorHistory = () => {
     frame.srcdoc = printMonthSOA({
       profile, stall, monthlyRate,
       monthName: MONTHS[Number(filterMonth) - 1],
-      monthNum:  Number(filterMonth),
-      year:      filterYear,
-      payments:  monthPayments,
+      monthNum: Number(filterMonth),
+      year: filterYear,
+      payments: monthPayments,
     });
     frame.onload = () => setTimeout(() => frame.contentWindow?.print(), 300);
   };
@@ -451,10 +449,10 @@ const VendorHistory = () => {
           {/* Stats row */}
           <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
-              { label: "Total Paid",   value: fmt(stats.totalPaid) },
+              { label: "Total Paid", value: fmt(stats.totalPaid) },
               { label: "Transactions", value: String(stats.total) },
-              { label: "Completed",    value: String(stats.completed) },
-              { label: "Pending",      value: String(stats.pending), amber: stats.pending > 0 },
+              { label: "Completed", value: String(stats.completed) },
+              { label: "Pending", value: String(stats.pending), amber: stats.pending > 0 },
             ].map(s => (
               <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
                 style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
@@ -483,10 +481,10 @@ const VendorHistory = () => {
       {/* Desktop summary cards */}
       <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ padding: "16px 32px 0" }}>
         {[
-          { label: "Total Paid",   value: fmt(stats.totalPaid),    color: "#16a34a",  icon: TrendingUp,   bg: "#dcfce7" },
-          { label: "Transactions", value: String(stats.total),     color: "#0f172a",  icon: CreditCard,   bg: "#f1f5f9" },
-          { label: "Completed",    value: String(stats.completed), color: "#16a34a",  icon: CheckCircle2, bg: "#dcfce7" },
-          { label: "Pending",      value: String(stats.pending),   color: stats.pending > 0 ? "#d97706" : "#64748b", icon: Clock, bg: stats.pending > 0 ? "#fef3c7" : "#f1f5f9" },
+          { label: "Total Paid", value: fmt(stats.totalPaid), color: "#16a34a", icon: TrendingUp, bg: "#dcfce7" },
+          { label: "Transactions", value: String(stats.total), color: "#0f172a", icon: CreditCard, bg: "#f1f5f9" },
+          { label: "Completed", value: String(stats.completed), color: "#16a34a", icon: CheckCircle2, bg: "#dcfce7" },
+          { label: "Pending", value: String(stats.pending), color: stats.pending > 0 ? "#d97706" : "#64748b", icon: Clock, bg: stats.pending > 0 ? "#fef3c7" : "#f1f5f9" },
         ].map(c => (
           <div key={c.label} style={{ borderRadius: 16, border: "1px solid #e2e8f0", background: "#fff", padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
@@ -520,17 +518,15 @@ const VendorHistory = () => {
                 <button
                   onClick={() => setFilterBy("period")}
                   title="Filter by billing period month"
-                  className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
-                    filterBy === "period" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}>
+                  className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${filterBy === "period" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}>
                   Billing Period
                 </button>
                 <button
                   onClick={() => setFilterBy("paid")}
                   title="Filter by date payment was made"
-                  className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${
-                    filterBy === "paid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}>
+                  className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${filterBy === "paid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}>
                   Paid On
                 </button>
               </div>
@@ -576,15 +572,13 @@ const VendorHistory = () => {
               {/* View mode toggle */}
               <div className="flex items-center rounded-xl border bg-secondary p-1 gap-0.5 shrink-0">
                 <button onClick={() => setViewMode("card")} title="Card view"
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-                    viewMode === "card" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}>
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${viewMode === "card" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}>
                   <LayoutList className="h-4 w-4" />
                 </button>
                 <button onClick={() => setViewMode("table")} title="Table view"
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
-                    viewMode === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}>
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${viewMode === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}>
                   <Table2 className="h-4 w-4" />
                 </button>
               </div>
@@ -648,7 +642,7 @@ const VendorHistory = () => {
 
       {/* Mobile filter chips */}
       <div className="lg:hidden flex gap-2 px-4 pb-2 overflow-x-auto bg-white" style={{ scrollbarWidth: "none" }}>
-        {["all","completed","pending","failed"].map(s => (
+        {["all", "completed", "pending", "failed"].map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
             className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
             style={{
@@ -708,7 +702,7 @@ const VendorHistory = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b" style={{ background: "#0d2240" }}>
-                {["Date","Billing Period","Amount","Method","Type","Status","Reference","Receipt"].map(h => (
+                {["Date", "Billing Period", "Amount", "Method", "Type", "Status", "Reference", "Receipt"].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap text-white" style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -748,11 +742,10 @@ const VendorHistory = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${
-                        p.payment_type === "staggered"
-                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : "border-slate-200 bg-slate-50 text-slate-500"
-                      }`}>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${p.payment_type === "staggered"
+                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-slate-50 text-slate-500"
+                        }`}>
                         {p.payment_type === "staggered" ? "Partial" : "Full"}
                       </span>
                     </td>

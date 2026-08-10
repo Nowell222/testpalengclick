@@ -10,7 +10,7 @@ interface PWAInstallBannerProps {
   variant?: "banner" | "floater";
 }
 
-const PWAInstallBanner = ({ 
+const PWAInstallBanner = ({
   className = "w-full max-w-[1200px] mx-auto px-4 sm:px-6 mt-4",
   variant = "banner"
 }: PWAInstallBannerProps) => {
@@ -89,7 +89,7 @@ const PWAInstallBanner = ({
           <div className={`relative overflow-hidden rounded-xl border border-[#c9a84c]/30 bg-[#1a2e1a] shadow-xl ${isFloater ? 'p-4' : 'p-4 sm:p-5'}`}>
             {/* Subtle gold radial background glow for premium styling */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_120%,rgba(201,168,76,0.12)_0%,transparent_60%)] pointer-events-none" />
-            
+
             {isFloater ? (
               // Floater Layout (Compact, floating card)
               <div className="relative z-10 flex flex-col gap-2.5">
@@ -110,11 +110,11 @@ const PWAInstallBanner = ({
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                
+
                 <p className="font-serif text-[#f0e6c8]/70 text-[11.5px] leading-relaxed">
                   Access the portal instantly from your screen. Fast and offline-ready.
                 </p>
-                
+
                 <Button
                   onClick={handleInstall}
                   disabled={isInstalling}
@@ -136,7 +136,7 @@ const PWAInstallBanner = ({
                   <div className="w-11 h-11 rounded-lg bg-[#c9a84c]/15 border border-[#c9a84c]/35 flex items-center justify-center text-[#e8c86e] shrink-0">
                     <Smartphone className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="flex-1">
                     <h4 className="font-serif text-[15px] sm:text-[17px] font-bold text-[#e8c86e]">
                       Download PALENG-CLICK as an App
@@ -188,7 +188,7 @@ const PWAInstallBanner = ({
               className="relative overflow-hidden w-full max-w-[380px] rounded-2xl border border-[#c9a84c]/40 bg-[#162716] p-6 text-left shadow-2xl"
             >
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(201,168,76,0.15)_0%,transparent_70%)] pointer-events-none" />
-              
+
               {/* Close Button */}
               <button
                 onClick={() => setShowInstructions(false)}

@@ -111,11 +111,11 @@ export default function BploStallHistory() {
     enabled: !!selectedStall?.id,
     queryFn: async () => {
       if (!selectedStall?.id) return [];
-      
+
       // Virtual entry handling for Bolante / unassigned vendors
       if ((selectedStall as any).is_virtual) {
         const targetVendorId = (selectedStall as any).real_vendor_id;
-        
+
         const [{ data: allVendorsData }, { data: profilesData }] = await Promise.all([
           supabase
             .from("vendors")
@@ -127,7 +127,7 @@ export default function BploStallHistory() {
 
         const chain: any[] = [];
         let current = allVendorsData?.find((v: any) => v.id === targetVendorId);
-        
+
         // Trace backwards to find previous vendors in transfer chain
         while (current) {
           chain.unshift(current);
@@ -243,11 +243,11 @@ export default function BploStallHistory() {
             .in("user_id", userIds),
           vendorIds.length > 0
             ? supabase
-                .from("payments")
-                .select("vendor_id, created_at")
-                .in("vendor_id", vendorIds)
-                .eq("status", "completed")
-                .order("created_at", { ascending: false })
+              .from("payments")
+              .select("vendor_id, created_at")
+              .in("vendor_id", vendorIds)
+              .eq("status", "completed")
+              .order("created_at", { ascending: false })
             : Promise.resolve({ data: [], error: null })
         ]);
 
@@ -303,8 +303,8 @@ export default function BploStallHistory() {
     return stalls.filter(s => {
       const term = search.toLowerCase();
       const matchSearch = s.stall_number.toLowerCase().includes(term) ||
-                          (s.location || "").toLowerCase().includes(term) ||
-                          ((s as any).vendor_name || "").toLowerCase().includes(term);
+        (s.location || "").toLowerCase().includes(term) ||
+        ((s as any).vendor_name || "").toLowerCase().includes(term);
       const matchSection = filterSection === "all" || s.section === filterSection;
       return matchSearch && matchSection;
     });
@@ -379,19 +379,17 @@ export default function BploStallHistory() {
                   <div
                     key={s.id}
                     onClick={() => setSelectedStall(s)}
-                    className={`p-3.5 rounded-xl cursor-pointer transition-all border ${
-                      isSelected 
-                        ? (isEemoOrAdmin ? "bg-emerald-50 border-emerald-200 shadow-sm" : "bg-blue-50 border-blue-200 shadow-sm") 
+                    className={`p-3.5 rounded-xl cursor-pointer transition-all border ${isSelected
+                        ? (isEemoOrAdmin ? "bg-emerald-50 border-emerald-200 shadow-sm" : "bg-blue-50 border-blue-200 shadow-sm")
                         : "bg-white border-transparent hover:bg-slate-50/80 hover:border-slate-200"
-                    }`}
+                      }`}
                   >
                     <div className="flex justify-between items-start">
                       <p className={`font-black text-sm font-mono ${isSelected ? (isEemoOrAdmin ? "text-emerald-900" : "text-blue-900") : "text-slate-900"}`}>Stall {s.stall_number}</p>
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        s.status === "occupied"
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${s.status === "occupied"
                           ? "bg-emerald-50 text-emerald-700"
                           : "bg-amber-50 text-amber-700"
-                      }`}>
+                        }`}>
                         {s.status === "occupied" ? <CheckCircle size={10} /> : <XCircle size={10} />}
                         {s.status}
                       </span>
@@ -468,30 +466,28 @@ export default function BploStallHistory() {
                       return (
                         <div key={h.id} className="relative">
                           {/* Timeline Bullet */}
-                          <span className={`absolute -left-[33px] top-1.5 h-4 w-4 rounded-full border-2 bg-white flex items-center justify-center ${
-                            isCurrent 
-                              ? "border-emerald-500 shadow-sm" 
-                              : h.status === 'transferred' 
-                                ? "border-blue-500" 
+                          <span className={`absolute -left-[33px] top-1.5 h-4 w-4 rounded-full border-2 bg-white flex items-center justify-center ${isCurrent
+                              ? "border-emerald-500 shadow-sm"
+                              : h.status === 'transferred'
+                                ? "border-blue-500"
                                 : "border-slate-300"
-                          }`}>
+                            }`}>
                             {isCurrent && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
                           </span>
 
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
                               <h4 className="font-extrabold text-slate-900 text-sm">{name}</h4>
-                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                                isCurrent 
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-                                  : h.status === 'transferred' 
-                                    ? "bg-blue-50 text-blue-700 border border-blue-100" 
+                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${isCurrent
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                  : h.status === 'transferred'
+                                    ? "bg-blue-50 text-blue-700 border border-blue-100"
                                     : "bg-slate-100 text-slate-700"
-                              }`}>
+                                }`}>
                                 {isCurrent ? "Current Owner" : h.status}
                               </span>
                             </div>
-                            
+
                             <p className="text-xs text-slate-400 flex items-center gap-1 font-semibold">
                               <Calendar className="h-3.5 w-3.5 text-slate-400" />
                               {new Date(h.started_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} — {h.ended_at ? new Date(h.ended_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "Present"}
@@ -500,20 +496,20 @@ export default function BploStallHistory() {
                             {vendor && (
                               <div className="mt-2 bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs space-y-3 text-slate-600 max-w-xl shadow-sm">
                                 <p className="font-bold text-slate-700 flex items-center gap-1 border-b pb-1.5"><BadgeInfo size={13} className="text-blue-600" /> Owner Registry Info:</p>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                                   <p><span className="text-slate-400">Owner Name:</span> <strong className="text-slate-700">{profile ? [profile.first_name, profile.middle_name, profile.last_name].filter(Boolean).join(" ") : "—"}</strong></p>
                                   <p><span className="text-slate-400">Account Status:</span> <strong className="text-slate-700 capitalize">{profile?.status || "—"}</strong></p>
-                                  
+
                                   <p><span className="text-slate-400">Contact Number:</span> <strong className="text-slate-700">{profile?.contact_number || "—"}</strong></p>
                                   <p><span className="text-slate-400">Registered Address:</span> <strong className="text-slate-700">{profile?.address || "—"}</strong></p>
-                                  
+
                                   <p><span className="text-slate-400">Award Date:</span> <strong className="text-slate-700">{vendor.award_date ? new Date(vendor.award_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</strong></p>
                                   <p><span className="text-slate-400">Last Payment Date:</span> <strong className="text-slate-700">{vendor.last_payment_date ? new Date(vendor.last_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "No payments found"}</strong></p>
-                                  
+
                                   <p><span className="text-slate-400">Permit Number:</span> <strong className="text-slate-700">{vendor.business_permit_number || "—"}</strong></p>
                                   <p><span className="text-slate-400">Permit Receipt #:</span> <strong className="text-slate-700">{vendor.award_receipt_number || "—"}</strong></p>
-                                  
+
                                   <p><span className="text-slate-400">Date of Payment:</span> <strong className="text-slate-700">{vendor.award_payment_date ? new Date(vendor.award_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—"}</strong></p>
                                   <p><span className="text-slate-400">QR Code:</span> <strong className="text-slate-700 font-mono text-[10px]">{vendor.qr_code || "—"}</strong></p>
                                 </div>

@@ -107,25 +107,27 @@ const VendorStallInfo = () => {
   const isBolante = !stall && !!preferredSection && preferredSection.toLowerCase().includes('bolante');
 
   const { data: stallHistory = [], isLoading: loadingHistory } = useQuery({
-    queryKey: ["vendor-stall-history", stall?.id],
-    enabled: !!stall?.id,
+    queryKey: ["vendor-stall-history", stall?.id, vendor?.id],
+    enabled: !!stall?.id || !!vendor?.id,
     queryFn: async () => {
-      if (!stall?.id) return [];
+      if (!stall?.id && !vendor?.id) return [];
 
-      // 1. Try SECURITY DEFINER RPC first
-      try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
-          p_stall_id: stall.id
-        });
-        if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
-          return rpcData;
-        }
-      } catch (e) {}
+      // 1. Try SECURITY DEFINER RPC first (if stall.id exists)
+      if (stall?.id) {
+        try {
+          const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
+            p_stall_id: stall.id
+          });
+          if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+            return rpcData;
+          }
+        } catch (e) {}
+      }
 
-      // 2. Try Edge Function service-role bypass
+      // 2. Try Edge Function service-role bypass (supports both stall_id and vendor_id)
       try {
         const res = await supabase.functions.invoke("create-user", {
-          body: { _action: "get-stall-history", p_stall_id: stall.id }
+          body: { _action: "get-stall-history", p_stall_id: stall?.id || null, p_vendor_id: vendor?.id || null }
         });
         if (res.data?.history && Array.isArray(res.data.history) && res.data.history.length > 0) {
           return res.data.history;
@@ -262,8 +264,12 @@ const VendorStallInfo = () => {
               <History size={15} color={DS.blue600} />
             </div>
             <div>
-              <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14, display: "block" }}>Stall Ownership History</span>
-              <span style={{ fontSize: 11, color: "#64748b" }}>Click to view past & current owners</span>
+              <span style={{ fontWeight: 800, color: "#0f172a", fontSize: 14, display: "block" }}>
+                {isBolante ? "Permit & Account Transfer History" : "Stall Ownership History"}
+              </span>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                {isBolante ? "Click to view transfer history for this Bolante permit" : "Click to view past & current owners"}
+              </span>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -282,7 +288,9 @@ const VendorStallInfo = () => {
                 <span>Loading ownership timeline...</span>
               </div>
             ) : stallHistory.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-4">No past ownership records recorded for Stall #{stall?.stall_number || "—"}.</p>
+              <p className="text-xs text-slate-400 text-center py-4">
+                {isBolante ? "No transfer history recorded for this Bolante permit." : `No past ownership records recorded for Stall #${stall?.stall_number || "—"}.`}
+              </p>
             ) : (
               <div className="relative border-l-2 border-slate-200 pl-6 ml-3 space-y-8 my-2">
                 {stallHistory.map((h: any) => {

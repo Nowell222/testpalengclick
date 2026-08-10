@@ -159,63 +159,109 @@ Deno.serve(async (req: Request) => {
 
     // ── Handle fetching stall ownership history ──────────────────────
     if (_action === 'get-stall-history') {
-      const p_stall_id = body.p_stall_id || body.stall_id;
-      if (!p_stall_id) {
-        return new Response(JSON.stringify({ error: 'stall_id is required' }), {
+      const p_stall_id = body.p_stall_id || body.stall_id || null;
+      const p_vendor_id = body.p_vendor_id || body.vendor_id || null;
+
+      if (!p_stall_id && !p_vendor_id) {
+        return new Response(JSON.stringify({ error: 'stall_id or vendor_id is required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 
-      // 1. Fetch from stall_ownership_history first
-      const { data: historyData } = await supabaseAdmin
-        .from('stall_ownership_history')
-        .select(`
-          id,
-          stall_id,
-          vendor_id,
-          started_at,
-          ended_at,
-          status,
-          vendors (
-            id,
-            user_id,
-            business_permit_number,
-            award_receipt_number,
-            award_payment_date,
-            award_date,
-            qr_code,
-            closed_at,
-            closure_reason,
-            closure_notes
-          )
-        `)
-        .eq('stall_id', p_stall_id)
-        .order('started_at', { ascending: false });
+      let result: any[] = [];
 
-      let result: any[] = historyData ? [...historyData] : [];
-
-      // 2. Fallback to querying vendors table if history table is empty
-      if (result.length === 0) {
-        const { data: directVendors } = await supabaseAdmin
-          .from('vendors')
+      // 1. Fetch from stall_ownership_history if stall_id is available
+      if (p_stall_id) {
+        const { data: historyData } = await supabaseAdmin
+          .from('stall_ownership_history')
           .select(`
             id,
-            user_id,
-            business_permit_number,
-            award_receipt_number,
-            award_payment_date,
-            award_date,
-            qr_code,
-            closed_at,
-            closure_reason,
-            closure_notes
+            stall_id,
+            vendor_id,
+            started_at,
+            ended_at,
+            status,
+            vendors (
+              id,
+              user_id,
+              business_permit_number,
+              award_receipt_number,
+              award_payment_date,
+              award_date,
+              qr_code,
+              closed_at,
+              closure_reason,
+              closure_notes
+            )
           `)
-          .eq('stall_id', p_stall_id);
+          .eq('stall_id', p_stall_id)
+          .order('started_at', { ascending: false });
 
-        if (directVendors && directVendors.length > 0) {
-          result = directVendors.map((v: any) => ({
-            id: `hist-direct-${v.id}`,
-            stall_id: p_stall_id,
+        result = historyData ? [...historyData] : [];
+
+        // 2. Fallback to querying vendors table if history table is empty
+        if (result.length === 0) {
+          const { data: directVendors } = await supabaseAdmin
+            .from('vendors')
+            .select(`
+              id,
+              user_id,
+              business_permit_number,
+              award_receipt_number,
+              award_payment_date,
+              award_date,
+              qr_code,
+              closed_at,
+              closure_reason,
+              closure_notes
+            `)
+            .eq('stall_id', p_stall_id);
+
+          if (directVendors && directVendors.length > 0) {
+            result = directVendors.map((v: any) => ({
+              id: `hist-direct-${v.id}`,
+              stall_id: p_stall_id,
+              vendor_id: v.id,
+              started_at: v.award_date || new Date().toISOString(),
+              ended_at: v.closed_at || null,
+              status: v.closed_at ? 'closed' : 'active',
+              vendors: v
+            }));
+          }
+        }
+      }
+
+      // 3. Bolante vendor support (no stall_id): trace vendor transfer chain via p_vendor_id
+      if (result.length === 0 && p_vendor_id) {
+        const { data: currVendor } = await supabaseAdmin
+          .from('vendors')
+          .select(`
+            id, user_id, business_permit_number, award_receipt_number,
+            award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, transferred_to_vendor_id
+          `)
+          .eq('id', p_vendor_id)
+          .maybeSingle();
+
+        const vendorChain: any[] = [];
+        if (currVendor) vendorChain.push(currVendor);
+
+        // Fetch vendors that transferred to this vendor
+        const { data: prevVendors } = await supabaseAdmin
+          .from('vendors')
+          .select(`
+            id, user_id, business_permit_number, award_receipt_number,
+            award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, transferred_to_vendor_id
+          `)
+          .eq('transferred_to_vendor_id', p_vendor_id);
+
+        if (prevVendors && prevVendors.length > 0) {
+          vendorChain.push(...prevVendors);
+        }
+
+        if (vendorChain.length > 0) {
+          result = vendorChain.map((v: any) => ({
+            id: `hist-bolante-${v.id}`,
+            stall_id: null,
             vendor_id: v.id,
             started_at: v.award_date || new Date().toISOString(),
             ended_at: v.closed_at || null,
