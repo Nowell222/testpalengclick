@@ -376,7 +376,7 @@ Deno.serve(async (req: Request) => {
       let targetVendorId = transferred_to_vendor_id || null;
 
       // If transferring to a pending application, approve it and create the vendor account first
-      if (transferred_to_app_id && vendorData?.stall_id) {
+      if (transferred_to_app_id) {
         // Fetch application details
         const { data: appData, error: appErr } = await supabaseAdmin
           .from('vendor_applications')

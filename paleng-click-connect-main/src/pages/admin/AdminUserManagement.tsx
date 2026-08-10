@@ -501,7 +501,7 @@ const AdminUserManagement = () => {
           }
         }
 
-        if (appId && vData?.stall_id) {
+        if (appId) {
           await supabase
             .from("vendor_applications")
             .update({

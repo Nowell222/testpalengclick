@@ -622,53 +622,72 @@ const AdminApplications = () => {
                 <Label htmlFor="assignStallApproval" className="text-sm font-semibold cursor-pointer select-none">Assign Stall Details Now</Label>
               </div>
 
+              {closedVendors.length > 0 && (
+                <div className="space-y-1.5 pb-2 border-b">
+                  <Label className="text-xs text-muted-foreground font-medium">Reference Closed Account / Transfer of Ownership</Label>
+                  <select
+                    className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val) {
+                        const cv = closedVendors.find(c => c.id === val);
+                        if (cv) {
+                          setSelectedClosedVendorId(cv.vendor_id || null);
+                          const secName = cv.section || cv.lastStall?.section || "Outside the Building - Bolante";
+                          setSection(secName);
+                          if (secName.toLowerCase().includes("bolante")) {
+                            setStallNumber("");
+                            setMonthlyRate2026("0");
+                            setMonthlyRate2027("0");
+                            setMonthlyRate2028("0");
+                          } else if (cv.lastStall) {
+                            setStallNumber(cv.lastStall.stall_number || "");
+                            setMonthlyRate2026(cv.lastStall.monthly_rate_2026 !== null ? String(cv.lastStall.monthly_rate_2026) : "1450");
+                            setMonthlyRate2027(cv.lastStall.monthly_rate_2027 !== null ? String(cv.lastStall.monthly_rate_2027) : "");
+                            setMonthlyRate2028(cv.lastStall.monthly_rate_2028 !== null ? String(cv.lastStall.monthly_rate_2028) : "");
+                          }
+                        }
+                      } else {
+                        setSelectedClosedVendorId(null);
+                      }
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="">-- Select Closed Account (Optional) --</option>
+                    {closedVendors.map(cv => {
+                      const stallStr = cv.lastStall?.stall_number
+                        ? ` (Stall: ${cv.lastStall.stall_number})`
+                        : ` (${cv.section || "Bolante"})`;
+                      return (
+                        <option key={cv.id} value={cv.id}>
+                          {cv.name}{stallStr}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2 pb-3 border-b">
+                <input
+                  type="checkbox"
+                  id="assignStallApproval"
+                  checked={assignStall}
+                  onChange={e => {
+                    setAssignStall(e.target.checked);
+                    if (e.target.checked) {
+                      generateStallNumber(selectedApp.preferred_section);
+                    } else {
+                      setStallNumber("");
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+                <Label htmlFor="assignStallApproval" className="text-sm font-semibold cursor-pointer select-none">Assign Physical Stall Details Now</Label>
+              </div>
+
               {assignStall && (
                 <>
-                  {closedVendors.length > 0 && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Reference Closed Account (Pre-fill Stall Details)</Label>
-                      <select
-                        className="h-10 w-full rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (val) {
-                            const cv = closedVendors.find(c => c.id === val);
-                            if (cv) {
-                              setSelectedClosedVendorId(cv.vendor_id || null);
-                              const secName = cv.section || cv.lastStall?.section || "Outside the Building - Bolante";
-                              setSection(secName);
-                              if (secName.toLowerCase().includes("bolante")) {
-                                setStallNumber("");
-                                setMonthlyRate2026("0");
-                                setMonthlyRate2027("0");
-                                setMonthlyRate2028("0");
-                              } else if (cv.lastStall) {
-                                setStallNumber(cv.lastStall.stall_number || "");
-                                setMonthlyRate2026(cv.lastStall.monthly_rate_2026 !== null ? String(cv.lastStall.monthly_rate_2026) : "1450");
-                                setMonthlyRate2027(cv.lastStall.monthly_rate_2027 !== null ? String(cv.lastStall.monthly_rate_2027) : "");
-                                setMonthlyRate2028(cv.lastStall.monthly_rate_2028 !== null ? String(cv.lastStall.monthly_rate_2028) : "");
-                              }
-                            }
-                          } else {
-                            setSelectedClosedVendorId(null);
-                          }
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="">-- Manual Input / Select Closed Account --</option>
-                        {closedVendors.map(cv => {
-                          const stallStr = cv.lastStall?.stall_number
-                            ? ` (Stall: ${cv.lastStall.stall_number})`
-                            : ` (${cv.section || "Bolante"})`;
-                          return (
-                            <option key={cv.id} value={cv.id}>
-                              {cv.name}{stallStr}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  )}
 
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Assigned Section</Label>
