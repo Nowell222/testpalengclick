@@ -184,6 +184,8 @@ const BploApplications = () => {
         if (parsed.rate_2026) reqR26 = String(parsed.rate_2026);
         if (parsed.rate_2027) reqR27 = String(parsed.rate_2027);
         if (parsed.rate_2028) reqR28 = String(parsed.rate_2028);
+        if (parsed.referenced_closed_vendor_id) setSelectedClosedVendorId(parsed.referenced_closed_vendor_id);
+        if (parsed.temp_password) setTempPassword(parsed.temp_password);
       } catch (e) {}
     }
 
@@ -213,30 +215,27 @@ const BploApplications = () => {
     mutationFn: async () => {
       const isBolanteSec = section && section.toLowerCase().includes("bolante");
       if (assignStall && !isBolanteSec) {
-        if (!stallNumber.trim()) throw new Error("Stall number is required");
-        if (!monthlyRate2026 || Number(monthlyRate2026) <= 0) throw new Error("Valid monthly rate is required");
+        if (!stallNumber.trim()) throw new Error("Stall Number is required");
+        if (!monthlyRate2026 || Number(monthlyRate2026) <= 0) throw new Error("Monthly Rate for 2026 is required");
       }
 
-      // 1. Create User via Edge Function
+      // 1. Invoke create-user Edge Function as BPLO officer
       const res = await supabase.functions.invoke("create-user", {
         body: {
           email: selectedApp.email,
-          password: tempPassword,
+          password: tempPassword || "PalengClick123",
           first_name: selectedApp.first_name,
-          middle_name: "",
           last_name: selectedApp.last_name,
           contact_number: selectedApp.phone_number,
-          address: "N/A",
           role: "vendor",
           initial_status: "active",
-          stall_number: assignStall && !isBolanteSec ? stallNumber.trim() : "",
+          stall_number: assignStall ? stallNumber.trim() : "",
           section: assignStall ? section : undefined,
-          location: assignStall ? (isBolanteSec ? "Bolante Section / No Monthly Rent" : "San Juan Public Market") : undefined,
-          monthly_rate: assignStall ? (isBolanteSec ? 0 : Number(monthlyRate2026)) : undefined,
-          monthly_rate_2026: assignStall ? (isBolanteSec ? 0 : Number(monthlyRate2026)) : undefined,
-          monthly_rate_2027: assignStall ? (isBolanteSec ? 0 : (monthlyRate2027 ? Number(monthlyRate2027) : undefined)) : undefined,
-          monthly_rate_2028: assignStall ? (isBolanteSec ? 0 : (monthlyRate2028 ? Number(monthlyRate2028) : undefined)) : undefined,
-          area_measurement: assignStall && !isBolanteSec ? (areaMeasurement || undefined) : undefined,
+          area_measurement: assignStall ? areaMeasurement.trim() : "",
+          monthly_rate: assignStall && monthlyRate2026 ? Number(monthlyRate2026) : undefined,
+          monthly_rate_2026: assignStall && monthlyRate2026 ? Number(monthlyRate2026) : undefined,
+          monthly_rate_2027: assignStall && monthlyRate2027 ? Number(monthlyRate2027) : undefined,
+          monthly_rate_2028: assignStall && monthlyRate2028 ? Number(monthlyRate2028) : undefined,
           business_permit_number: selectedApp.business_permit_number,
           award_receipt_number: selectedApp.award_receipt_number,
           award_payment_date: selectedApp.award_payment_date,
@@ -255,11 +254,19 @@ const BploApplications = () => {
       if (res.data?.error) throw new Error(res.data.error);
 
       // 2. Link closed vendor if referencing closed account
-      if (res.data?.user_id && selectedClosedVendorId) {
+      let effectiveClosedVendorId = selectedClosedVendorId;
+      if (!effectiveClosedVendorId && selectedApp.admin_notes) {
+        try {
+          const parsed = JSON.parse(selectedApp.admin_notes);
+          if (parsed.referenced_closed_vendor_id) effectiveClosedVendorId = parsed.referenced_closed_vendor_id;
+        } catch (e) {}
+      }
+
+      if (res.data?.user_id && effectiveClosedVendorId) {
         const newUserId = res.data.user_id;
         const { data: newV } = await supabase.from("vendors").select("id").eq("user_id", newUserId).maybeSingle();
         if (newV) {
-          await supabase.from("vendors").update({ transferred_to_vendor_id: newV.id }).eq("id", selectedClosedVendorId);
+          await supabase.from("vendors").update({ transferred_to_vendor_id: newV.id }).eq("id", effectiveClosedVendorId);
         }
       }
 
