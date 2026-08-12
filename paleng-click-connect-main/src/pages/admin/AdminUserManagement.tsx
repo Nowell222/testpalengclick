@@ -326,6 +326,10 @@ const AdminUserManagement = () => {
       if (!form.last_name.trim()) throw new Error("Last name is required");
 
       if (form.role === "vendor") {
+        if (!form.business_permit_number.trim()) throw new Error("Business Permit # is required for vendor applications");
+        if (!form.award_receipt_number.trim()) throw new Error("Permit Receipt # is required for vendor applications");
+        if (!form.award_payment_date) throw new Error("Date of Payment is required for vendor applications");
+
         const appNotes = JSON.stringify({
           area_measurement: assignStall ? form.area_measurement.trim() || undefined : undefined,
           rate_2026: assignStall ? form.monthly_rate_2026 || undefined : undefined,
@@ -868,6 +872,15 @@ const AdminUserManagement = () => {
       const rowRole = (row.role || "vendor").trim().toLowerCase();
       try {
         if (rowRole === "vendor") {
+          const bpNum = (row.business_permit_number || "").trim();
+          const recNum = (row.award_receipt_number || "").trim();
+          const payDate = (row.award_payment_date || "").trim();
+
+          if (!bpNum || !recNum || !payDate) {
+            results[i] = { ...results[i], status: "error", message: "Business permit #, receipt #, and payment date are required for vendors" };
+            setImportResults([...results]);
+            continue;
+          }
           const rate2026Val = row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
             ? row.monthly_rate_2026
             : row.monthly_rate !== undefined && row.monthly_rate !== ""
@@ -1859,15 +1872,15 @@ const AdminUserManagement = () => {
                         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Permit & Payment Records</p>
                         <div className="grid gap-3 sm:grid-cols-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Business Permit #</Label>
+                            <Label className="text-xs">Business Permit # <span className="text-accent">*</span></Label>
                             <Input placeholder="BP-2026-0001" className="h-10 rounded-xl text-xs" value={form.business_permit_number} onChange={e => setForm(f => ({ ...f, business_permit_number: e.target.value }))} />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Permit Receipt #</Label>
+                            <Label className="text-xs">Permit Receipt # <span className="text-accent">*</span></Label>
                             <Input placeholder="REC-987654" className="h-10 rounded-xl text-xs" value={form.award_receipt_number} onChange={e => setForm(f => ({ ...f, award_receipt_number: e.target.value }))} />
                           </div>
                           <div className="space-y-1">
-                            <Label className="text-xs">Date of Payment</Label>
+                            <Label className="text-xs">Date of Payment <span className="text-accent">*</span></Label>
                             <Input type="date" className="h-10 rounded-xl text-xs" value={form.award_payment_date} onChange={e => setForm(f => ({ ...f, award_payment_date: e.target.value }))} />
                           </div>
                         </div>
