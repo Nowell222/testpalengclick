@@ -187,7 +187,8 @@ const VendorPayOnline = () => {
   const remainingBalance = data?.remainingBalance || monthlyRate;
   const paidForNextMonth = data?.paidForNextMonth || 0;
   const payAmount = payType === "full" ? remainingBalance : Number(staggeredAmount || 0);
-  const canProceed = payType === "full" || (!!staggeredAmount && Number(staggeredAmount) > 0 && Number(staggeredAmount) <= remainingBalance);
+  const excessCredit = payAmount > remainingBalance ? payAmount - remainingBalance : 0;
+  const canProceed = payType === "full" ? remainingBalance > 0 : (!!staggeredAmount && Number(staggeredAmount) > 0);
 
   const handleFileSelect = async (file: File) => {
     setReceiptFile(file);
@@ -496,24 +497,35 @@ const VendorPayOnline = () => {
                 </button>
                 <button onClick={() => setPayType("staggered")}
                   className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${payType === "staggered" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>
-                  Partial / Staggered
+                  Custom / Advance
                 </button>
               </div>
               {payType === "staggered" && (
                 <div className="space-y-3">
-                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-amber-800">Enter any amount up to <strong>{fmt(remainingBalance)}</strong></p>
-                  </div>
+                  {excessCredit > 0 ? (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm flex items-start gap-2 text-emerald-800">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-bold text-emerald-900">Advance Overpayment</p>
+                        <p className="text-xs text-emerald-700 mt-0.5">
+                          {fmt(remainingBalance)} covers current due in full. The excess <strong>{fmt(excessCredit)}</strong> will automatically credit & deduct from next month's rate!
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-sm flex items-start gap-2 text-blue-800">
+                      <Clock className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                      <p className="text-blue-800 text-xs">Enter any amount (partial payment or larger advance payment).</p>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <Label className="text-sm">Amount to Pay (₱)</Label>
                     <Input
                       type="number"
-                      placeholder={`Max ${fmt(remainingBalance)}`}
+                      placeholder="e.g. 55.00"
                       value={staggeredAmount}
                       onChange={e => setStaggeredAmount(e.target.value)}
                       className="h-11 rounded-xl font-mono text-lg"
-                      max={remainingBalance}
                     />
                   </div>
                 </div>

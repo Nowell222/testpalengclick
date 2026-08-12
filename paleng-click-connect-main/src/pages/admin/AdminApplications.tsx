@@ -50,6 +50,7 @@ const AdminApplications = () => {
 
   // Approval Form State
   const [stallNumber, setStallNumber] = useState("");
+  const [areaMeasurement, setAreaMeasurement] = useState("");
   const [monthlyRate2026, setMonthlyRate2026] = useState("1450");
   const [monthlyRate2027, setMonthlyRate2027] = useState("");
   const [monthlyRate2028, setMonthlyRate2028] = useState("");
@@ -128,12 +129,13 @@ const AdminApplications = () => {
     try {
       const { data, error } = await supabase
         .from("stalls")
-        .select("section, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028")
-        .eq("stall_number", cleanNum)
+        .select("section, area_measurement, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028")
+        .ilike("stall_number", cleanNum)
         .maybeSingle();
 
       if (data && !error) {
         setSection(data.section || "");
+        setAreaMeasurement(data.area_measurement || "");
         setMonthlyRate2026(data.monthly_rate_2026 !== null ? String(data.monthly_rate_2026) : "1450");
         setMonthlyRate2027(data.monthly_rate_2027 !== null ? String(data.monthly_rate_2027) : "");
         setMonthlyRate2028(data.monthly_rate_2028 !== null ? String(data.monthly_rate_2028) : "");
@@ -146,6 +148,7 @@ const AdminApplications = () => {
   const generateStallNumber = async (sec: string) => {
     if (sec && sec.toLowerCase().includes('bolante')) {
       setStallNumber("");
+      setAreaMeasurement("");
       setMonthlyRate2026("0");
       setMonthlyRate2027("0");
       setMonthlyRate2028("0");
@@ -176,10 +179,12 @@ const AdminApplications = () => {
 
     if (isBolantePref) {
       setStallNumber("");
+      setAreaMeasurement("");
       setMonthlyRate2026("0");
       setMonthlyRate2027("0");
       setMonthlyRate2028("0");
     } else {
+      setAreaMeasurement("");
       setMonthlyRate2026("1450");
       setMonthlyRate2027("");
       setMonthlyRate2028("");
@@ -221,6 +226,7 @@ const AdminApplications = () => {
           monthly_rate_2026: assignStall ? (isBolanteSec ? 0 : Number(monthlyRate2026)) : undefined,
           monthly_rate_2027: assignStall ? (isBolanteSec ? 0 : (monthlyRate2027 ? Number(monthlyRate2027) : undefined)) : undefined,
           monthly_rate_2028: assignStall ? (isBolanteSec ? 0 : (monthlyRate2028 ? Number(monthlyRate2028) : undefined)) : undefined,
+          area_measurement: assignStall && !isBolanteSec ? (areaMeasurement || undefined) : undefined,
           business_permit_number: selectedApp.business_permit_number,
           award_receipt_number: selectedApp.award_receipt_number,
           award_payment_date: selectedApp.award_payment_date,
@@ -594,8 +600,8 @@ const AdminApplications = () => {
       {/* ── Approval Modal ─────────────────────────────────────────────────── */}
       {showApprovalModal && selectedApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowApprovalModal(false)}>
-          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <div className="border-b bg-emerald-50/50 px-6 py-4 rounded-t-2xl flex justify-between items-center">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col my-auto overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="border-b bg-emerald-50/50 px-6 py-4 flex justify-between items-center shrink-0">
               <div>
                 <h3 className="font-bold text-lg text-emerald-900">Approve Application</h3>
                 <p className="text-xs text-emerald-700/70">Create vendor account for {selectedApp.first_name}</p>
@@ -603,7 +609,7 @@ const AdminApplications = () => {
               <button onClick={() => setShowApprovalModal(false)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               {closedVendors.length > 0 && (
                 <div className="space-y-1.5 pb-2 border-b">
                   <Label className="text-xs text-muted-foreground font-medium">Reference Closed Account / Transfer of Ownership</Label>
@@ -619,11 +625,13 @@ const AdminApplications = () => {
                           setSection(secName);
                           if (secName.toLowerCase().includes("bolante")) {
                             setStallNumber("");
+                            setAreaMeasurement("");
                             setMonthlyRate2026("0");
                             setMonthlyRate2027("0");
                             setMonthlyRate2028("0");
                           } else if (cv.lastStall) {
                             setStallNumber(cv.lastStall.stall_number || "");
+                            setAreaMeasurement(cv.lastStall.area_measurement || "");
                             setMonthlyRate2026(cv.lastStall.monthly_rate_2026 !== null ? String(cv.lastStall.monthly_rate_2026) : "1450");
                             setMonthlyRate2027(cv.lastStall.monthly_rate_2027 !== null ? String(cv.lastStall.monthly_rate_2027) : "");
                             setMonthlyRate2028(cv.lastStall.monthly_rate_2028 !== null ? String(cv.lastStall.monthly_rate_2028) : "");
@@ -725,6 +733,18 @@ const AdminApplications = () => {
                   )}
 
                   {!section.toLowerCase().includes('bolante') && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Area Size / Measurement</Label>
+                      <Input
+                        value={areaMeasurement}
+                        onChange={e => setAreaMeasurement(e.target.value)}
+                        className="h-10 font-mono"
+                        placeholder="e.g. 2x2 m or 12 sqm"
+                      />
+                    </div>
+                  )}
+
+                  {!section.toLowerCase().includes('bolante') && (
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">Rate 2026 (₱)</Label>
@@ -767,17 +787,17 @@ const AdminApplications = () => {
                 />
                 <p className="text-[10px] text-muted-foreground">An email will be sent to <strong>{selectedApp.email}</strong> with their login details.</p>
               </div>
+            </div>
 
-              <div className="pt-4 flex gap-3">
-                <Button
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
-                  disabled={approveMutation.isPending || generatingStall}
-                  onClick={() => approveMutation.mutate()}
-                >
-                  {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Approval"}
-                </Button>
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowApprovalModal(false)}>Cancel</Button>
-              </div>
+            <div className="p-4 border-t bg-slate-50/50 flex gap-3 shrink-0">
+              <Button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-11"
+                disabled={approveMutation.isPending || generatingStall}
+                onClick={() => approveMutation.mutate()}
+              >
+                {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Approval"}
+              </Button>
+              <Button variant="outline" className="flex-1 rounded-xl h-11" onClick={() => setShowApprovalModal(false)}>Cancel</Button>
             </div>
           </div>
         </div>
@@ -786,8 +806,8 @@ const AdminApplications = () => {
       {/* ── Reject Modal ───────────────────────────────────────────────────── */}
       {showRejectModal && selectedApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowRejectModal(false)}>
-          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <div className="border-b bg-red-50/50 px-6 py-4 rounded-t-2xl flex justify-between items-center">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col my-auto overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="border-b bg-red-50/50 px-6 py-4 flex justify-between items-center shrink-0">
               <div>
                 <h3 className="font-bold text-lg text-red-900">Reject Application</h3>
                 <p className="text-xs text-red-700/70">Rejecting {selectedApp.first_name}'s application</p>
@@ -795,7 +815,7 @@ const AdminApplications = () => {
               <button onClick={() => setShowRejectModal(false)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Reason for Rejection (Optional)</Label>
                 <textarea
@@ -806,17 +826,17 @@ const AdminApplications = () => {
                 />
                 <p className="text-[10px] text-muted-foreground">This reason will be included in the email sent to the applicant.</p>
               </div>
+            </div>
 
-              <div className="pt-4 flex gap-3">
-                <Button
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl"
-                  disabled={rejectMutation.isPending}
-                  onClick={() => rejectMutation.mutate()}
-                >
-                  {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Rejection"}
-                </Button>
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowRejectModal(false)}>Cancel</Button>
-              </div>
+            <div className="p-4 border-t bg-slate-50/50 flex gap-3 shrink-0">
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl h-11"
+                disabled={rejectMutation.isPending}
+                onClick={() => rejectMutation.mutate()}
+              >
+                {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Rejection"}
+              </Button>
+              <Button variant="outline" className="flex-1 rounded-xl h-11" onClick={() => setShowRejectModal(false)}>Cancel</Button>
             </div>
           </div>
         </div>

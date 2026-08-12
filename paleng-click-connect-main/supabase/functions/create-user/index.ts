@@ -667,10 +667,11 @@ Deno.serve(async (req: Request) => {
       let stallId: string | null = null
 
       if (cleanStallNumber) {
+        // Case-insensitive lookup
         const { data: existingStall } = await supabaseAdmin
           .from('stalls')
-          .select('id')
-          .eq('stall_number', cleanStallNumber)
+          .select('id, stall_number')
+          .ilike('stall_number', cleanStallNumber)
           .maybeSingle()
 
         if (existingStall) {
@@ -685,7 +686,7 @@ Deno.serve(async (req: Request) => {
 
           if (insertError || !newStall) {
             await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
-            return new Response(JSON.stringify({ error: 'Failed to create stall' }), {
+            return new Response(JSON.stringify({ error: `Failed to create stall: ${insertError?.message || 'Unknown error'}` }), {
               status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             })
           }
@@ -695,14 +696,23 @@ Deno.serve(async (req: Request) => {
         await supabaseAdmin.from('stall_fee_schedules').delete().eq('stall_id', stallId)
       }
 
-      await supabaseAdmin.from('vendors').insert({
+      const { data: newVendor } = await supabaseAdmin.from('vendors').insert({
         user_id: newUser.user.id,
         stall_id: stallId,
         award_date: new Date().toISOString().split('T')[0],
         business_permit_number: business_permit_number || null,
         award_receipt_number: award_receipt_number || null,
         award_payment_date: award_payment_date || null
-      })
+      }).select('id').single()
+
+      if (stallId && newVendor?.id) {
+        await supabaseAdmin.from('stall_ownership_history').insert({
+          stall_id: stallId,
+          vendor_id: newVendor.id,
+          started_at: new Date().toISOString(),
+          status: 'active'
+        })
+      }
 
       if (section) {
         const { data: existingApp } = await supabaseAdmin
