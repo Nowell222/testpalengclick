@@ -231,47 +231,39 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // 3. Bolante vendor support (no stall_id): trace vendor transfer chain via p_vendor_id
-      if (result.length === 0 && p_vendor_id) {
-        const { data: currVendor } = await supabaseAdmin
-          .from('vendors')
-          .select(`
-            id, user_id, business_permit_number, award_receipt_number,
-            award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, transferred_to_vendor_id
-          `)
-          .eq('id', p_vendor_id)
-          .maybeSingle();
+      // 3. Trace transfer chain for any vendor in result (Bolante & Physical stalls)
+      const currentVendorIds = result.map((h: any) => h.vendor_id).filter(Boolean);
+      if (p_vendor_id && !currentVendorIds.includes(p_vendor_id)) {
+        currentVendorIds.push(p_vendor_id);
+      }
 
-        const vendorChain: any[] = [];
-        if (currVendor) vendorChain.push(currVendor);
-
-        // Fetch vendors that transferred to this vendor
+      if (currentVendorIds.length > 0) {
         const { data: prevVendors } = await supabaseAdmin
           .from('vendors')
           .select(`
             id, user_id, business_permit_number, award_receipt_number,
             award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, transferred_to_vendor_id
           `)
-          .eq('transferred_to_vendor_id', p_vendor_id);
+          .in('transferred_to_vendor_id', currentVendorIds);
 
         if (prevVendors && prevVendors.length > 0) {
-          vendorChain.push(...prevVendors);
-        }
-
-        if (vendorChain.length > 0) {
-          result = vendorChain.map((v: any) => ({
-            id: `hist-bolante-${v.id}`,
-            stall_id: null,
-            vendor_id: v.id,
-            started_at: v.award_date || new Date().toISOString(),
-            ended_at: v.closed_at || null,
-            status: v.closed_at ? 'closed' : 'active',
-            vendors: v
-          }));
+          for (const tv of prevVendors) {
+            if (!result.some((h: any) => h.vendor_id === tv.id)) {
+              result.push({
+                id: `hist-transferred-${tv.id}`,
+                stall_id: p_stall_id,
+                vendor_id: tv.id,
+                started_at: tv.award_date || new Date().toISOString(),
+                ended_at: tv.closed_at || new Date().toISOString(),
+                status: 'closed',
+                vendors: tv
+              });
+            }
+          }
         }
       }
 
-      // 3. Attach profiles and last payment date
+      // 4. Attach profiles and last payment date
       const userIds = result.map((h: any) => h.vendors?.user_id).filter(Boolean);
       const vendorIds = result.map((h: any) => h.vendor_id).filter(Boolean);
 

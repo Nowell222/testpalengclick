@@ -267,7 +267,10 @@ const BploApplications = () => {
         const newUserId = res.data.user_id;
         const { data: newV } = await supabase.from("vendors").select("id").eq("user_id", newUserId).maybeSingle();
         if (newV) {
-          await supabase.from("vendors").update({ transferred_to_vendor_id: newV.id }).eq("id", effectiveClosedVendorId);
+          await supabase
+            .from("vendors")
+            .update({ transferred_to_vendor_id: newV.id })
+            .or(`id.eq.${effectiveClosedVendorId},user_id.eq.${effectiveClosedVendorId}`);
         }
       }
 

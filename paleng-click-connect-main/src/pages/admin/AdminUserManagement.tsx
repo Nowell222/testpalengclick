@@ -135,6 +135,7 @@ const AdminUserManagement = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [assignStall, setAssignStall] = useState(true);
+  const [selectedClosedVendorId, setSelectedClosedVendorId] = useState("");
 
   // ── CSV Import state ──────────────────────────────────────────────────────
   const [showImport, setShowImport] = useState(false);
@@ -379,7 +380,7 @@ const AdminUserManagement = () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       queryClient.invalidateQueries({ queryKey: ["vendor-applications"] });
       queryClient.invalidateQueries({ queryKey: ["bplo-vendor-applications"] });
-      setShowCreate(false); setForm({ ...emptyForm });
+      setShowCreate(false); setForm({ ...emptyForm }); setSelectedClosedVendorId("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1764,8 +1765,10 @@ const AdminUserManagement = () => {
                             <Label className="text-xs font-semibold text-muted-foreground">Reference Closed Account (Pre-fill Stall Details)</Label>
                             <select
                               className="h-10 w-full rounded-xl border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                              value={selectedClosedVendorId}
                               onChange={e => {
                                 const vendorId = e.target.value;
+                                setSelectedClosedVendorId(vendorId);
                                 if (vendorId) {
                                   const hist = stallHistory.find((h: any) => h.vendor_id === vendorId);
                                   if (hist && hist.stalls) {
@@ -1783,7 +1786,6 @@ const AdminUserManagement = () => {
                                   }
                                 }
                               }}
-                              defaultValue=""
                             >
                               <option value="">-- Manual Input / Select Closed Account --</option>
                               {closedVendors.map((cv: any) => {

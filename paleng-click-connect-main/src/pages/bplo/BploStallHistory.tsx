@@ -227,6 +227,34 @@ export default function BploStallHistory() {
         }
       }
 
+      // Trace transfer chain for any vendor in result (Physical stalls)
+      const currentVendorIds = result.map((h: any) => h.vendor_id).filter(Boolean);
+      if (currentVendorIds.length > 0) {
+        const { data: prevVendors } = await supabase
+          .from("vendors")
+          .select(`
+            id, user_id, business_permit_number, award_receipt_number,
+            award_payment_date, award_date, qr_code, closed_at, closure_reason, closure_notes, transferred_to_vendor_id
+          `)
+          .in("transferred_to_vendor_id", currentVendorIds);
+
+        if (prevVendors && prevVendors.length > 0) {
+          for (const tv of prevVendors) {
+            if (!result.some((h: any) => h.vendor_id === tv.id)) {
+              result.push({
+                id: `hist-transferred-${tv.id}`,
+                stall_id: selectedStall.id,
+                vendor_id: tv.id,
+                started_at: tv.award_date || new Date().toISOString(),
+                ended_at: tv.closed_at || new Date().toISOString(),
+                status: "closed",
+                vendors: tv
+              });
+            }
+          }
+        }
+      }
+
       const userIds = result
         .map((h: any) => h.vendors?.user_id)
         .filter(Boolean);
