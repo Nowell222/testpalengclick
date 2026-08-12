@@ -13,6 +13,7 @@ import CashierLayout from "./components/cashier/CashierLayout";
 import VendorLayout from "./components/vendor/VendorLayout";
 import BploLayout from "./components/bplo/BploLayout";
 import BploDashboard from "./pages/bplo/BploDashboard";
+import BploApplications from "./pages/bplo/BploApplications";
 import BploSettings from "./pages/bplo/BploSettings";
 import BploDelinquents from "./pages/bplo/BploDelinquents";
 import BploStallHistory from "./pages/bplo/BploStallHistory";
@@ -132,6 +133,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<BploDashboard />} />
+              <Route path="applications" element={<BploApplications />} />
               <Route path="history" element={<BploStallHistory />} />
               <Route path="delinquents" element={<BploDelinquents />} />
               <Route path="settings" element={<BploSettings />} />

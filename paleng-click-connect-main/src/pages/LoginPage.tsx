@@ -15,7 +15,7 @@ const LoginPage = () => {
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
   const [isLoading,   setIsLoading]   = useState(false);
-  const [blockedStatus, setBlockedStatus] = useState<"suspended" | "delinquent" | "closed" | "active" | null>(null);
+  const [blockedStatus, setBlockedStatus] = useState<"suspended" | "delinquent" | "closed" | "active" | "pending" | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,15 +79,17 @@ const LoginPage = () => {
             <div style={{ padding: "28px 32px 32px" }}>
               {/* Icon + title */}
               <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 20 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: blockedStatus === "closed" ? "#f3f4f6" : blockedStatus === "delinquent" ? "#fef3c7" : "#fee2e2", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 22, justifyContent: "center" }}>
-                  {blockedStatus === "closed" ? "📁" : blockedStatus === "delinquent" ? "⚠️" : "🚫"}
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: blockedStatus === "pending" ? "#e0f2fe" : blockedStatus === "closed" ? "#f3f4f6" : blockedStatus === "delinquent" ? "#fef3c7" : "#fee2e2", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 22, justifyContent: "center" }}>
+                  {blockedStatus === "pending" ? "⏳" : blockedStatus === "closed" ? "📁" : blockedStatus === "delinquent" ? "⚠️" : "🚫"}
                 </div>
                 <div>
                   <h2 style={{ fontFamily: "Georgia, serif", fontSize: "1.2rem", fontWeight: 700, color: "#1a2e1a", marginBottom: 4 }}>
-                    {blockedStatus === "closed" ? "Account Closed" : blockedStatus === "delinquent" ? "Account Flagged as Delinquent" : "Account Suspended"}
+                    {blockedStatus === "pending" ? "Pending BPLO Permit Verification" : blockedStatus === "closed" ? "Account Closed" : blockedStatus === "delinquent" ? "Account Flagged as Delinquent" : "Account Suspended"}
                   </h2>
                   <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
-                    {blockedStatus === "closed"
+                    {blockedStatus === "pending"
+                      ? "Your account is currently pending Business Permit verification by BPLO. Access will be enabled once approved."
+                      : blockedStatus === "closed"
                       ? "This vendor account has been closed and cannot be reopened."
                       : blockedStatus === "delinquent"
                         ? "Your account has been flagged due to outstanding unpaid fees and your access has been temporarily disabled."
@@ -97,9 +99,11 @@ const LoginPage = () => {
               </div>
 
               {/* Info box */}
-              <div style={{ background: blockedStatus === "closed" ? "#f9fafb" : blockedStatus === "delinquent" ? "#fffbeb" : "#fef2f2", border: `1px solid ${blockedStatus === "closed" ? "#e5e7eb" : blockedStatus === "delinquent" ? "#fde68a" : "#fecaca"}`, borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
-                <p style={{ fontSize: 12.5, color: blockedStatus === "closed" ? "#4b5563" : blockedStatus === "delinquent" ? "#92400e" : "#991b1b", lineHeight: 1.7, fontFamily: "Georgia, serif" }}>
-                  {blockedStatus === "closed"
+              <div style={{ background: blockedStatus === "pending" ? "#f0f9ff" : blockedStatus === "closed" ? "#f9fafb" : blockedStatus === "delinquent" ? "#fffbeb" : "#fef2f2", border: `1px solid ${blockedStatus === "pending" ? "#bae6fd" : blockedStatus === "closed" ? "#e5e7eb" : blockedStatus === "delinquent" ? "#fde68a" : "#fecaca"}`, borderRadius: 10, padding: "14px 16px", marginBottom: 20 }}>
+                <p style={{ fontSize: 12.5, color: blockedStatus === "pending" ? "#0369a1" : blockedStatus === "closed" ? "#4b5563" : blockedStatus === "delinquent" ? "#92400e" : "#991b1b", lineHeight: 1.7, fontFamily: "Georgia, serif" }}>
+                  {blockedStatus === "pending"
+                    ? "If you have recently submitted your vendor application or business permit, please allow BPLO time to verify your permit details."
+                    : blockedStatus === "closed"
                     ? "If this is an error or if you need to register a new vendor account, please contact the Market Supervisor or Municipal Treasurer's Office."
                     : blockedStatus === "delinquent"
                       ? "To restore your account access, please settle your outstanding balance and visit the Market Supervisor or Municipal Treasurer's Office personally."
@@ -111,7 +115,7 @@ const LoginPage = () => {
               <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 16px", marginBottom: 24 }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: "#166534", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 6 }}>Contact for Assistance</p>
                 <p style={{ fontSize: 13, color: "#15803d", fontFamily: "Georgia, serif", lineHeight: 1.6 }}>
-                  📍 Municipal Treasurer's Office<br />
+                  📍 Business Permit and Licensing Office (BPLO)<br />
                   San Juan, Batangas
                 </p>
               </div>
@@ -119,7 +123,7 @@ const LoginPage = () => {
               {/* Dismiss button */}
               <button
                 onClick={() => setBlockedStatus(null)}
-                style={{ width: "100%", height: 46, background: blockedStatus === "closed" ? "linear-gradient(135deg, #4b5563, #1f2937)" : blockedStatus === "delinquent" ? "linear-gradient(135deg, #b45309, #d97706)" : "linear-gradient(135deg, #991b1b, #dc2626)", color: "#fff", border: "none", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "Georgia, serif", letterSpacing: 0.5 }}
+                style={{ width: "100%", height: 46, background: blockedStatus === "pending" ? "linear-gradient(135deg, #0284c7, #0369a1)" : blockedStatus === "closed" ? "linear-gradient(135deg, #4b5563, #1f2937)" : blockedStatus === "delinquent" ? "linear-gradient(135deg, #b45309, #d97706)" : "linear-gradient(135deg, #991b1b, #dc2626)", color: "#fff", border: "none", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "Georgia, serif", letterSpacing: 0.5 }}
               >
                 I Understand — Close
               </button>

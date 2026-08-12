@@ -240,7 +240,11 @@ const VendorStallInfo = () => {
         });
       }
 
-      return result.sort((a: any, b: any) => {
+      const uniqueResult = result.filter((item: any, index: number, self: any[]) =>
+        index === self.findIndex((t: any) => (t.vendor_id ? t.vendor_id === item.vendor_id : t.id === item.id) && t.status === item.status)
+      );
+
+      return uniqueResult.sort((a: any, b: any) => {
         const aCurrent = !a.ended_at && a.status === 'active';
         const bCurrent = !b.ended_at && b.status === 'active';
         if (aCurrent && !bCurrent) return -1;

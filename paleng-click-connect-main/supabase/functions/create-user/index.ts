@@ -589,16 +589,22 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // ── Check admin role for creation ──
+    // ── Check admin or bplo role for creation / approval ──
     const { data: roleData } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', caller.id)
-      .eq('role', 'admin')
-      .single()
+      .in('role', ['admin', 'bplo'])
+      .maybeSingle()
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: admin only' }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Admin or BPLO only' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (roleData.role === 'bplo' && role !== 'vendor') {
+      return new Response(JSON.stringify({ error: 'Unauthorized: BPLO can only activate vendor accounts' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -656,9 +662,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // Update profile with extra fields
+    const initialStatus = body.initial_status || (role === 'vendor' ? 'pending' : 'active')
     await supabaseAdmin
       .from('profiles')
-      .update({ middle_name, contact_number, address })
+      .update({ middle_name, contact_number, address, status: initialStatus })
       .eq('user_id', newUser.user.id)
 
     // If vendor, create stall and vendor record
@@ -704,15 +711,6 @@ Deno.serve(async (req: Request) => {
         award_receipt_number: award_receipt_number || null,
         award_payment_date: award_payment_date || null
       }).select('id').single()
-
-      if (stallId && newVendor?.id) {
-        await supabaseAdmin.from('stall_ownership_history').insert({
-          stall_id: stallId,
-          vendor_id: newVendor.id,
-          started_at: new Date().toISOString(),
-          status: 'active'
-        })
-      }
 
       if (section) {
         const { data: existingApp } = await supabaseAdmin

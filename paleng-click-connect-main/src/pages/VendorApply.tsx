@@ -26,18 +26,28 @@ const VendorApply = () => {
     businessPermitNumber: "",
     awardReceiptNumber: "",
     awardPaymentDate: "",
+    areaMeasurement: "",
+    monthlyRate2026: "1450",
+    monthlyRate2027: "",
+    monthlyRate2028: "",
     website: "", // Honeypot field
   });
   const [hasStallRequest, setHasStallRequest] = useState(true);
-
-
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, preferredSection: value }));
+    const isBolante = value.toLowerCase().includes("bolante");
+    setFormData((prev) => ({
+      ...prev,
+      preferredSection: value,
+      areaMeasurement: isBolante ? "" : prev.areaMeasurement,
+      monthlyRate2026: isBolante ? "0" : (prev.monthlyRate2026 || "1450"),
+      monthlyRate2027: isBolante ? "0" : prev.monthlyRate2027,
+      monthlyRate2028: isBolante ? "0" : prev.monthlyRate2028,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,7 +56,6 @@ const VendorApply = () => {
     // Honeypot check: If the 'website' field is filled, it's likely a bot
     if (formData.website) {
       console.warn("Honeypot triggered - bot detected");
-      // We simulate success so the bot thinks it won, but we don't save anything to the database
       setSuccess(true);
       return;
     }
@@ -57,9 +66,15 @@ const VendorApply = () => {
       return;
     }
 
-
     setIsSubmitting(true);
     try {
+      const appNotes = JSON.stringify({
+        area_measurement: formData.areaMeasurement || undefined,
+        rate_2026: formData.monthlyRate2026 || undefined,
+        rate_2027: formData.monthlyRate2027 || undefined,
+        rate_2028: formData.monthlyRate2028 || undefined,
+      });
+
       const { error } = await supabase.from("vendor_applications").insert({
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -70,8 +85,10 @@ const VendorApply = () => {
         business_permit_number: formData.businessPermitNumber,
         award_receipt_number: formData.awardReceiptNumber,
         award_payment_date: formData.awardPaymentDate,
+        admin_notes: appNotes,
         status: "pending",
-        application_date: new Date().toISOString()
+        application_date: new Date().toISOString(),
+        applied_at: new Date().toISOString()
       });
 
       if (error) throw error;
@@ -80,7 +97,6 @@ const VendorApply = () => {
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || "Failed to submit application");
-
     } finally {
       setIsSubmitting(false);
     }
@@ -128,174 +144,251 @@ const VendorApply = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-lg space-y-8">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 my-auto">
+        <div className="w-full max-w-4xl space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Vendor Application</h1>
-            <p className="text-slate-500">Apply for a stall space at the San Juan Public Market</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Vendor Application</h1>
+            <p className="text-sm text-slate-500 max-w-md mx-auto">Apply for a stall space at the San Juan Public Market and submit permit details for BPLO verification.</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+          <div className="bg-white rounded-3xl shadow-xl p-6 sm:p-8 border border-slate-100">
             <form onSubmit={handleSubmit} className="space-y-6">
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
-                  <Input 
-                    id="firstName" name="firstName" 
-                    placeholder="Juan" 
-                    value={formData.firstName} onChange={handleChange} 
-                    className="rounded-xl bg-slate-50 border-slate-200 h-11" 
-                    disabled={isSubmitting}
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                {/* ── Panel 1: Personal & Business Info ────────────────────────── */}
+                <div className="space-y-4">
+                  <div className="border-b pb-3 flex items-center gap-2 text-emerald-800 font-bold text-base">
+                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                      <Store className="w-5 h-5" />
+                    </div>
+                    <span>1. Applicant & Business Profile</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName" className="text-xs font-semibold text-slate-700">First Name <span className="text-red-500">*</span></Label>
+                      <Input 
+                        id="firstName" name="firstName" 
+                        placeholder="Juan" 
+                        value={formData.firstName} onChange={handleChange} 
+                        className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm" 
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="text-xs font-semibold text-slate-700">Last Name <span className="text-red-500">*</span></Label>
+                      <Input 
+                        id="lastName" name="lastName" 
+                        placeholder="Dela Cruz" 
+                        value={formData.lastName} onChange={handleChange} 
+                        className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-xs font-semibold text-slate-700">Email Address <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="email" name="email" type="email" 
+                      placeholder="juan@example.com" 
+                      value={formData.email} onChange={handleChange} 
+                      className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-xs font-semibold text-slate-700">Phone Number <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="phone" name="phone" 
+                      placeholder="09123456789" 
+                      value={formData.phone} onChange={handleChange} 
+                      className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="businessName" className="text-xs font-semibold text-slate-700">Business Name (Optional)</Label>
+                    <Input 
+                      id="businessName" name="businessName" 
+                      placeholder="Juan's Fresh Produce" 
+                      value={formData.businessName} onChange={handleChange} 
+                      className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm"
+                      disabled={isSubmitting}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name <span className="text-red-500">*</span></Label>
-                  <Input 
-                    id="lastName" name="lastName" 
-                    placeholder="Dela Cruz" 
-                    value={formData.lastName} onChange={handleChange} 
-                    className="rounded-xl bg-slate-50 border-slate-200 h-11"
-                    disabled={isSubmitting}
-                  />
+
+                {/* ── Panel 2: Permit Verification & Market Stall Request ──────── */}
+                <div className="space-y-4">
+                  <div className="border-b pb-3 flex items-center gap-2 text-blue-900 font-bold text-base">
+                    <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                      <Store className="w-5 h-5" />
+                    </div>
+                    <span>2. Permit Details & Stall Request</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="businessPermitNumber" className="text-xs font-semibold text-slate-700">Business Permit Number <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="businessPermitNumber" name="businessPermitNumber" 
+                      placeholder="e.g. BPLO-2026-8902" 
+                      value={formData.businessPermitNumber} onChange={handleChange} 
+                      className="rounded-xl bg-slate-50 border-slate-200 h-11 font-mono text-sm"
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="awardReceiptNumber" className="text-xs font-semibold text-slate-700">Permit Receipt # <span className="text-red-500">*</span></Label>
+                      <Input 
+                        id="awardReceiptNumber" name="awardReceiptNumber" 
+                        placeholder="OR Number" 
+                        value={formData.awardReceiptNumber} onChange={handleChange} 
+                        className="rounded-xl bg-slate-50 border-slate-200 h-11 font-mono text-sm"
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="awardPaymentDate" className="text-xs font-semibold text-slate-700">Date of Payment <span className="text-red-500">*</span></Label>
+                      <Input 
+                        id="awardPaymentDate" name="awardPaymentDate" type="date" 
+                        value={formData.awardPaymentDate} onChange={handleChange} 
+                        className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm"
+                        disabled={isSubmitting}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Honeypot field - Hidden from users but visible to bots */}
+                  <div className="hidden" aria-hidden="true">
+                    <Input
+                      id="website"
+                      name="website"
+                      type="text"
+                      value={formData.website}
+                      onChange={handleChange}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2.5 py-2.5 border-b border-t border-slate-100 my-2">
+                    <input 
+                      type="checkbox" 
+                      id="hasStallRequest" 
+                      checked={hasStallRequest} 
+                      onChange={e => {
+                        setHasStallRequest(e.target.checked);
+                        if (!e.target.checked) {
+                          setFormData(prev => ({ ...prev, preferredSection: "" }));
+                        }
+                      }} 
+                      className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                    />
+                    <Label htmlFor="hasStallRequest" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
+                      Request a Market Stall space
+                    </Label>
+                  </div>
+
+                  {hasStallRequest && (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-700">Preferred Market Section <span className="text-red-500">*</span></Label>
+                        <Select value={formData.preferredSection} onValueChange={handleSelectChange} disabled={isSubmitting}>
+                          <SelectTrigger className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm">
+                            <SelectValue placeholder="Select a section" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="Building I - 1st Floor">Building I - 1st Floor</SelectItem>
+                            <SelectItem value="Building II - 1st Floor">Building II - 1st Floor</SelectItem>
+                            <SelectItem value="Building I - 2nd Floor">Building I - 2nd Floor</SelectItem>
+                            <SelectItem value="Building II - 2nd Floor">Building II - 2nd Floor</SelectItem>
+                            <SelectItem value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</SelectItem>
+                            <SelectItem value="Outside the Building - Bolante">Outside the Building - Bolante</SelectItem>
+                            <SelectItem value="New Building - Mojica">New Building - Mojica</SelectItem>
+                            <SelectItem value="New Building - Kalayaan">New Building - Kalayaan</SelectItem>
+                            <SelectItem value="Meat Stalls">Meat Stalls</SelectItem>
+                            <SelectItem value="Fish Stalls">Fish Stalls</SelectItem>
+                            <SelectItem value="Egg and Dried Fish">Egg and Dried Fish</SelectItem>
+                            <SelectItem value="Eatery 2nd Floor">Eatery 2nd Floor</SelectItem>
+                            <SelectItem value="Vegetable Section">Vegetable Section</SelectItem>
+                            <SelectItem value="Vegetable Section - Extension">Vegetable Section - Extension</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {!formData.preferredSection.toLowerCase().includes("bolante") && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="areaMeasurement" className="text-xs font-semibold text-slate-700">Area Size / Measurement</Label>
+                            <Input
+                              id="areaMeasurement" name="areaMeasurement"
+                              placeholder="e.g. 2x2 m or 12 sqm"
+                              value={formData.areaMeasurement} onChange={handleChange}
+                              className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm font-mono"
+                              disabled={isSubmitting}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="monthlyRate2026" className="text-[11px] font-semibold text-slate-700">Rate 2026 (₱)</Label>
+                              <Input
+                                id="monthlyRate2026" name="monthlyRate2026" type="number"
+                                placeholder="1450"
+                                value={formData.monthlyRate2026} onChange={handleChange}
+                                className="rounded-xl bg-slate-50 border-slate-200 h-10 text-xs font-mono"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="monthlyRate2027" className="text-[11px] font-semibold text-slate-700">Rate 2027 (₱)</Label>
+                              <Input
+                                id="monthlyRate2027" name="monthlyRate2027" type="number"
+                                placeholder="Opt."
+                                value={formData.monthlyRate2027} onChange={handleChange}
+                                className="rounded-xl bg-slate-50 border-slate-200 h-10 text-xs font-mono"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="monthlyRate2028" className="text-[11px] font-semibold text-slate-700">Rate 2028 (₱)</Label>
+                              <Input
+                                id="monthlyRate2028" name="monthlyRate2028" type="number"
+                                placeholder="Opt."
+                                value={formData.monthlyRate2028} onChange={handleChange}
+                                className="rounded-xl bg-slate-50 border-slate-200 h-10 text-xs font-mono"
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
+
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address <span className="text-red-500">*</span></Label>
-                <Input 
-                  id="email" name="email" type="email" 
-                  placeholder="juan@example.com" 
-                  value={formData.email} onChange={handleChange} 
-                  className="rounded-xl bg-slate-50 border-slate-200 h-11"
+              <div className="pt-4 border-t flex flex-col items-center gap-3">
+                <Button 
+                  type="submit" 
+                  className="w-full md:w-auto md:px-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 text-base font-bold shadow-md transition-all"
                   disabled={isSubmitting}
-                />
+                >
+                  {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting Application...</> : "Submit Application"}
+                </Button>
+                <p className="text-xs text-slate-500 text-center">
+                  Your permit details will be submitted to the **Business Permit and Licensing Office (BPLO)** for verification.
+                </p>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
-                <Input 
-                  id="phone" name="phone" 
-                  placeholder="09123456789" 
-                  value={formData.phone} onChange={handleChange} 
-                  className="rounded-xl bg-slate-50 border-slate-200 h-11"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="businessName">Business Name (Optional)</Label>
-                <Input 
-                  id="businessName" name="businessName" 
-                  placeholder="Juan's Fresh Produce" 
-                  value={formData.businessName} onChange={handleChange} 
-                  className="rounded-xl bg-slate-50 border-slate-200 h-11"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="businessPermitNumber">Permit Number <span className="text-red-500">*</span></Label>
-                <Input 
-                  id="businessPermitNumber" name="businessPermitNumber" 
-                  placeholder="e.g. BPLO-2026-8902" 
-                  value={formData.businessPermitNumber} onChange={handleChange} 
-                  className="rounded-xl bg-slate-50 border-slate-200 h-11"
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="awardReceiptNumber">Permit Receipt # <span className="text-red-500">*</span></Label>
-                  <Input 
-                    id="awardReceiptNumber" name="awardReceiptNumber" 
-                    placeholder="OR Number" 
-                    value={formData.awardReceiptNumber} onChange={handleChange} 
-                    className="rounded-xl bg-slate-50 border-slate-200 h-11"
-                    disabled={isSubmitting}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="awardPaymentDate">Date of Payment <span className="text-red-500">*</span></Label>
-                  <Input 
-                    id="awardPaymentDate" name="awardPaymentDate" type="date" 
-                    value={formData.awardPaymentDate} onChange={handleChange} 
-                    className="rounded-xl bg-slate-50 border-slate-200 h-11"
-                    disabled={isSubmitting}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Honeypot field - Hidden from users but visible to bots */}
-              <div className="hidden" aria-hidden="true">
-                <Input
-                  id="website"
-                  name="website"
-                  type="text"
-                  value={formData.website}
-                  onChange={handleChange}
-                  tabIndex={-1}
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="flex items-center space-x-2.5 py-3 border-b border-slate-100 mb-2">
-                <input 
-                  type="checkbox" 
-                  id="hasStallRequest" 
-                  checked={hasStallRequest} 
-                  onChange={e => {
-                    setHasStallRequest(e.target.checked);
-                    if (!e.target.checked) {
-                      setFormData(prev => ({ ...prev, preferredSection: "" }));
-                    }
-                  }} 
-                  className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
-                />
-                <Label htmlFor="hasStallRequest" className="text-sm font-semibold text-slate-700 cursor-pointer select-none">
-                  Request a Market Stall space
-                </Label>
-              </div>
-
-              {hasStallRequest && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <Label>Preferred Section <span className="text-red-500">*</span></Label>
-                  <Select value={formData.preferredSection} onValueChange={handleSelectChange} disabled={isSubmitting}>
-                    <SelectTrigger className="rounded-xl bg-slate-50 border-slate-200 h-11">
-                      <SelectValue placeholder="Select a section" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="Building I - 1st Floor">Building I - 1st Floor</SelectItem>
-                      <SelectItem value="Building II - 1st Floor">Building II - 1st Floor</SelectItem>
-                      <SelectItem value="Building I - 2nd Floor">Building I - 2nd Floor</SelectItem>
-                      <SelectItem value="Building II - 2nd Floor">Building II - 2nd Floor</SelectItem>
-                      <SelectItem value="Bldg 1 & 2 Bolante">Bldg 1 & 2 Bolante</SelectItem>
-                      <SelectItem value="Outside the Building - Bolante">Outside the Building - Bolante</SelectItem>
-                      <SelectItem value="New Building - Mojica">New Building - Mojica</SelectItem>
-                      <SelectItem value="New Building - Kalayaan">New Building - Kalayaan</SelectItem>
-                      <SelectItem value="Meat Stalls">Meat Stalls</SelectItem>
-                      <SelectItem value="Fish Stalls">Fish Stalls</SelectItem>
-                      <SelectItem value="Egg and Dried Fish">Egg and Dried Fish</SelectItem>
-                      <SelectItem value="Eatery 2nd Floor">Eatery 2nd Floor</SelectItem>
-                      <SelectItem value="Vegetable Section">Vegetable Section</SelectItem>
-                      <SelectItem value="Vegetable Section - Extension">Vegetable Section - Extension</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-
-              <Button 
-                type="submit" 
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 text-base font-semibold transition-all mt-4"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting Application...</> : "Submit Application"}
-              </Button>
             </form>
           </div>
           

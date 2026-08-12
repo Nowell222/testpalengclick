@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  LayoutDashboard, Settings, LogOut, Menu, X, Loader2, AlertTriangle, History, type LucideIcon
+  LayoutDashboard, Settings, LogOut, Menu, X, Loader2, AlertTriangle, History, FileText, type LucideIcon
 } from "lucide-react";
 import PushNotificationBanner from "@/components/PushNotificationBanner";
 
@@ -10,6 +10,7 @@ interface NavItem { label: string; path: string; icon: LucideIcon }
 
 const bploNav: NavItem[] = [
   { label: "Dashboard", path: "/bplo", icon: LayoutDashboard },
+  { label: "Vendor Applications", path: "/bplo/applications", icon: FileText },
   { label: "Stall History", path: "/bplo/history", icon: History },
   { label: "Delinquent Payments", path: "/bplo/delinquents", icon: AlertTriangle },
   { label: "Settings", path: "/bplo/settings", icon: Settings },

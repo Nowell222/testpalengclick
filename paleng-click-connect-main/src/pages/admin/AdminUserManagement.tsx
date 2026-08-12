@@ -324,35 +324,55 @@ const AdminUserManagement = () => {
       if (form.password.length < 6) throw new Error("Password must be at least 6 characters");
       if (!form.first_name.trim()) throw new Error("First name is required");
       if (!form.last_name.trim()) throw new Error("Last name is required");
-      const isBolanteSec = form.section && form.section.toLowerCase().includes("bolante");
-      if (form.role === "vendor" && assignStall && !isBolanteSec && !form.stall_number.trim()) throw new Error("Stall number is required");
-      if (form.role === "vendor" && assignStall && !isBolanteSec && (!form.monthly_rate_2026 || Number(form.monthly_rate_2026) <= 0)) throw new Error("Monthly rate for 2026 is required for vendors");
-      const res = await supabase.functions.invoke("create-user", {
-        body: {
-          email: form.email.trim(), password: form.password,
-          first_name: form.first_name.trim(), middle_name: form.middle_name.trim(), last_name: form.last_name.trim(),
-          contact_number: form.contact_number.trim(), address: form.address.trim(),
-          role: form.role,
-          stall_number: assignStall ? form.stall_number.trim() : "",
-          section: assignStall ? form.section : undefined,
-          location: assignStall ? form.location.trim() : "",
-          monthly_rate: assignStall && form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
-          monthly_rate_2026: assignStall && form.monthly_rate_2026 ? Number(form.monthly_rate_2026) : undefined,
-          monthly_rate_2027: assignStall && form.monthly_rate_2027 ? Number(form.monthly_rate_2027) : undefined,
-          monthly_rate_2028: assignStall && form.monthly_rate_2028 ? Number(form.monthly_rate_2028) : undefined,
-          area_measurement: assignStall ? form.area_measurement.trim() : "",
+
+      if (form.role === "vendor") {
+        const appNotes = JSON.stringify({
+          area_measurement: assignStall ? form.area_measurement.trim() || undefined : undefined,
+          rate_2026: assignStall ? form.monthly_rate_2026 || undefined : undefined,
+          rate_2027: assignStall ? form.monthly_rate_2027 || undefined : undefined,
+          rate_2028: assignStall ? form.monthly_rate_2028 || undefined : undefined,
+        });
+
+        const { error } = await supabase.from("vendor_applications").insert({
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          email: form.email.trim(),
+          phone_number: form.contact_number.trim(),
+          business_name: null,
+          preferred_section: assignStall ? form.section : null,
           business_permit_number: form.business_permit_number.trim() || null,
           award_receipt_number: form.award_receipt_number.trim() || null,
           award_payment_date: form.award_payment_date || null,
-        },
-      });
-      if (res.error) throw new Error(res.error.message);
-      if (res.data?.error) throw new Error(res.data.error);
+          admin_notes: appNotes,
+          status: "pending",
+          application_date: new Date().toISOString(),
+          applied_at: new Date().toISOString()
+        });
+
+        if (error) throw error;
+      } else {
+        const res = await supabase.functions.invoke("create-user", {
+          body: {
+            email: form.email.trim(), password: form.password,
+            first_name: form.first_name.trim(), middle_name: form.middle_name.trim(), last_name: form.last_name.trim(),
+            contact_number: form.contact_number.trim(), address: form.address.trim(),
+            role: form.role,
+          },
+        });
+        if (res.error) throw new Error(res.error.message);
+        if (res.data?.error) throw new Error(res.data.error);
+      }
     },
     onSuccess: async () => {
-      toast.success("Account created successfully!");
+      if (form.role === "vendor") {
+        toast.success("Vendor application submitted to BPLO queue for permit verification & approval!");
+      } else {
+        toast.success("Staff account created successfully!");
+      }
       await new Promise(r => setTimeout(r, 500));
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["vendor-applications"] });
+      queryClient.invalidateQueries({ queryKey: ["bplo-vendor-applications"] });
       setShowCreate(false); setForm({ ...emptyForm });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -845,50 +865,65 @@ const AdminUserManagement = () => {
 
     for (let i = 0; i < csvRows.length; i++) {
       const row = csvRows[i];
+      const rowRole = (row.role || "vendor").trim().toLowerCase();
       try {
-        const res = await supabase.functions.invoke("create-user", {
-          body: {
-            email: (row.email || "").trim(),
-            password: (row.password || "").trim(),
+        if (rowRole === "vendor") {
+          const rate2026Val = row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
+            ? row.monthly_rate_2026
+            : row.monthly_rate !== undefined && row.monthly_rate !== ""
+              ? row.monthly_rate
+              : undefined;
+
+          const appNotes = JSON.stringify({
+            area_measurement: (row.area_measurement || "").trim() || undefined,
+            rate_2026: rate2026Val || undefined,
+            rate_2027: row.monthly_rate_2027 || undefined,
+            rate_2028: row.monthly_rate_2028 || undefined,
+          });
+
+          const { error: insertErr } = await supabase.from("vendor_applications").insert({
             first_name: (row.first_name || "").trim(),
-            middle_name: (row.middle_name || "").trim(),
             last_name: (row.last_name || "").trim(),
-            contact_number: (row.contact_number || "").trim(),
-            address: (row.address || "").trim(),
-            role: (row.role || "vendor").trim(),
-            stall_number: (row.stall_number || "").trim(),
-            section: (row.section || "Vegetable Section - Extension").trim(),
-            location: (row.location || "").trim(),
-            business_permit_number: (row.business_permit_number || "").trim() || undefined,
-            award_receipt_number: (row.award_receipt_number || "").trim() || undefined,
-            award_payment_date: (row.award_payment_date || "").trim() || undefined,
-            monthly_rate: row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
-              ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
-              : row.monthly_rate !== undefined && row.monthly_rate !== ""
-                ? Number(String(row.monthly_rate).replace(/,/g, ".").trim())
-                : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
-            monthly_rate_2026: row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
-              ? Number(String(row.monthly_rate_2026).replace(/,/g, ".").trim())
-              : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
-            monthly_rate_2027: row.monthly_rate_2027 !== undefined && row.monthly_rate_2027 !== ""
-              ? Number(String(row.monthly_rate_2027).replace(/,/g, ".").trim())
-              : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
-            monthly_rate_2028: row.monthly_rate_2028 !== undefined && row.monthly_rate_2028 !== ""
-              ? Number(String(row.monthly_rate_2028).replace(/,/g, ".").trim())
-              : ((row.section || "").toLowerCase().includes("bolante") ? 0 : undefined),
-            area_measurement: (row.area_measurement || "").trim(),
-          },
-        });
-        // res.data contains the actual error message from the edge function body
-        // res.error is just a generic "non-2xx" wrapper — always prefer res.data?.error
-        const errMsg = res.data?.error || res.error?.message || null;
-        if (errMsg) {
-          results[i] = { ...results[i], status: "error", message: errMsg };
+            email: (row.email || "").trim(),
+            phone_number: (row.contact_number || "").trim(),
+            business_name: null,
+            preferred_section: (row.section || "Vegetable Section").trim(),
+            business_permit_number: (row.business_permit_number || "").trim() || null,
+            award_receipt_number: (row.award_receipt_number || "").trim() || null,
+            award_payment_date: (row.award_payment_date || "").trim() || null,
+            admin_notes: appNotes,
+            status: "pending",
+            application_date: new Date().toISOString(),
+            applied_at: new Date().toISOString()
+          });
+
+          if (insertErr) {
+            results[i] = { ...results[i], status: "error", message: insertErr.message };
+          } else {
+            results[i] = { ...results[i], status: "success", message: "Sent to BPLO queue" };
+          }
         } else {
-          results[i] = { ...results[i], status: "success" };
+          const res = await supabase.functions.invoke("create-user", {
+            body: {
+              email: (row.email || "").trim(),
+              password: (row.password || "").trim(),
+              first_name: (row.first_name || "").trim(),
+              middle_name: (row.middle_name || "").trim(),
+              last_name: (row.last_name || "").trim(),
+              contact_number: (row.contact_number || "").trim(),
+              address: (row.address || "").trim(),
+              role: rowRole,
+            },
+          });
+          const errMsg = res.data?.error || res.error?.message || null;
+          if (errMsg) {
+            results[i] = { ...results[i], status: "error", message: errMsg };
+          } else {
+            results[i] = { ...results[i], status: "success" };
+          }
         }
       } catch (err: any) {
-        results[i] = { ...results[i], status: "error", message: err.message || "Unknown error" };
+        results[i] = { ...results[i], status: "error", message: err.message || "Import failed" };
       }
       setImportResults([...results]);
       await new Promise(r => setTimeout(r, 200));

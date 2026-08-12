@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type AppRole = "admin" | "cashier" | "vendor" | "bplo" | "eemo";
-type AccountStatus = "active" | "suspended" | "delinquent" | "closed";
+type AccountStatus = "active" | "suspended" | "delinquent" | "closed" | "pending";
 
 interface AuthContextType {
   user: User | null;
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfile(profileRes.data);
         localStorage.setItem(`palengclick_profile_${userId}`, JSON.stringify(profileRes.data));
         const status = profileRes.data.status;
-        if (status === "suspended" || status === "delinquent" || status === "closed") {
+        if (status === "suspended" || status === "delinquent" || status === "closed" || status === "pending") {
           await clearAuth();
         }
       } else {
@@ -168,7 +168,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const status = profileData?.status as AccountStatus | undefined;
 
-      if (status === "suspended" || status === "delinquent" || status === "closed") {
+      if (status === "suspended" || status === "delinquent" || status === "closed" || status === "pending") {
         await supabase.auth.signOut();
         return { error: null, blockedStatus: status };
       }
