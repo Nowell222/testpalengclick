@@ -7,14 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Store, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-
-
+import { computeRatesFromArea } from "@/lib/utils";
 
 const VendorApply = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -35,19 +33,55 @@ const VendorApply = () => {
   const [hasStallRequest, setHasStallRequest] = useState(true);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    if (name === "areaMeasurement") {
+      const isBolante = formData.preferredSection.toLowerCase().includes("bolante");
+      if (isBolante) {
+        setFormData((prev) => ({
+          ...prev,
+          areaMeasurement: value,
+          monthlyRate2026: "0",
+          monthlyRate2027: "0",
+          monthlyRate2028: "0",
+        }));
+      } else {
+        const rates = computeRatesFromArea(value);
+        setFormData((prev) => ({
+          ...prev,
+          areaMeasurement: value,
+          monthlyRate2026: rates.rate2026,
+          monthlyRate2027: rates.rate2027,
+          monthlyRate2028: rates.rate2028,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSelectChange = (value: string) => {
     const isBolante = value.toLowerCase().includes("bolante");
-    setFormData((prev) => ({
-      ...prev,
-      preferredSection: value,
-      areaMeasurement: isBolante ? "" : prev.areaMeasurement,
-      monthlyRate2026: isBolante ? "0" : (prev.monthlyRate2026 || "1450"),
-      monthlyRate2027: isBolante ? "0" : prev.monthlyRate2027,
-      monthlyRate2028: isBolante ? "0" : prev.monthlyRate2028,
-    }));
+    if (isBolante) {
+      setFormData((prev) => ({
+        ...prev,
+        preferredSection: value,
+        areaMeasurement: "",
+        monthlyRate2026: "0",
+        monthlyRate2027: "0",
+        monthlyRate2028: "0",
+      }));
+    } else {
+      setFormData((prev) => {
+        const rates = computeRatesFromArea(prev.areaMeasurement);
+        return {
+          ...prev,
+          preferredSection: value,
+          monthlyRate2026: rates.rate2026 || prev.monthlyRate2026 || "1450",
+          monthlyRate2027: rates.rate2027 || prev.monthlyRate2027,
+          monthlyRate2028: rates.rate2028 || prev.monthlyRate2028,
+        };
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

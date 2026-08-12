@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { computeRatesFromArea } from "@/lib/utils";
 import {
   Search, Loader2,
   X, Phone, Edit3, Save, Users, FileText,
@@ -380,11 +381,25 @@ export default function BploDashboard() {
       }
 
       if (finalStallId) {
+        const areaTrimmed = editForm.area_measurement.trim();
         const { error: stallErr } = await supabase.rpc("update_stall_area", {
           p_stall_id: finalStallId,
-          p_area_measurement: editForm.area_measurement.trim() || null
+          p_area_measurement: areaTrimmed || null
         });
         if (stallErr) errors.push(`Stall Area: ${stallErr.message}`);
+
+        const rates = computeRatesFromArea(areaTrimmed);
+        if (rates.area) {
+          const r26 = parseFloat(rates.rate2026);
+          const r27 = parseFloat(rates.rate2027);
+          const r28 = parseFloat(rates.rate2028);
+          await supabase.from("stalls").update({
+            monthly_rate: r26,
+            monthly_rate_2026: r26,
+            monthly_rate_2027: r27,
+            monthly_rate_2028: r28,
+          }).eq("id", finalStallId);
+        }
       }
 
       if (editForm.email.trim()) {
@@ -744,6 +759,15 @@ export default function BploDashboard() {
                 <div>
                   <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Area Measurement (sqm)</Label>
                   <Input value={editForm.area_measurement} onChange={e => setEditForm(f => ({ ...f, area_measurement: e.target.value }))} className="h-9 text-xs font-mono" />
+                  {editForm.area_measurement && (() => {
+                    const rates = computeRatesFromArea(editForm.area_measurement);
+                    if (!rates.area) return null;
+                    return (
+                      <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                        Auto rates: 2026: ₱{rates.rate2026} · 2027: ₱{rates.rate2027} · 2028: ₱{rates.rate2028}
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div>
                   <Label className="text-[11px] font-semibold text-slate-600 mb-1 block">Business Permit Number</Label>

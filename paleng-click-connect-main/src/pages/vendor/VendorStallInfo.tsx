@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { computeRatesFromArea } from "@/lib/utils";
 
 const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
 
@@ -422,11 +423,25 @@ const VendorStallInfo = () => {
       if (profileErr) errors.push(`Profile: ${profileErr.message}`);
 
       if (stall?.id) {
+        const areaTrimmed = form.area_measurement.trim();
         const { error: stallErr } = await supabase.rpc("update_stall_area", {
           p_stall_id: stall.id,
-          p_area_measurement: form.area_measurement.trim() || null
+          p_area_measurement: areaTrimmed || null
         });
         if (stallErr) errors.push(`Stall: ${stallErr.message}`);
+
+        const rates = computeRatesFromArea(areaTrimmed);
+        if (rates.area) {
+          const r26 = parseFloat(rates.rate2026);
+          const r27 = parseFloat(rates.rate2027);
+          const r28 = parseFloat(rates.rate2028);
+          await supabase.from("stalls").update({
+            monthly_rate: r26,
+            monthly_rate_2026: r26,
+            monthly_rate_2027: r27,
+            monthly_rate_2028: r28,
+          }).eq("id", stall.id);
+        }
       }
 
       const trimmedEmail = form.email.trim().toLowerCase();

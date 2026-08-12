@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import VendorDocumentsManager from "@/components/admin/VendorDocumentsManager";
+import { computeRatesFromArea } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -243,14 +244,16 @@ const AdminUserManagement = () => {
     const foundHist = stallHistory.find((h: any) => h.stalls?.stall_number?.toLowerCase() === cleanNum.toLowerCase());
     if (foundHist && foundHist.stalls) {
       const s = foundHist.stalls;
+      const areaStr = s.area_measurement || "";
+      const computed = computeRatesFromArea(areaStr);
       setFormState((f: any) => ({
         ...f,
         section: s.section || f.section,
         location: s.location || "",
-        area_measurement: s.area_measurement || "",
-        monthly_rate_2026: s.monthly_rate_2026 !== null ? String(s.monthly_rate_2026) : "",
-        monthly_rate_2027: s.monthly_rate_2027 !== null ? String(s.monthly_rate_2027) : "",
-        monthly_rate_2028: s.monthly_rate_2028 !== null ? String(s.monthly_rate_2028) : "",
+        area_measurement: areaStr,
+        monthly_rate_2026: s.monthly_rate_2026 !== null && s.monthly_rate_2026 !== undefined ? String(s.monthly_rate_2026) : computed.rate2026,
+        monthly_rate_2027: s.monthly_rate_2027 !== null && s.monthly_rate_2027 !== undefined ? String(s.monthly_rate_2027) : computed.rate2027,
+        monthly_rate_2028: s.monthly_rate_2028 !== null && s.monthly_rate_2028 !== undefined ? String(s.monthly_rate_2028) : computed.rate2028,
       }));
       return;
     }
@@ -264,14 +267,16 @@ const AdminUserManagement = () => {
         .maybeSingle();
 
       if (data && !error) {
+        const areaStr = data.area_measurement || "";
+        const computed = computeRatesFromArea(areaStr);
         setFormState((f: any) => ({
           ...f,
           section: data.section || f.section,
           location: data.location || "",
-          area_measurement: data.area_measurement || "",
-          monthly_rate_2026: data.monthly_rate_2026 !== null ? String(data.monthly_rate_2026) : "",
-          monthly_rate_2027: data.monthly_rate_2027 !== null ? String(data.monthly_rate_2027) : "",
-          monthly_rate_2028: data.monthly_rate_2028 !== null ? String(data.monthly_rate_2028) : "",
+          area_measurement: areaStr,
+          monthly_rate_2026: data.monthly_rate_2026 !== null && data.monthly_rate_2026 !== undefined ? String(data.monthly_rate_2026) : computed.rate2026,
+          monthly_rate_2027: data.monthly_rate_2027 !== null && data.monthly_rate_2027 !== undefined ? String(data.monthly_rate_2027) : computed.rate2027,
+          monthly_rate_2028: data.monthly_rate_2028 !== null && data.monthly_rate_2028 !== undefined ? String(data.monthly_rate_2028) : computed.rate2028,
         }));
       }
     } catch (err) {
@@ -885,17 +890,28 @@ const AdminUserManagement = () => {
             setImportResults([...results]);
             continue;
           }
+          const areaStr = (row.area_measurement || "").trim();
+          const computedRates = computeRatesFromArea(areaStr);
+
           const rate2026Val = row.monthly_rate_2026 !== undefined && row.monthly_rate_2026 !== ""
             ? row.monthly_rate_2026
             : row.monthly_rate !== undefined && row.monthly_rate !== ""
               ? row.monthly_rate
-              : undefined;
+              : (computedRates.rate2026 || undefined);
+
+          const rate2027Val = row.monthly_rate_2027 !== undefined && row.monthly_rate_2027 !== ""
+            ? row.monthly_rate_2027
+            : (computedRates.rate2027 || undefined);
+
+          const rate2028Val = row.monthly_rate_2028 !== undefined && row.monthly_rate_2028 !== ""
+            ? row.monthly_rate_2028
+            : (computedRates.rate2028 || undefined);
 
           const appNotes = JSON.stringify({
-            area_measurement: (row.area_measurement || "").trim() || undefined,
-            rate_2026: rate2026Val || undefined,
-            rate_2027: row.monthly_rate_2027 || undefined,
-            rate_2028: row.monthly_rate_2028 || undefined,
+            area_measurement: areaStr || undefined,
+            rate_2026: rate2026Val,
+            rate_2027: rate2027Val,
+            rate_2028: rate2028Val,
           });
 
           const { error: insertErr } = await supabase.from("vendor_applications").insert({
@@ -1866,7 +1882,33 @@ const AdminUserManagement = () => {
 
                               <div className="space-y-1">
                                 <Label className="text-xs">Area Measurement (sqm)</Label>
-                                <Input placeholder="e.g. 12.8" className="h-10 rounded-xl font-mono text-xs" value={form.area_measurement} onChange={e => setForm(f => ({ ...f, area_measurement: e.target.value }))} />
+                                <Input
+                                  placeholder="e.g. 12.8"
+                                  className="h-10 rounded-xl font-mono text-xs"
+                                  value={form.area_measurement}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    const isBolante = form.section.toLowerCase().includes("bolante");
+                                    if (isBolante) {
+                                      setForm(f => ({
+                                        ...f,
+                                        area_measurement: val,
+                                        monthly_rate_2026: "0",
+                                        monthly_rate_2027: "0",
+                                        monthly_rate_2028: "0",
+                                      }));
+                                    } else {
+                                      const rates = computeRatesFromArea(val);
+                                      setForm(f => ({
+                                        ...f,
+                                        area_measurement: val,
+                                        monthly_rate_2026: rates.rate2026,
+                                        monthly_rate_2027: rates.rate2027,
+                                        monthly_rate_2028: rates.rate2028,
+                                      }));
+                                    }
+                                  }}
+                                />
                               </div>
                             </>
                           )}

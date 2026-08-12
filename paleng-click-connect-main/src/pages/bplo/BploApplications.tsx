@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { computeRatesFromArea } from "@/lib/utils";
 
 const SECTION_PREFIX: Record<string, string> = {
   "Building I - 1st Floor": "B11",
@@ -131,10 +132,12 @@ const BploApplications = () => {
 
       if (data && !error) {
         setSection(data.section || "");
-        setAreaMeasurement(data.area_measurement || "");
-        setMonthlyRate2026(data.monthly_rate_2026 !== null ? String(data.monthly_rate_2026) : "1450");
-        setMonthlyRate2027(data.monthly_rate_2027 !== null ? String(data.monthly_rate_2027) : "");
-        setMonthlyRate2028(data.monthly_rate_2028 !== null ? String(data.monthly_rate_2028) : "");
+        const areaStr = data.area_measurement || "";
+        setAreaMeasurement(areaStr);
+        const computed = computeRatesFromArea(areaStr);
+        setMonthlyRate2026(data.monthly_rate_2026 !== null && data.monthly_rate_2026 !== undefined ? String(data.monthly_rate_2026) : (computed.rate2026 || "1450"));
+        setMonthlyRate2027(data.monthly_rate_2027 !== null && data.monthly_rate_2027 !== undefined ? String(data.monthly_rate_2027) : computed.rate2027);
+        setMonthlyRate2028(data.monthly_rate_2028 !== null && data.monthly_rate_2028 !== undefined ? String(data.monthly_rate_2028) : computed.rate2028);
       }
     } catch (err) {
       console.error("Error looking up stall details:", err);
@@ -578,6 +581,36 @@ const BploApplications = () => {
                           <p className="font-semibold text-emerald-700">{selectedApp.preferred_section || "None"}</p>
                         </div>
                       </div>
+                      {(() => {
+                        let areaStr = "";
+                        let r26 = "";
+                        let r27 = "";
+                        let r28 = "";
+                        if (selectedApp.admin_notes) {
+                          try {
+                            const p = JSON.parse(selectedApp.admin_notes);
+                            if (p.area_measurement) areaStr = p.area_measurement;
+                            if (p.rate_2026) r26 = String(p.rate_2026);
+                            if (p.rate_2027) r27 = String(p.rate_2027);
+                            if (p.rate_2028) r28 = String(p.rate_2028);
+                          } catch {}
+                        }
+                        if (areaStr) {
+                          const computed = computeRatesFromArea(areaStr);
+                          r26 = r26 || computed.rate2026;
+                          r27 = r27 || computed.rate2027;
+                          r28 = r28 || computed.rate2028;
+                          return (
+                            <div className="mt-2 rounded-xl bg-slate-50 border p-2.5 space-y-1">
+                              <p className="text-xs font-semibold text-slate-700">Area Measurement: <span className="font-mono text-emerald-700">{areaStr} sqm</span></p>
+                              <p className="text-[11px] text-slate-600 font-mono">
+                                Rates: 2026: ₱{r26 || "—"} · 2027: ₱{r27 || "—"} · 2028: ₱{r28 || "—"}
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -742,7 +775,16 @@ const BploApplications = () => {
                         <Label className="text-xs text-muted-foreground">Area Size / Measurement</Label>
                         <Input
                           value={areaMeasurement}
-                          onChange={e => setAreaMeasurement(e.target.value)}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setAreaMeasurement(val);
+                            if (!section.toLowerCase().includes('bolante')) {
+                              const rates = computeRatesFromArea(val);
+                              setMonthlyRate2026(rates.rate2026);
+                              setMonthlyRate2027(rates.rate2027);
+                              setMonthlyRate2028(rates.rate2028);
+                            }
+                          }}
                           className="h-10 font-mono text-sm"
                           placeholder="e.g. 2x2 m or 12 sqm"
                         />
