@@ -112,17 +112,16 @@ const VendorStallInfo = () => {
     queryFn: async () => {
       if (!stall?.id && !vendor?.id) return [];
 
-      // 1. Try SECURITY DEFINER RPC first (if stall.id exists)
-      if (stall?.id) {
-        try {
-          const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
-            p_stall_id: stall.id
-          });
-          if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
-            return rpcData;
-          }
-        } catch (e) {}
-      }
+      // 1. Try SECURITY DEFINER RPC first (bypasses RLS for full stall history and transfer chain)
+      try {
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("get_stall_ownership_history_details", {
+          p_stall_id: stall?.id || null,
+          p_vendor_id: vendor?.id || null,
+        });
+        if (!rpcErr && Array.isArray(rpcData) && rpcData.length > 0) {
+          return rpcData;
+        }
+      } catch (e) {}
 
       // 2. Try Edge Function service-role bypass (supports both stall_id and vendor_id)
       try {

@@ -504,10 +504,10 @@ Deno.serve(async (req: Request) => {
       }
 
       if (vendorData?.stall_id) {
-        // Update stall_ownership_history for the closing vendor to set ended_at and status closed
+        // Update stall_ownership_history for the closing vendor to set ended_at and status closed or transferred
         await supabaseAdmin
           .from('stall_ownership_history')
-          .update({ ended_at: new Date().toISOString(), status: 'closed' })
+          .update({ ended_at: new Date().toISOString(), status: targetVendorId ? 'transferred' : 'closed' })
           .eq('vendor_id', vendorData.id)
           .is('ended_at', null);
 
@@ -526,7 +526,7 @@ Deno.serve(async (req: Request) => {
               vendor_id: vendorData.id,
               started_at: new Date().toISOString(),
               ended_at: new Date().toISOString(),
-              status: 'closed'
+              status: targetVendorId ? 'transferred' : 'closed'
             });
         }
       }

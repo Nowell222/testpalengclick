@@ -336,6 +336,7 @@ const AdminUserManagement = () => {
           rate_2026: assignStall ? form.monthly_rate_2026 || undefined : undefined,
           rate_2027: assignStall ? form.monthly_rate_2027 || undefined : undefined,
           rate_2028: assignStall ? form.monthly_rate_2028 || undefined : undefined,
+          stall_number: assignStall ? form.stall_number.trim() || undefined : undefined,
           referenced_closed_vendor_id: selectedClosedVendorId || undefined,
           temp_password: form.password || undefined,
         });

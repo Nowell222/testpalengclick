@@ -177,6 +177,7 @@ const BploApplications = () => {
     let reqR26 = "1450";
     let reqR27 = "";
     let reqR28 = "";
+    let reqStallNum = "";
     if (app.admin_notes) {
       try {
         const parsed = JSON.parse(app.admin_notes);
@@ -186,6 +187,7 @@ const BploApplications = () => {
         if (parsed.rate_2028) reqR28 = String(parsed.rate_2028);
         if (parsed.referenced_closed_vendor_id) setSelectedClosedVendorId(parsed.referenced_closed_vendor_id);
         if (parsed.temp_password) setTempPassword(parsed.temp_password);
+        if (parsed.stall_number) reqStallNum = parsed.stall_number;
       } catch (e) {}
     }
 
@@ -200,7 +202,11 @@ const BploApplications = () => {
       setMonthlyRate2026(reqR26);
       setMonthlyRate2027(reqR27);
       setMonthlyRate2028(reqR28);
-      generateStallNumber(prefSection);
+      if (reqStallNum) {
+        setStallNumber(reqStallNum);
+      } else {
+        generateStallNumber(prefSection);
+      }
     }
     setShowApprovalModal(true);
   };
@@ -265,12 +271,46 @@ const BploApplications = () => {
 
       if (res.data?.user_id && effectiveClosedVendorId) {
         const newUserId = res.data.user_id;
-        const { data: newV } = await supabase.from("vendors").select("id").eq("user_id", newUserId).maybeSingle();
+        const { data: newV } = await supabase.from("vendors").select("id, stall_id").eq("user_id", newUserId).maybeSingle();
         if (newV) {
+          // 1. Update old vendor record to point transferred_to_vendor_id = newV.id
           await supabase
             .from("vendors")
             .update({ transferred_to_vendor_id: newV.id })
             .or(`id.eq.${effectiveClosedVendorId},user_id.eq.${effectiveClosedVendorId}`);
+
+          // 2. Find closed vendor's ID
+          const { data: oldV } = await supabase
+            .from("vendors")
+            .select("id")
+            .or(`id.eq.${effectiveClosedVendorId},user_id.eq.${effectiveClosedVendorId}`)
+            .maybeSingle();
+
+          const targetOldVendorId = oldV?.id || effectiveClosedVendorId;
+
+          // 3. Mark old ownership history record as transferred
+          await supabase
+            .from("stall_ownership_history")
+            .update({ status: "transferred" })
+            .eq("vendor_id", targetOldVendorId);
+
+          // 4. Ensure new vendor has a stall history record if stall_id exists
+          if (newV.stall_id) {
+            const { data: existingNewHist } = await supabase
+              .from("stall_ownership_history")
+              .select("id")
+              .eq("vendor_id", newV.id)
+              .maybeSingle();
+
+            if (!existingNewHist) {
+              await supabase.from("stall_ownership_history").insert({
+                stall_id: newV.stall_id,
+                vendor_id: newV.id,
+                started_at: new Date().toISOString(),
+                status: "active"
+              });
+            }
+          }
         }
       }
 
