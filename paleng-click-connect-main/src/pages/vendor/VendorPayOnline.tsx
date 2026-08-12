@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, Loader2, AlertTriangle, ArrowLeft,
   ChevronRight, Upload, Image, X, Scan, Building2,
-  Clock, FileText, Eye,
+  Clock, FileText, Eye, XCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -118,6 +118,72 @@ const VendorPayOnline = () => {
   // Manual overrides for OCR or direct entry
   const [refNum, setRefNum] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [duplicateRefError, setDuplicateRefError] = useState<string | null>(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+
+  const checkDuplicateReference = async (ref: string) => {
+    if (!ref || ref.trim().length < 4) {
+      setDuplicateRefError(null);
+      return false;
+    }
+    const rawRef = ref.trim();
+    const normalizedRef = rawRef.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    if (normalizedRef.length < 4) {
+      setDuplicateRefError(null);
+      return false;
+    }
+
+    setIsCheckingDuplicate(true);
+    try {
+      // 1. Try SECURITY DEFINER RPC first to check all submissions & payments across system
+      const { data: rpcDup, error: rpcErr } = await supabase.rpc("check_reference_exists" as any, {
+        p_reference: rawRef
+      });
+
+      if (!rpcErr && rpcDup === true) {
+        const msg = `Reference number "${rawRef}" has already been submitted for a previous payment. Duplicate receipts are not allowed.`;
+        setDuplicateRefError(msg);
+        return true;
+      }
+
+      // 2. Fallback check using normalized string matching on accessible submissions
+      const { data: submissions } = await supabase
+        .from("payment_submissions")
+        .select("id, status, ocr_reference")
+        .in("status", ["pending", "approved"]);
+
+      const match = (submissions || []).find((s: any) => {
+        const sRef = (s.ocr_reference || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        return sRef && sRef === normalizedRef;
+      });
+
+      if (match) {
+        const msg = `Reference number "${rawRef}" has already been submitted for a previous payment (Status: ${match.status.toUpperCase()}). Duplicate receipts are not allowed.`;
+        setDuplicateRefError(msg);
+        return true;
+      }
+
+      setDuplicateRefError(null);
+      return false;
+    } catch (err) {
+      console.error("Error checking duplicate reference:", err);
+      setDuplicateRefError(null);
+      return false;
+    } finally {
+      setIsCheckingDuplicate(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (refNum) {
+        checkDuplicateReference(refNum);
+      } else {
+        setDuplicateRefError(null);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [refNum]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-pay-info", user?.id],
@@ -284,6 +350,13 @@ const VendorPayOnline = () => {
     mutationFn: async () => {
       if (!receiptFile) throw new Error("Please upload your payment receipt.");
       if (!data?.vendor) throw new Error("Vendor data not found.");
+
+      if (refNum) {
+        const isDup = await checkDuplicateReference(refNum);
+        if (isDup) {
+          throw new Error(`Duplicate Receipt: Reference number "${refNum.trim()}" has already been submitted for a previous payment.`);
+        }
+      }
 
       const ext = receiptFile.name.split(".").pop() || "jpg";
       const filePath = `${user!.id}/${Date.now()}.${ext}`;
@@ -727,14 +800,24 @@ const VendorPayOnline = () => {
                         </div>
                       </div>
 
-                      {ocrData && (
+                      {duplicateRefError && (
+                        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2 animate-in fade-in">
+                          <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-red-900">Duplicate Receipt Detected</p>
+                            <p className="mt-0.5">{duplicateRefError}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {ocrData && !duplicateRefError && (
                         <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-[11px] text-green-800 flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                           <span>We've pre-filled these from your receipt. Please double-check they are exactly correct.</span>
                         </div>
                       )}
 
-                      {!ocrData && !ocrLoading && (
+                      {!ocrData && !ocrLoading && !duplicateRefError && (
                         <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-[11px] text-slate-600 flex items-start gap-2">
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                           <span>We couldn't auto-read the receipt. Please type the details manually.</span>
@@ -780,7 +863,7 @@ const VendorPayOnline = () => {
             <button
               className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm rounded-2xl py-4 transition-all disabled:opacity-50"
               style={{ background: DS.gradientCard, boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
-              disabled={!receiptFile || !refNum || !paidAmount || ocrLoading || submitReceipt.isPending}
+              disabled={!receiptFile || !refNum || !paidAmount || ocrLoading || isCheckingDuplicate || !!duplicateRefError || submitReceipt.isPending}
               onClick={() => submitReceipt.mutate()}>
               {submitReceipt.isPending ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Submitting…</>

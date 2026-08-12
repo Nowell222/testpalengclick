@@ -160,16 +160,17 @@ const VendorDashboardHome = () => {
         effMap[m] = credited;
         carry = credited >= due_m ? (credited - due_m) : 0;
       }
-      const currentMonthFee = getMonthFee(currentMonth);
-      const paidThisMonth = effMap[currentMonth] || 0;
-      const isCurrentMonthPaid = paidThisMonth >= currentMonthFee;
-      const remainingThisMonth = Math.max(0, currentMonthFee - paidThisMonth);
-      const monthlyRate = currentMonthFee;
-      let nextUnpaidMonth = currentMonth;
+      let nextUnpaidMonth = 13;
       for (let m = 1; m <= 12; m++) {
         if ((effMap[m] || 0) < getMonthFee(m)) { nextUnpaidMonth = m; break; }
-        if (m === 12) nextUnpaidMonth = 13;
       }
+      const isCurrentMonthPaid = (effMap[currentMonth] || 0) >= getMonthFee(currentMonth);
+      const targetMonth = nextUnpaidMonth <= 12 ? nextUnpaidMonth : currentMonth;
+      const targetMonthFee = getMonthFee(targetMonth);
+      const paidForTargetMonth = effMap[targetMonth] || 0;
+      const remainingThisMonth = Math.max(0, targetMonthFee - paidForTargetMonth);
+      const paidThisMonth = paidForTargetMonth;
+      const monthlyRate = targetMonthFee;
       const totalPaidYear = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
       const monthsPaid = Array.from({ length: currentMonth }, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
       const totalOutstanding = Array.from({ length: currentMonth }, (_, i) => i + 1).reduce((sum, m) => sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0)), 0);
