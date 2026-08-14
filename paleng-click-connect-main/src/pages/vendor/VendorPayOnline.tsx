@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, Loader2, AlertTriangle, ArrowLeft,
   ChevronRight, Upload, Image, X, Scan, Building2,
-  Clock, FileText, Eye, XCircle,
+  Clock, FileText, Eye, XCircle, Lock,
 } from "lucide-react";
+import { scanReceipt } from "@/lib/geminiReceiptScanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,18 +119,29 @@ const VendorPayOnline = () => {
   // Manual overrides for OCR or direct entry
   const [refNum, setRefNum] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [detectedRef, setDetectedRef] = useState<string | null>(null);
+  const [isReceiptImageDuplicate, setIsReceiptImageDuplicate] = useState(false);
   const [duplicateRefError, setDuplicateRefError] = useState<string | null>(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
-  const checkDuplicateReference = async (ref: string) => {
+  const resetReceiptState = () => {
+    setReceiptFile(null);
+    setReceiptPreview(null);
+    setOcrData(null);
+    setDetectedRef(null);
+    setIsReceiptImageDuplicate(false);
+    setDuplicateRefError(null);
+    setRefNum("");
+    setPaidAmount("");
+  };
+
+  const checkDuplicateReference = async (ref: string): Promise<boolean> => {
     if (!ref || ref.trim().length < 4) {
-      setDuplicateRefError(null);
       return false;
     }
     const rawRef = ref.trim();
     const normalizedRef = rawRef.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
     if (normalizedRef.length < 4) {
-      setDuplicateRefError(null);
       return false;
     }
 
@@ -141,8 +153,6 @@ const VendorPayOnline = () => {
       });
 
       if (!rpcErr && rpcDup === true) {
-        const msg = `Reference number "${rawRef}" has already been submitted for a previous payment. Duplicate receipts are not allowed.`;
-        setDuplicateRefError(msg);
         return true;
       }
 
@@ -150,7 +160,7 @@ const VendorPayOnline = () => {
       const { data: submissions } = await supabase
         .from("payment_submissions")
         .select("id, status, ocr_reference")
-        .in("status", ["pending", "approved"]);
+        .in("status", ["pending", "accepted", "approved"]);
 
       const match = (submissions || []).find((s: any) => {
         const sRef = (s.ocr_reference || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
@@ -158,16 +168,12 @@ const VendorPayOnline = () => {
       });
 
       if (match) {
-        const msg = `Reference number "${rawRef}" has already been submitted for a previous payment (Status: ${match.status.toUpperCase()}). Duplicate receipts are not allowed.`;
-        setDuplicateRefError(msg);
         return true;
       }
 
-      setDuplicateRefError(null);
       return false;
     } catch (err) {
       console.error("Error checking duplicate reference:", err);
-      setDuplicateRefError(null);
       return false;
     } finally {
       setIsCheckingDuplicate(false);
@@ -175,15 +181,27 @@ const VendorPayOnline = () => {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (refNum) {
-        checkDuplicateReference(refNum);
+    // If the uploaded receipt image itself was detected as duplicate, keep the duplicate error locked
+    if (isReceiptImageDuplicate && detectedRef) {
+      setDuplicateRefError(`Reference number "${detectedRef}" has already been submitted for a previous payment. Duplicate receipts are not allowed.`);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      if (refNum && refNum.trim().length >= 4) {
+        const isDup = await checkDuplicateReference(refNum);
+        if (isDup) {
+          setDuplicateRefError(`Reference number "${refNum.trim()}" has already been submitted for a previous payment. Duplicate receipts are not allowed.`);
+        } else {
+          setDuplicateRefError(null);
+        }
       } else {
         setDuplicateRefError(null);
       }
     }, 350);
+
     return () => clearTimeout(timer);
-  }, [refNum]);
+  }, [refNum, isReceiptImageDuplicate, detectedRef]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-pay-info", user?.id],
@@ -253,12 +271,18 @@ const VendorPayOnline = () => {
   const remainingBalance = data?.remainingBalance || monthlyRate;
   const paidForNextMonth = data?.paidForNextMonth || 0;
   const payAmount = payType === "full" ? remainingBalance : Number(staggeredAmount || 0);
-  const excessCredit = payAmount > remainingBalance ? payAmount - remainingBalance : 0;
+  const actualSubmittedAmount = (paidAmount && !isNaN(Number(paidAmount)) && Number(paidAmount) > 0)
+    ? Number(paidAmount)
+    : payAmount;
+  const excessCredit = actualSubmittedAmount > remainingBalance ? actualSubmittedAmount - remainingBalance : 0;
   const canProceed = payType === "full" ? remainingBalance > 0 : (!!staggeredAmount && Number(staggeredAmount) > 0);
 
   const handleFileSelect = async (file: File) => {
     setReceiptFile(file);
     setOcrData(null);
+    setDetectedRef(null);
+    setIsReceiptImageDuplicate(false);
+    setDuplicateRefError(null);
     setRefNum("");
     setPaidAmount("");
 
@@ -268,78 +292,36 @@ const VendorPayOnline = () => {
 
     setOcrLoading(true);
     try {
-      // ── Step 1: Initialize Tesseract (Using Local Files for Zero Trust)
-      const worker = await createWorker('eng', 1, {
-        workerPath: '/tesseract/worker.min.js',
-        corePath: '/tesseract/tesseract-core.wasm.js',
-        langPath: '/tesseract',
-        gzip: true, // eng.traineddata was downloaded as .gz
-      });
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
-
-      console.log("OCR Text:", text);
-
-      // Clean text for better matching
-      const cleanText = text.replace(/\n/g, ' ').replace(/\s+/g, ' ');
-
-      // ── Step 2: Extract Reference Number ────────────────────────────
-      // Expanded keywords for modern Gcash, Paymaya, and Bank apps
-      const refKeywords = [
-        "Reference Number", "Reference no", "Ref no", "Ref #", "Trace", "Ref",
-        "Transaction ID", "Trans ID", "Transaction No", "InstaPay Ref", "Reference"
-      ].join("|");
-
-      const refRegex = new RegExp(`(?:${refKeywords})\\s*[:\\.]?\\s*([A-Z0-9-]{6,25})`, "i");
-      const refMatch = cleanText.match(refRegex);
-
-      let extractedRef = refMatch ? refMatch[1] : null;
-
-      if (!extractedRef) {
-        // Fallback: Hunt for specific platform patterns
-        // 1. GCash (usually 13 digits starting with 0, 1, or 9)
-        const gcashPattern = cleanText.match(/\b[019]\d{12}\b/);
-        // 2. Paymaya / Maya (12 digits or alphanumeric sequences)
-        const mayaPattern = cleanText.match(/\b\d{12}\b/);
-        // 3. BN- style (Common in some merchant systems)
-        const bnPattern = cleanText.match(/\b[A-Z]{2}-\d{8}-\d{8,}\b/i);
-
-        if (gcashPattern) extractedRef = gcashPattern[0];
-        else if (mayaPattern) extractedRef = mayaPattern[0];
-        else if (bnPattern) extractedRef = bnPattern[0];
-        else {
-          // Find 10-16 digit numbers, but exclude Philippine mobile numbers (starting with 09)
-          const digitMatches = cleanText.match(/\b\d{10,16}\b/g);
-          extractedRef = digitMatches?.find(m => !m.startsWith("09")) || null;
-        }
-      }
-
-      // ── Step 3: Extract Amount ──────────────────────────────────────
-      // Look for currency labels followed by numbers
-      const amountRegex = /(?:Total\s*Amount(?:\s*Sent)?|Amount\s*Sent|Total|Amount|PHP|P|₱|Amount Paid)\s*[:\.]?\s*(?:PHP|P|₱)?\s*([\d,]+\.\d{2})/i;
-      const amountMatch = cleanText.match(amountRegex);
-
-      // Sanitation: Remove commas and currency symbols
-      let extractedAmount = amountMatch ? amountMatch[1].replace(/,/g, '') : null;
-
-      // Final Check: Confidence level
-      const results = {
-        reference_number: extractedRef,
-        amount: extractedAmount,
-        confidence: extractedRef && extractedAmount ? "high" : extractedRef ? "medium" : "low"
-      };
+      const results = await scanReceipt(file);
+      console.log("Scan Results:", results);
 
       setOcrData(results);
-      if (extractedRef) setRefNum(extractedRef);
-      if (extractedAmount) setPaidAmount(extractedAmount);
+      if (results.amount) setPaidAmount(results.amount);
 
-      if (extractedRef) {
-        toast.success("Receipt scanned! Please verify the details.");
+      if (results.reference_number) {
+        setDetectedRef(results.reference_number);
+        setRefNum(results.reference_number);
+
+        // Immediately check if the scanned receipt reference was already used
+        const isDup = await checkDuplicateReference(results.reference_number);
+        if (isDup) {
+          setIsReceiptImageDuplicate(true);
+          setDuplicateRefError(`Reference number "${results.reference_number}" has already been submitted for a previous payment. Duplicate receipts are not allowed.`);
+          toast.error("Duplicate receipt detected! This receipt has already been used.");
+        } else {
+          setIsReceiptImageDuplicate(false);
+          setDuplicateRefError(null);
+          toast.success("Receipt scanned! Details auto-filled.");
+        }
       } else {
-        toast.info("Reference number not detected. Please type it below.");
+        setDetectedRef(null);
+        setIsReceiptImageDuplicate(false);
+        setDuplicateRefError(null);
+        setRefNum("");
+        toast.info("Reference number not detected. Please enter it manually.");
       }
     } catch (err) {
-      console.error("Tesseract Error:", err);
+      console.error("Receipt Scanning Error:", err);
       toast.error("Scanning service unavailable. Please enter details manually.");
     } finally {
       setOcrLoading(false);
@@ -350,6 +332,17 @@ const VendorPayOnline = () => {
     mutationFn: async () => {
       if (!receiptFile) throw new Error("Please upload your payment receipt.");
       if (!data?.vendor) throw new Error("Vendor data not found.");
+
+      if (isReceiptImageDuplicate) {
+        throw new Error(`Duplicate Receipt: The uploaded receipt (${detectedRef || refNum}) has already been submitted and cannot be reused.`);
+      }
+
+      if (detectedRef) {
+        const isDetectedDup = await checkDuplicateReference(detectedRef);
+        if (isDetectedDup) {
+          throw new Error(`Duplicate Receipt: Reference number "${detectedRef}" on this receipt has already been submitted for a previous payment.`);
+        }
+      }
 
       if (refNum) {
         const isDup = await checkDuplicateReference(refNum);
@@ -373,21 +366,26 @@ const VendorPayOnline = () => {
        /*
    
       */
+      const finalAmount = (paidAmount && !isNaN(Number(paidAmount)) && Number(paidAmount) > 0)
+        ? Number(paidAmount)
+        : payAmount;
+      const isPartial = finalAmount < remainingBalance;
+
       const { data: submission, error: subError } = await supabase
         .from("payment_submissions")
         .insert({
           vendor_id: data.vendor.id,
           vendor_user_id: user!.id,
           stall_id: data.vendor.stall_id || null,
-          amount: payAmount,
+          amount: finalAmount,
           period_month: nextUnpaidMonth,
           period_year: new Date().getFullYear(),
           payment_method: "instapay",
-          payment_type: payType === "full" ? "due" : "staggered",
+          payment_type: isPartial ? "staggered" : "due",
           receipt_url: receiptUrl,
           receipt_path: filePath,
           ocr_reference: refNum || null,
-          ocr_amount: (paidAmount && !isNaN(Number(paidAmount))) ? Number(paidAmount) : null,
+          ocr_amount: finalAmount,
           ocr_datetime: ocrData?.datetime || null,
           ocr_recipient: ocrData?.recipient || null,
           ocr_raw: ocrData ? JSON.stringify(ocrData) : null,
@@ -407,8 +405,8 @@ const VendorPayOnline = () => {
         await supabase.from("notifications").insert(
           cashiers.map((c: any) => ({
             user_id: c.user_id,
-            title: `📋 New Online Payment — ${fmt(payAmount)}`,
-            message: `Vendor ${vendorName} submitted a payment receipt for ${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}.\n• Amount: ${fmt(payAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`,
+            title: `📋 New Online Payment — ${fmt(finalAmount)}`,
+            message: `Vendor ${vendorName} submitted a payment receipt for ${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}.\n• Amount: ${fmt(finalAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`,
             type: "info",
           }))
         );
@@ -720,9 +718,21 @@ const VendorPayOnline = () => {
               <ArrowLeft className="h-4 w-4" /> Back
             </button>
 
-            <div className="rounded-xl border bg-slate-50 px-4 py-3 flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">Submitting for {MONTHS[nextUnpaidMonth - 1]} {new Date().getFullYear()}</span>
-              <span className="font-mono font-bold text-foreground">{fmt(payAmount)}</span>
+            <div className="rounded-xl border bg-slate-50 px-4 py-3 space-y-1">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Submitting for {MONTHS[nextUnpaidMonth - 1]} {new Date().getFullYear()}</span>
+                <span className="font-mono font-bold text-foreground">{fmt(actualSubmittedAmount)}</span>
+              </div>
+              {actualSubmittedAmount < remainingBalance && (
+                <p className="text-[11px] text-amber-700 font-medium pt-1 border-t border-slate-200">
+                  ℹ️ Partial Payment: <strong>{fmt(actualSubmittedAmount)}</strong> will be submitted. Remaining balance after approval: <strong>{fmt(remainingBalance - actualSubmittedAmount)}</strong>.
+                </p>
+              )}
+              {actualSubmittedAmount > remainingBalance && (
+                <p className="text-[11px] text-blue-700 font-medium pt-1 border-t border-slate-200">
+                  ✨ Excess Payment: <strong>{fmt(actualSubmittedAmount)}</strong> will be submitted. Excess <strong>{fmt(actualSubmittedAmount - remainingBalance)}</strong> will roll over as credit towards next month.
+                </p>
+              )}
             </div>
 
             {/* Upload area */}
@@ -755,7 +765,7 @@ const VendorPayOnline = () => {
                       className="w-full max-h-64 object-contain rounded-xl border bg-white"
                     />
                     <button
-                      onClick={e => { e.stopPropagation(); setReceiptFile(null); setReceiptPreview(null); setOcrData(null); }}
+                      onClick={e => { e.stopPropagation(); resetReceiptState(); }}
                       className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-card border shadow-sm hover:bg-secondary">
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -763,7 +773,7 @@ const VendorPayOnline = () => {
 
                   {ocrLoading && (
                     <div className="flex flex-col gap-3 py-2">
-                      <div className="flex items-center gap-2 text-sm" style={{ color: DS.blue600 }}>
+                      <div className="flex items-center gap-2 text-sm font-medium" style={{ color: DS.blue600 }}>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Scanning receipt…
                       </div>
@@ -780,32 +790,68 @@ const VendorPayOnline = () => {
                     <div className="space-y-4 pt-2">
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference Number <span className="text-red-500">*</span></Label>
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Reference Number <span className="text-red-500">*</span>
+                            </Label>
+                            {isReceiptImageDuplicate && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                                <Lock className="h-2.5 w-2.5" /> Receipt Locked (Used)
+                              </span>
+                            )}
+                          </div>
                           <Input
                             placeholder="e.g. 0012 3456 789"
                             value={refNum}
-                            onChange={(e) => setRefNum(e.target.value)}
-                            className="h-11 rounded-xl font-mono text-base"
+                            onChange={(e) => {
+                              if (!isReceiptImageDuplicate) {
+                                setRefNum(e.target.value);
+                              }
+                            }}
+                            readOnly={isReceiptImageDuplicate}
+                            disabled={isReceiptImageDuplicate}
+                            className={`h-11 rounded-xl font-mono text-base transition-colors ${
+                              isReceiptImageDuplicate
+                                ? "bg-red-50/70 border-red-300 text-red-900 cursor-not-allowed select-none"
+                                : ""
+                            }`}
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actual Amount Paid (₱) <span className="text-red-500">*</span></Label>
+                          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Actual Amount Paid (₱) <span className="text-red-500">*</span>
+                          </Label>
                           <Input
                             type="number"
                             placeholder="0.00"
                             value={paidAmount}
-                            onChange={(e) => setPaidAmount(e.target.value)}
-                            className="h-11 rounded-xl font-mono text-base"
+                            onChange={(e) => {
+                              if (!isReceiptImageDuplicate) {
+                                setPaidAmount(e.target.value);
+                              }
+                            }}
+                            readOnly={isReceiptImageDuplicate}
+                            disabled={isReceiptImageDuplicate}
+                            className={`h-11 rounded-xl font-mono text-base transition-colors ${
+                              isReceiptImageDuplicate
+                                ? "bg-red-50/70 border-red-300 text-red-900 cursor-not-allowed select-none"
+                                : ""
+                            }`}
                           />
                         </div>
                       </div>
 
                       {duplicateRefError && (
-                        <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800 flex items-start gap-2 animate-in fade-in">
+                        <div className="rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-800 flex items-start gap-2.5 animate-in fade-in">
                           <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                          <div>
+                          <div className="space-y-1">
                             <p className="font-bold text-red-900">Duplicate Receipt Detected</p>
-                            <p className="mt-0.5">{duplicateRefError}</p>
+                            <p className="leading-relaxed">{duplicateRefError}</p>
+                            {isReceiptImageDuplicate && (
+                              <p className="text-[11px] font-medium text-red-700 pt-0.5">
+                                This receipt image has already been submitted and cannot be reused. Please click <strong>Change Image</strong> or <strong>Retake Photo</strong> to upload a different, unused receipt.
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -829,13 +875,13 @@ const VendorPayOnline = () => {
                   <div className="flex gap-2 pt-2">
                     <Button
                       variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-[11px] gap-1.5 text-muted-foreground"
-                      onClick={e => { e.stopPropagation(); fileRef.current?.click(); }}
+                      onClick={e => { e.stopPropagation(); resetReceiptState(); fileRef.current?.click(); }}
                     >
                       <Image className="h-3.5 w-3.5" /> Change Image
                     </Button>
                     <Button
                       variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-[11px] gap-1.5 text-muted-foreground"
-                      onClick={e => { e.stopPropagation(); setReceiptFile(null); setReceiptPreview(null); setOcrData(null); fileRef.current?.click(); }}
+                      onClick={e => { e.stopPropagation(); resetReceiptState(); fileRef.current?.click(); }}
                     >
                       <Scan className="h-3.5 w-3.5" /> Retake Photo
                     </Button>
@@ -863,7 +909,7 @@ const VendorPayOnline = () => {
             <button
               className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm rounded-2xl py-4 transition-all disabled:opacity-50"
               style={{ background: DS.gradientCard, boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
-              disabled={!receiptFile || !refNum || !paidAmount || ocrLoading || isCheckingDuplicate || !!duplicateRefError || submitReceipt.isPending}
+              disabled={!receiptFile || !refNum || !paidAmount || ocrLoading || isCheckingDuplicate || isReceiptImageDuplicate || !!duplicateRefError || submitReceipt.isPending}
               onClick={() => submitReceipt.mutate()}>
               {submitReceipt.isPending ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Submitting…</>

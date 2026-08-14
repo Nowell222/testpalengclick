@@ -19,21 +19,22 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    -- Check payment_submissions (pending or approved)
+    -- Check payment_submissions (pending or accepted/approved)
     IF EXISTS (
         SELECT 1 
         FROM public.payment_submissions 
         WHERE LOWER(regexp_replace(COALESCE(ocr_reference, ''), '[^a-zA-Z0-9]', '', 'g')) = cleaned
-        AND status IN ('pending', 'approved')
+        AND status IN ('pending', 'accepted', 'approved')
     ) THEN
         RETURN TRUE;
     END IF;
 
-    -- Check payments table (or_number or payment details)
+    -- Check payments table (reference_number or receipt_number)
     IF EXISTS (
         SELECT 1 
         FROM public.payments 
-        WHERE LOWER(regexp_replace(COALESCE(or_number, ''), '[^a-zA-Z0-9]', '', 'g')) = cleaned
+        WHERE LOWER(regexp_replace(COALESCE(reference_number, ''), '[^a-zA-Z0-9]', '', 'g')) = cleaned
+           OR LOWER(regexp_replace(COALESCE(receipt_number, ''), '[^a-zA-Z0-9]', '', 'g')) = cleaned
     ) THEN
         RETURN TRUE;
     END IF;
