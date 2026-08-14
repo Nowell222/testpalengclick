@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import VendorDocumentsManager from "@/components/admin/VendorDocumentsManager";
 import { computeRatesFromArea } from "@/lib/utils";
+import { findStallByNumber, searchStalls, MarketStallInfo } from "@/data/marketStallsRegistry";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,6 +138,19 @@ const AdminUserManagement = () => {
   const [isBulkDelete, setIsBulkDelete] = useState(false);
   const [assignStall, setAssignStall] = useState(true);
   const [selectedClosedVendorId, setSelectedClosedVendorId] = useState("");
+  const [createStallSuggestions, setCreateStallSuggestions] = useState<MarketStallInfo[]>([]);
+  const [showCreateSuggestions, setShowCreateSuggestions] = useState(false);
+  const createSuggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (createSuggestionsRef.current && !createSuggestionsRef.current.contains(event.target as Node)) {
+        setShowCreateSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ── CSV Import state ──────────────────────────────────────────────────────
   const [showImport, setShowImport] = useState(false);
@@ -240,7 +254,22 @@ const AdminUserManagement = () => {
     const cleanNum = stallNum.trim();
     if (cleanNum.length < 2) return;
 
-    // 1. Search in local stallHistory first
+    // 1. Search in masterlist registry first
+    const masterStall = findStallByNumber(cleanNum);
+    if (masterStall) {
+      setFormState((f: any) => ({
+        ...f,
+        section: masterStall.section || f.section,
+        location: masterStall.subSection || "",
+        area_measurement: masterStall.area !== null ? `${masterStall.area}` : f.area_measurement,
+        monthly_rate_2026: masterStall.rate2026 !== null ? String(masterStall.rate2026) : f.monthly_rate_2026,
+        monthly_rate_2027: masterStall.rate2027 !== null ? String(masterStall.rate2027) : f.monthly_rate_2027,
+        monthly_rate_2028: masterStall.rate2028 !== null ? String(masterStall.rate2028) : f.monthly_rate_2028,
+      }));
+      return;
+    }
+
+    // 2. Search in local stallHistory
     const foundHist = stallHistory.find((h: any) => h.stalls?.stall_number?.toLowerCase() === cleanNum.toLowerCase());
     if (foundHist && foundHist.stalls) {
       const s = foundHist.stalls;
@@ -1853,23 +1882,98 @@ const AdminUserManagement = () => {
                               </div>
                             </div>
                           ) : (
-                            <div className="space-y-1">
-                              <Label className="text-xs">
-                                Stall Number <span className="text-accent">*</span>
-                                <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Auto</span>
+                            <div className="space-y-1 relative" ref={createSuggestionsRef}>
+                              <Label className="text-xs flex items-center justify-between">
+                                <span>
+                                  Stall Number <span className="text-accent">*</span>
+                                  <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">Auto-fill</span>
+                                </span>
                               </Label>
                               <div className="flex gap-1.5">
-                                <Input
-                                  placeholder="e.g. G-001"
-                                  className="h-10 rounded-xl font-mono text-xs flex-1"
-                                  value={form.stall_number}
-                                  onChange={e => setForm(f => ({ ...f, stall_number: e.target.value }))}
-                                  onBlur={e => lookupStallDetails(e.target.value, setForm)}
-                                />
+                                <div className="relative flex-1">
+                                  <Input
+                                    placeholder="e.g. VS001, I 1A1, MSA1"
+                                    className="h-10 rounded-xl font-mono text-xs w-full uppercase"
+                                    value={form.stall_number}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setForm(f => ({ ...f, stall_number: val }));
+                                      if (val.trim()) {
+                                        const suggestions = searchStalls(val, 6);
+                                        setCreateStallSuggestions(suggestions);
+                                        setShowCreateSuggestions(suggestions.length > 0);
+                                        const directMatch = findStallByNumber(val);
+                                        if (directMatch) {
+                                          setForm(f => ({
+                                            ...f,
+                                            section: directMatch.section || f.section,
+                                            location: directMatch.subSection || "",
+                                            area_measurement: directMatch.area !== null ? `${directMatch.area}` : f.area_measurement,
+                                            monthly_rate_2026: directMatch.rate2026 !== null ? String(directMatch.rate2026) : f.monthly_rate_2026,
+                                            monthly_rate_2027: directMatch.rate2027 !== null ? String(directMatch.rate2027) : f.monthly_rate_2027,
+                                            monthly_rate_2028: directMatch.rate2028 !== null ? String(directMatch.rate2028) : f.monthly_rate_2028,
+                                          }));
+                                        }
+                                      } else {
+                                        setShowCreateSuggestions(false);
+                                      }
+                                    }}
+                                    onFocus={() => {
+                                      if (form.stall_number.trim()) {
+                                        setCreateStallSuggestions(searchStalls(form.stall_number, 6));
+                                        setShowCreateSuggestions(true);
+                                      }
+                                    }}
+                                    onBlur={() => lookupStallDetails(form.stall_number, setForm)}
+                                    autoComplete="off"
+                                  />
+                                </div>
                                 <Button type="button" variant="outline" size="icon" className="h-10 w-10 rounded-xl shrink-0" disabled={generatingStall} onClick={() => generateStallNumber(form.section)}>
                                   {generatingStall ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                                 </Button>
                               </div>
+
+                              {/* Autocomplete Dropdown */}
+                              {showCreateSuggestions && createStallSuggestions.length > 0 && (
+                                <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden max-h-52 overflow-y-auto divide-y divide-slate-100 animate-in fade-in">
+                                  {createStallSuggestions.map((s) => (
+                                    <button
+                                      key={s.stallNumber}
+                                      type="button"
+                                      onClick={() => {
+                                        setShowCreateSuggestions(false);
+                                        setForm(f => ({
+                                          ...f,
+                                          stall_number: s.stallNumber,
+                                          section: s.section || f.section,
+                                          location: s.subSection || "",
+                                          area_measurement: s.area !== null ? `${s.area}` : f.area_measurement,
+                                          monthly_rate_2026: s.rate2026 !== null ? String(s.rate2026) : f.monthly_rate_2026,
+                                          monthly_rate_2027: s.rate2027 !== null ? String(s.rate2027) : f.monthly_rate_2027,
+                                          monthly_rate_2028: s.rate2028 !== null ? String(s.rate2028) : f.monthly_rate_2028,
+                                        }));
+                                        toast.success(`Stall ${s.stallNumber} details auto-filled!`);
+                                      }}
+                                      className="w-full px-3 py-2 text-left hover:bg-emerald-50 transition-colors flex items-center justify-between group"
+                                    >
+                                      <div>
+                                        <div className="text-xs font-bold text-slate-900 group-hover:text-emerald-800 font-mono">
+                                          {s.stallNumber}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500">
+                                          {s.subSection} {s.area ? `• ${s.area} sqm` : ""}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-xs font-semibold text-emerald-700">
+                                          ₱{s.rate2026?.toLocaleString() || "0"}
+                                        </div>
+                                        <span className="text-[9px] text-slate-400">CY 2026</span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
 

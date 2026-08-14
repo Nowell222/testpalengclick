@@ -54,9 +54,9 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen overflow-x-hidden font-serif bg-[#f8f5f0]">
+    <div className="min-h-screen overflow-x-clip font-serif bg-[#f8f5f0]">
       {/* ── NAV ─────────────────────────────────────────────────────────────── */}
-      <nav className="bg-[#f8f5f0]/95 backdrop-blur-md border-b border-[#d4c9b8] sticky top-0 z-50">
+      <nav className="bg-[#f8f5f0]/95 backdrop-blur-md border-b border-[#d4c9b8] sticky top-0 z-50 shadow-sm transition-all duration-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-[60px] sm:h-[68px] flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 sm:gap-3 no-underline">
             <div className="w-8 h-8 sm:w-[42px] sm:h-[42px] rounded-lg overflow-hidden shadow-sm flex-shrink-0">

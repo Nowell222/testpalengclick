@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Store, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Store, Loader2, ArrowLeft, CheckCircle2, Search, MapPin, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { computeRatesFromArea } from "@/lib/utils";
+import { findStallByNumber, searchStalls, MarketStallInfo } from "@/data/marketStallsRegistry";
 
 const VendorApply = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const VendorApply = () => {
     email: "",
     phone: "",
     businessName: "",
+    stallNumber: "",
     preferredSection: "",
     businessPermitNumber: "",
     awardReceiptNumber: "",
@@ -31,9 +33,73 @@ const VendorApply = () => {
     website: "", // Honeypot field
   });
   const [hasStallRequest, setHasStallRequest] = useState(true);
+  const [stallSuggestions, setStallSuggestions] = useState<MarketStallInfo[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [matchedStall, setMatchedStall] = useState<MarketStallInfo | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleStallSelect = (stall: MarketStallInfo) => {
+    setMatchedStall(stall);
+    setShowSuggestions(false);
+    setFormData((prev) => ({
+      ...prev,
+      stallNumber: stall.stallNumber,
+      preferredSection: stall.section,
+      areaMeasurement: stall.area !== null ? `${stall.area} sqm` : prev.areaMeasurement,
+      monthlyRate2026: stall.rate2026 !== null ? String(stall.rate2026) : prev.monthlyRate2026,
+      monthlyRate2027: stall.rate2027 !== null ? String(stall.rate2027) : prev.monthlyRate2027,
+      monthlyRate2028: stall.rate2028 !== null ? String(stall.rate2028) : prev.monthlyRate2028,
+    }));
+    toast.success(`Stall ${stall.stallNumber} loaded! Area & rates auto-filled.`);
+  };
+
+  const handleStallInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, stallNumber: val }));
+
+    if (!val.trim()) {
+      setStallSuggestions([]);
+      setShowSuggestions(false);
+      setMatchedStall(null);
+      return;
+    }
+
+    const suggestions = searchStalls(val, 6);
+    setStallSuggestions(suggestions);
+    setShowSuggestions(suggestions.length > 0);
+
+    const directMatch = findStallByNumber(val);
+    if (directMatch) {
+      setMatchedStall(directMatch);
+      setFormData((prev) => ({
+        ...prev,
+        preferredSection: directMatch.section,
+        areaMeasurement: directMatch.area !== null ? `${directMatch.area} sqm` : prev.areaMeasurement,
+        monthlyRate2026: directMatch.rate2026 !== null ? String(directMatch.rate2026) : prev.monthlyRate2026,
+        monthlyRate2027: directMatch.rate2027 !== null ? String(directMatch.rate2027) : prev.monthlyRate2027,
+        monthlyRate2028: directMatch.rate2028 !== null ? String(directMatch.rate2028) : prev.monthlyRate2028,
+      }));
+    } else {
+      setMatchedStall(null);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    if (name === "stallNumber") {
+      handleStallInputChange(e);
+      return;
+    }
     if (name === "areaMeasurement") {
       const isBolante = formData.preferredSection.toLowerCase().includes("bolante");
       if (isBolante) {
@@ -103,6 +169,8 @@ const VendorApply = () => {
     setIsSubmitting(true);
     try {
       const appNotes = JSON.stringify({
+        stall_number: formData.stallNumber || undefined,
+        stall_sub_section: matchedStall?.subSection || undefined,
         area_measurement: formData.areaMeasurement || undefined,
         rate_2026: formData.monthlyRate2026 || undefined,
         rate_2027: formData.monthlyRate2027 || undefined,
@@ -332,7 +400,89 @@ const VendorApply = () => {
                   </div>
 
                   {hasStallRequest && (
-                    <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-3.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                      
+                      {/* Stall Number Input with Autocomplete */}
+                      <div className="space-y-1.5 relative" ref={suggestionsRef}>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="stallNumber" className="text-xs font-semibold text-slate-700">
+                            Stall Number (Auto-Fill)
+                          </Label>
+                          <span className="text-[10px] text-slate-400">e.g. VS001, I 1A1, P2R10, MSA1</span>
+                        </div>
+                        <div className="relative">
+                          <Input
+                            id="stallNumber"
+                            name="stallNumber"
+                            placeholder="Type stall number..."
+                            value={formData.stallNumber}
+                            onChange={handleChange}
+                            onFocus={() => {
+                              if (formData.stallNumber.trim()) {
+                                setStallSuggestions(searchStalls(formData.stallNumber, 6));
+                                setShowSuggestions(true);
+                              }
+                            }}
+                            className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm font-mono uppercase tracking-wider pl-9"
+                            disabled={isSubmitting}
+                            autoComplete="off"
+                          />
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                        </div>
+
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && stallSuggestions.length > 0 && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden max-h-56 overflow-y-auto divide-y divide-slate-100 animate-in fade-in">
+                            {stallSuggestions.map((s) => (
+                              <button
+                                key={s.stallNumber}
+                                type="button"
+                                onClick={() => handleStallSelect(s)}
+                                className="w-full px-3.5 py-2.5 text-left hover:bg-emerald-50 transition-colors flex items-center justify-between group"
+                              >
+                                <div>
+                                  <div className="text-xs font-bold text-slate-900 group-hover:text-emerald-800 font-mono">
+                                    {s.stallNumber}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    {s.subSection} {s.area ? `• ${s.area} sqm` : ""}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs font-semibold text-emerald-700">
+                                    ₱{s.rate2026?.toLocaleString() || "0"} / mo
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">CY 2026</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Matched Stall Banner */}
+                      {matchedStall && (
+                        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 flex items-start gap-2.5 animate-in fade-in">
+                          <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5 flex-1">
+                            <div className="flex items-center justify-between font-bold text-emerald-900">
+                              <span>Stall Details Auto-Filled</span>
+                              <span className="font-mono text-[11px] bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded-md">
+                                {matchedStall.stallNumber}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-emerald-800">
+                              Section: <strong>{matchedStall.section}</strong> ({matchedStall.subSection}) • Area: <strong>{matchedStall.area} sqm</strong>
+                            </p>
+                            {matchedStall.holderName && (
+                              <p className="text-[10px] text-emerald-700 pt-0.5">
+                                Masterlist Holder: {matchedStall.holderName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-slate-700">Preferred Market Section <span className="text-red-500">*</span></Label>
                         <Select value={formData.preferredSection} onValueChange={handleSelectChange} disabled={isSubmitting}>

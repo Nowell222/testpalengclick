@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { computeRatesFromArea } from "@/lib/utils";
+import { findStallByNumber } from "@/data/marketStallsRegistry";
 
 const SECTION_PREFIX: Record<string, string> = {
   "Building I - 1st Floor": "B11",
@@ -122,6 +123,17 @@ const BploApplications = () => {
     if (!stallNum) return;
     const cleanNum = stallNum.trim();
     if (cleanNum.length < 2) return;
+
+    // Check 897 Masterlist Registry first
+    const masterStall = findStallByNumber(cleanNum);
+    if (masterStall) {
+      if (masterStall.section) setSection(masterStall.section);
+      if (masterStall.area !== null) setAreaMeasurement(`${masterStall.area} sqm`);
+      if (masterStall.rate2026 !== null) setMonthlyRate2026(String(masterStall.rate2026));
+      if (masterStall.rate2027 !== null) setMonthlyRate2027(String(masterStall.rate2027));
+      if (masterStall.rate2028 !== null) setMonthlyRate2028(String(masterStall.rate2028));
+      return;
+    }
 
     try {
       const { data, error } = await supabase
