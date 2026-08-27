@@ -16,6 +16,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import VendorHistory from "./VendorHistory";
 import VendorStatement from "./VendorStatement";
 import VendorBottomNav from "../../components/VendorBottomNav";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -196,32 +197,38 @@ const VendorDashboardHome = () => {
         const s = (schedules || []).find((s: any) => s.month === m);
         return s ? Number(s.amount) : defaultRate;
       };
-      const rawPaidMap: Record<number, number> = {};
-      (payments || []).filter(p => p.status === "completed" && p.period_year === currentYear).forEach(p => {
-        if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
+      const statement = calculateMonthlyStatement({
+        year: currentYear,
+        getMonthFee,
+        payments,
+        isBolante,
       });
-      const effMap: Record<number, number> = {};
-      let carry = 0;
-      for (let m = 1; m <= 12; m++) {
-        const due_m = getMonthFee(m);
-        const credited = (rawPaidMap[m] || 0) + carry;
-        effMap[m] = credited;
-        carry = credited >= due_m ? (credited - due_m) : 0;
-      }
+
+      const effMap = statement.effectiveMap;
+      const rawPaidMap = statement.rawPaidMap;
+
       let nextUnpaidMonth = 13;
       for (let m = 1; m <= 12; m++) {
-        if ((effMap[m] || 0) < getMonthFee(m)) { nextUnpaidMonth = m; break; }
+        if (statement.rows[m - 1]?.balance > 0) { nextUnpaidMonth = m; break; }
       }
-      const isCurrentMonthPaid = (effMap[currentMonth] || 0) >= getMonthFee(currentMonth);
+      const isCurrentMonthPaid = !!(statement.rows[currentMonth - 1]?.isFully || statement.rows[currentMonth - 1]?.isAdvance);
       const targetMonth = nextUnpaidMonth <= 12 ? nextUnpaidMonth : currentMonth;
-      const targetMonthFee = getMonthFee(targetMonth);
-      const paidForTargetMonth = effMap[targetMonth] || 0;
-      const remainingThisMonth = Math.max(0, targetMonthFee - paidForTargetMonth);
+      const targetRow = statement.rows[targetMonth - 1];
+
+      const targetMonthFee = targetRow?.baseDue ?? getMonthFee(targetMonth);
+      const paidForTargetMonth = targetRow?.paid ?? 0;
+      const targetMonthPenalty = targetRow?.penalty ?? 0;
+      const targetMonthBaseDue = targetRow?.baseDue ?? targetMonthFee;
+      const targetMonthTotalDue = targetRow?.totalDue ?? targetMonthFee;
+      const targetMonthBalance = targetRow?.balance ?? 0;
+      const isTargetMonthOverdue = targetRow?.isOverdue ?? false;
+      const totalOutstanding = statement.totalOutstanding;
+
+      const remainingThisMonth = targetMonthBalance;
       const paidThisMonth = paidForTargetMonth;
       const monthlyRate = targetMonthFee;
-      const totalPaidYear = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
-      const monthsPaid = Array.from({ length: currentMonth }, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
-      const totalOutstanding = Array.from({ length: currentMonth }, (_, i) => i + 1).reduce((sum, m) => sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0)), 0);
+      const totalPaidYear = statement.totalPaid;
+      const monthsPaid = statement.monthsPaid;
       const chartData = MONTHS_SHORT.slice(0, currentMonth).map((m, i) => ({
         month: m,
         paid: Math.min(effMap[i + 1] || 0, getMonthFee(i + 1)),
@@ -230,6 +237,7 @@ const VendorDashboardHome = () => {
       return {
         vendor, profile, stall, monthlyRate, payments: (payments || []).slice(0, 8),
         isCurrentMonthPaid, paidThisMonth, remainingThisMonth, nextUnpaidMonth,
+        targetMonth, targetMonthPenalty, targetMonthBaseDue, targetMonthTotalDue, targetMonthBalance, isTargetMonthOverdue,
         allPaid: nextUnpaidMonth > 12, totalPaidYear, monthsPaid, totalOutstanding,
         chartData, currentMonth, currentYear, unreadNotifs: notifications || [],
         sectionName, isBolante, preferredSection,
@@ -347,11 +355,19 @@ const VendorDashboardHome = () => {
             },
           ] : [
             {
-              icon: <Clock size={10} />, label: "NEXT BILL AMOUNT",
-              value: fmt(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate)),
+              icon: <Clock size={10} />, label: "CURRENT BILL DUE",
+              value: fmt(d.isCurrentMonthPaid ? monthlyRate : (d.targetMonthBalance || monthlyRate)),
               sub: d.isCurrentMonthPaid
                 ? `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth + 1) - 1] || "All paid"} ${d.currentYear}`
-                : `${MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} ${d.currentYear}`,
+                : d.targetMonthPenalty > 0
+                  ? `${MONTHS[d.targetMonth - 1]} ${d.currentYear} (Includes +${fmt(d.targetMonthPenalty)} 25% late penalty)`
+                  : `${MONTHS[d.targetMonth - 1]} ${d.currentYear} (Due on 20th)`,
+              badge: d.isCurrentMonthPaid
+                ? undefined
+                : d.targetMonthPenalty > 0
+                  ? "⚠️ Overdue · 25% Penalty"
+                  : "Due by 20th",
+              badgeColor: d.targetMonthPenalty > 0 ? "red" : "amber",
             },
             {
               icon: <TrendingUp size={10} />, label: "TOTAL PAID (2026)",
@@ -380,8 +396,8 @@ const VendorDashboardHome = () => {
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: 4,
                   padding: "3px 9px", borderRadius: 999, fontSize: 10, fontWeight: 700,
-                  background: c.badgeColor === "green" ? "rgba(74,222,128,0.2)" : "rgba(251,191,36,0.2)",
-                  color: c.badgeColor === "green" ? "#4ade80" : "#fbbf24",
+                  background: c.badgeColor === "green" ? "rgba(74,222,128,0.2)" : c.badgeColor === "red" ? "rgba(239,68,68,0.25)" : "rgba(251,191,36,0.2)",
+                  color: c.badgeColor === "green" ? "#4ade80" : c.badgeColor === "red" ? "#fca5a5" : "#fbbf24",
                 }}>{c.badge}</span>
               )}
             </div>
@@ -452,6 +468,29 @@ const VendorDashboardHome = () => {
                 </button>
               </Link>
             </div>
+          ) : d.isTargetMonthOverdue ? (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
+              background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14,
+            }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <AlertCircle size={18} color="#dc2626" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b" }}>
+                  {MONTHS[d.targetMonth - 1]} {d.currentYear} — Overdue (25% Late Penalty Applied)
+                </div>
+                <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 2 }}>
+                  Deadline was the 20th. Total bill: <strong>{fmt(d.targetMonthTotalDue)}</strong> (Base: {fmt(d.targetMonthBaseDue)} + Surcharge: {fmt(d.targetMonthPenalty)}). Remaining: <strong>{fmt(d.targetMonthBalance)}</strong>
+                </div>
+              </div>
+              <Link to="/vendor/pay" style={{ flexShrink: 0 }}>
+                <button style={{
+                  padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer",
+                  background: "linear-gradient(135deg,#b91c1c,#dc2626)", fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit",
+                }}>Pay Now (Full/Partial) →</button>
+              </Link>
+            </div>
           ) : (
             <div style={{
               display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
@@ -462,9 +501,9 @@ const VendorDashboardHome = () => {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>
-                  {MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} {d.currentYear} — Payment Due
+                  {MONTHS[d.targetMonth - 1]} {d.currentYear} — Payment Due (Due on 20th)
                 </div>
-                <div style={{ fontSize: 11, color: DS.amber600, marginTop: 2 }}>{fmt(d.remainingThisMonth || monthlyRate)} outstanding balance</div>
+                <div style={{ fontSize: 11, color: DS.amber600, marginTop: 2 }}>{fmt(d.targetMonthBalance)} remaining balance (pay by the 20th to avoid 25% surcharge)</div>
               </div>
               <Link to="/vendor/pay" style={{ flexShrink: 0 }}>
                 <button style={{
@@ -783,16 +822,30 @@ const VendorDashboardHome = () => {
             </div>
           ) : (
             <div className="px-5 py-4" style={{ background: "rgba(0,0,0,0.14)", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-              <p className="text-[10px] uppercase tracking-[2px] flex items-center gap-1.5 mb-2" style={{ color: "rgba(255,255,255,0.65)" }}>
-                <Clock className="h-3 w-3" />{d.isCurrentMonthPaid ? "Next Bill Amount" : "Amount Due This Month"}
-              </p>
-              <div className="flex items-center justify-between">
-                <p className="text-white font-black" style={{ fontSize: 32, letterSpacing: -1, fontVariantNumeric: "tabular-nums" }}>
-                  <span style={{ fontSize: 20, fontWeight: 700 }}>₱</span>
-                  {(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate)).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] uppercase tracking-[2px] flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  <Clock className="h-3 w-3" />{d.isCurrentMonthPaid ? "Next Bill Amount" : "Amount Due This Month"}
                 </p>
+                {d.isTargetMonthOverdue && !d.isCurrentMonthPaid && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-red-200 bg-red-500/25 border border-red-400/40">
+                    <AlertCircle className="h-2.5 w-2.5 text-red-300" /> Overdue · 25% Penalty
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-black" style={{ fontSize: 32, letterSpacing: -1, fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ fontSize: 20, fontWeight: 700 }}>₱</span>
+                    {(d.isCurrentMonthPaid ? monthlyRate : (d.remainingThisMonth || monthlyRate)).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </p>
+                  {d.targetMonthPenalty > 0 && !d.isCurrentMonthPaid && (
+                    <p className="text-[11px] text-white/80 font-medium mt-0.5">
+                      {MONTHS[d.targetMonth - 1]} (Includes +{fmt(d.targetMonthPenalty)} 25% late penalty)
+                    </p>
+                  )}
+                </div>
                 <Link to="/vendor/pay">
-                  <button className="flex items-center gap-1.5 bg-white font-bold text-sm rounded-full px-4 py-2" style={{ color: DS.blue900 }}>
+                  <button className="flex items-center gap-1.5 bg-white font-bold text-sm rounded-full px-4 py-2 shadow-sm" style={{ color: DS.blue900 }}>
                     <CreditCard className="h-3.5 w-3.5" />{d.isCurrentMonthPaid ? "Pay Advance" : "Pay Now"}
                   </button>
                 </Link>
@@ -858,6 +911,23 @@ const VendorDashboardHome = () => {
                   </button>
                 </Link>
               </div>
+            ) : d.isTargetMonthOverdue ? (
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: "#fef2f2", border: "1px solid #fecaca" }}>
+                <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-red-900">{MONTHS[d.targetMonth - 1]} — Overdue (25% Late Penalty)</p>
+                  <p className="text-[11px] text-red-700 mt-0.5 leading-snug">
+                    Total bill: <strong>{fmt(d.targetMonthTotalDue)}</strong> (Base: {fmt(d.targetMonthBaseDue)} + Surcharge: {fmt(d.targetMonthPenalty)}). Remaining: <strong>{fmt(d.targetMonthBalance)}</strong>
+                  </p>
+                </div>
+                <Link to="/vendor/pay">
+                  <button className="text-[11px] font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl px-3 py-1.5 shrink-0">
+                    Pay Now
+                  </button>
+                </Link>
+              </div>
             ) : (
               <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: "#fef3c7", border: "1px solid #fcd34d" }}>
                 <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center shrink-0">
@@ -865,7 +935,7 @@ const VendorDashboardHome = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-amber-900">{MONTHS[(d.nextUnpaidMonth <= 12 ? d.nextUnpaidMonth : currentMonth) - 1]} — Payment Due</p>
-                  <p className="text-[11px] text-amber-800 mt-0.5 truncate">{fmt(d.remainingThisMonth || monthlyRate)} outstanding</p>
+                  <p className="text-[11px] text-amber-800 mt-0.5 truncate">{fmt(d.remainingThisMonth || monthlyRate)} outstanding (due on 20th)</p>
                 </div>
                 <Link to="/vendor/pay">
                   <button className="text-[11px] font-bold text-white bg-amber-600 rounded-xl px-3 py-1.5 shrink-0">Pay Now</button>

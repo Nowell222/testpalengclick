@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE } from "@/lib/utils";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -109,11 +110,13 @@ const getPrintHTML = (data: any) => {
   const rowsHTML = rows.map((r: any) => `
     <tr class="${r.isFuture ? "future" : ""}">
       <td>${r.month} ${currentYear}</td>
-      <td class="r">${fmt(r.due)}</td>
+      <td class="r">${fmt(r.baseDue)}</td>
+      <td class="r" style="${r.penalty > 0 ? "color:#c0392b;font-weight:bold" : "color:#777"}">${r.penalty > 0 ? `+${fmt(r.penalty)}` : "—"}</td>
+      <td class="r" style="font-weight:600">${fmt(r.due)}</td>
       <td class="r">${r.paid > 0 ? fmt(r.paid) : "—"}</td>
       <td class="r ${r.balance > 0 && !r.isFuture && !r.isAdvance ? "bal" : ""}">${(r.isFully || r.isAdvance) ? "₱0.00" : fmt(r.balance)}</td>
       <td class="c ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "part" : (r.isFuture && !r.isPartial) ? "upcoming" : "unpaid"}">
-        ${r.isAdvance ? " Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : (r.isFuture && !r.isPartial) ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -144,6 +147,7 @@ const getPrintHTML = (data: any) => {
   .t-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
   .t-row.big{font-size:15px;font-weight:bold;border-top:1px solid #ddd;margin-top:4px;padding-top:8px}
   .t-row.big .v{color:#c0392b} .t-row.settled .v{color:#27ae60}
+  .notice{padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:4px;font-size:10px;margin-bottom:14px;line-height:1.4}
   .sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;margin-top:48px}
   .sig-line{border-top:1px solid #111;padding-top:6px;text-align:center;font-size:10px;color:#555}
   .sig-name{font-weight:bold;font-size:11px;color:#111;text-transform:uppercase}
@@ -155,6 +159,9 @@ const getPrintHTML = (data: any) => {
   <div class="ttl">STATEMENT OF ACCOUNT</div>
   <div class="sub">Public Market Stall Rental — Fiscal Year ${currentYear}</div>
 </div>
+<div class="notice">
+  <strong>Payment Due Date:</strong> Stall rental fees are due every <strong>20th of the month</strong>. Payments or balances unpaid after the 20th are subject to an automatic <strong>25% statutory late penalty surcharge</strong>.
+</div>
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
@@ -164,7 +171,7 @@ const getPrintHTML = (data: any) => {
   <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
 </div>
 <table>
-  <thead><tr><th>Period</th><th class="r">Amount Due</th><th class="r">Paid</th><th class="r">Balance</th><th class="c">Status</th></tr></thead>
+  <thead><tr><th>Period</th><th class="r">Base Rate</th><th class="r">Penalty (25%)</th><th class="r">Total Due</th><th class="r">Paid</th><th class="r">Balance</th><th class="c">Status</th></tr></thead>
   <tbody>${rowsHTML}</tbody>
 </table>
 <div class="totals">
@@ -296,59 +303,18 @@ const VendorStatement = () => {
     return new Date(p.created_at).getFullYear() === selectedYear;
   });
 
-  const rawPaidMap: Record<number, number> = {};
-  yearPayments.forEach((p: any) => {
-    if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
+  const statement = calculateMonthlyStatement({
+    year: selectedYear,
+    getMonthFee,
+    payments: yearPayments,
+    isBolante,
   });
-
-  const displayPaidMap: Record<number, number> = {};
-  let carryOver = 0;
-  for (let m = 1; m <= 12; m++) {
-    const baseDue = getMonthFee(m);
-    const totalDue = baseDue;
-
-    const credited = (rawPaidMap[m] || 0) + carryOver;
-    displayPaidMap[m] = credited;
-
-    if (credited >= totalDue) {
-      carryOver = credited - totalDue;
-    } else {
-      carryOver = 0;
-    }
-  }
 
   const bolanteTotalPaid = yearPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
-  const totalPaid = isBolante ? bolanteTotalPaid : Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
-
-  const totalOutstanding = isBolante ? 0 : MONTHS.reduce((sum, _, i) => {
-    const m = i + 1;
-    if (m > currentMonth) return sum;
-    const baseDue = getMonthFee(m);
-    const totalDue = baseDue;
-    const paid = displayPaidMap[m] || 0;
-    return sum + Math.max(0, totalDue - paid);
-  }, 0);
-
-  const monthsPaid = isBolante ? 0 : MONTHS.filter((_, i) => {
-    const m = i + 1;
-    return (displayPaidMap[m] || 0) >= getMonthFee(m);
-  }).length;
-
-  const rows = MONTHS.map((month, i) => {
-    const m = i + 1;
-    const baseDue = getMonthFee(m);
-    const isOverdue = m < currentMonth;
-    const credited = displayPaidMap[m] || 0;
-    const totalDue = baseDue;
-
-    const displayPaid = Math.min(credited, totalDue);
-    const balance = Math.max(0, totalDue - credited);
-    const isAdvance = m > currentMonth && credited >= totalDue;
-    const isFuture = m > currentMonth && credited === 0;
-    const isFully = credited >= totalDue && !isAdvance;
-    const isPartial = credited > 0 && credited < totalDue;
-    return { month, monthNum: m, due: totalDue, baseDue, penalty: 0, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture, isOverdue };
-  });
+  const totalPaid = isBolante ? bolanteTotalPaid : statement.totalPaid;
+  const rows = statement.rows.map(r => ({ ...r, due: r.totalDue }));
+  const totalOutstanding = statement.totalOutstanding;
+  const monthsPaid = statement.monthsPaid;
 
   const printData = {
     profile,
@@ -475,6 +441,8 @@ const VendorStatement = () => {
 
     const tableData = rows.map((r: any) => [
       `${r.month} ${currentYear}`,
+      fmt(r.baseDue),
+      r.penalty > 0 ? `+${fmt(r.penalty)}` : "—",
       fmt(r.due),
       r.paid > 0 ? fmt(r.paid) : "—",
       (r.isFully || r.isAdvance) ? "PHP 0.00" : fmt(r.balance),
@@ -483,7 +451,7 @@ const VendorStatement = () => {
 
     autoTable(doc, {
       startY: 80,
-      head: [['Period', 'Amount Due', 'Paid', 'Balance', 'Status']],
+      head: [['Period', 'Base Rate', 'Penalty (25%)', 'Total Due', 'Paid', 'Balance', 'Status']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [17, 17, 17] }
@@ -491,18 +459,23 @@ const VendorStatement = () => {
 
     const finalY = (doc as any).lastAutoTable.finalY || 80;
 
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.text("* Note: Stall rental is due every 20th of the month. 25% statutory penalty applies to unpaid balances after the 20th.", 15, finalY + 6);
+
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Paid (${currentYear}):`, 15, finalY + 10);
+    doc.setFontSize(9);
+    doc.text(`Total Paid (${currentYear}):`, 15, finalY + 14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(39, 174, 96);
-    doc.text(fmt(totalPaid), 60, finalY + 10);
+    doc.text(fmt(totalPaid), 60, finalY + 14);
 
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
-    doc.text(`TOTAL OUTSTANDING BALANCE:`, 15, finalY + 18);
+    doc.text(`TOTAL OUTSTANDING BALANCE:`, 15, finalY + 22);
     doc.setTextColor(192, 57, 43);
     if (totalOutstanding === 0) doc.setTextColor(39, 174, 96);
-    doc.text(fmt(totalOutstanding), 85, finalY + 18);
+    doc.text(fmt(totalOutstanding), 85, finalY + 22);
 
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
@@ -746,58 +719,77 @@ const VendorStatement = () => {
             </div>
           ) : (
             <div className="rounded-xl border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr style={{ background: DS.blue900 }}>
-                    <th className="px-4 py-2.5 text-left font-medium text-white text-xs">Period</th>
-                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Amount Due</th>
-                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Paid</th>
-                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Balance</th>
-                    <th className="px-4 py-2.5 text-center font-medium text-white text-xs">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {rows.map(r => (
-                    <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
-                      <td className="px-4 py-2.5 font-medium text-foreground">
-                        {r.month} {currentYear}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">
-                        {r.paid > 0
-                          ? <span className="text-green-600 font-semibold">{fmt(r.paid)}</span>
-                          : <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono font-semibold">
-                        {(r.isFully || r.isAdvance)
-                          ? <span className="text-green-600 font-mono">₱0.00</span>
-                          : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {r.isAdvance ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                            Advance
-                          </span>
-                        ) : r.isFully ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-200 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                            <CheckCircle2 className="h-3 w-3" /> Paid
-                          </span>
-                        ) : r.isPartial ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                            Partial
-                          </span>
-                        ) : r.isFuture && !r.isPartial ? (
-                          <span className="text-xs text-muted-foreground">Upcoming</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                            <AlertCircle className="h-3 w-3" /> Unpaid
-                          </span>
-                        )}
-                      </td>
+              <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-900 flex items-center justify-between flex-wrap gap-2">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  Due Date: <strong>Every 20th of the month</strong> (25% statutory penalty surcharge on late balances)
+                </span>
+                <span className="text-[11px] text-amber-700 font-semibold">Option A Surcharge Policy</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: DS.blue900 }}>
+                      <th className="px-3.5 py-2.5 text-left font-medium text-white text-xs">Period</th>
+                      <th className="px-3.5 py-2.5 text-right font-medium text-white text-xs">Base Rate</th>
+                      <th className="px-3.5 py-2.5 text-right font-medium text-white text-xs">Penalty (25%)</th>
+                      <th className="px-3.5 py-2.5 text-right font-medium text-white text-xs">Total Due</th>
+                      <th className="px-3.5 py-2.5 text-right font-medium text-white text-xs">Paid</th>
+                      <th className="px-3.5 py-2.5 text-right font-medium text-white text-xs">Balance</th>
+                      <th className="px-3.5 py-2.5 text-center font-medium text-white text-xs">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {rows.map(r => (
+                      <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
+                        <td className="px-3.5 py-2.5 font-medium text-foreground">
+                          {r.month} {currentYear}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right font-mono text-muted-foreground">{fmt(r.baseDue)}</td>
+                        <td className="px-3.5 py-2.5 text-right font-mono">
+                          {r.penalty > 0 ? (
+                            <span className="text-red-600 font-bold">+{fmt(r.penalty)}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right font-mono font-semibold text-foreground">{fmt(r.due)}</td>
+                        <td className="px-3.5 py-2.5 text-right font-mono">
+                          {r.paid > 0
+                            ? <span className="text-green-600 font-semibold">{fmt(r.paid)}</span>
+                            : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right font-mono font-semibold">
+                          {(r.isFully || r.isAdvance)
+                            ? <span className="text-green-600 font-mono">₱0.00</span>
+                            : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          {r.isAdvance ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                              Advance
+                            </span>
+                          ) : r.isFully ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-200 px-2 py-0.5 text-[11px] font-semibold text-green-700">
+                              <CheckCircle2 className="h-3 w-3" /> Paid
+                            </span>
+                          ) : r.isPartial ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                              Partial
+                            </span>
+                          ) : r.isFuture && !r.isPartial ? (
+                            <span className="text-[11px] text-muted-foreground">Upcoming</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                              <AlertCircle className="h-3 w-3" /> Unpaid
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

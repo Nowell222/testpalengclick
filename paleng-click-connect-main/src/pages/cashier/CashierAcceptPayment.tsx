@@ -16,6 +16,7 @@ import LoadingOverlay from "@/components/LoadingOverlay";
 
 import { saveOfflinePayment, syncOfflinePayments, getUnsyncedCount, getOfflinePayments } from "@/lib/offlineSync";
 import { preloadVendorDirectory, searchCachedVendors } from "@/lib/vendorCache";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fmt = (n: number) => `₱${Number(n).toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
@@ -268,35 +269,35 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
 
     const stall = (v.stalls || v.stall) as any;
     const defRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
-
-    const rawPaidMap: Record<number, number> = {};
-    payments.forEach((p: any) => {
-      if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
-    });
-
     const getMonthFee = (m: number) => {
       const s = schedules.find((s: any) => s.month === m);
       return s ? Number(s.amount) : defRate;
     };
 
-    // Cascade excess payments forward
-    const paidMap: Record<number, number> = {};
-    let carry = 0;
-    for (let m = 1; m <= 12; m++) {
-      const due_m = getMonthFee(m);
-      const credited = (rawPaidMap[m] || 0) + carry;
-      paidMap[m] = credited;
-      carry = credited >= due_m ? (credited - due_m) : 0;
-    }
+    const isBolante = ((stall?.section || "") as string).toLowerCase().includes("bolante");
+    const statement = calculateMonthlyStatement({
+      year: currentYear,
+      getMonthFee,
+      payments,
+      isBolante,
+    });
 
     let nextUnpaid = currentMonth;
-    for (let m = 1; m <= currentMonth; m++) {
-      if ((paidMap[m] || 0) < getMonthFee(m)) { nextUnpaid = m; break; }
-      if (m === currentMonth) nextUnpaid = currentMonth + 1;
+    for (let m = 1; m <= 12; m++) {
+      if (statement.rows[m - 1]?.balance > 0) { nextUnpaid = m; break; }
+      if (m === 12) nextUnpaid = 13;
     }
 
-    setVendor({ ...v, stall, profile, paidMap, getMonthFee, nextUnpaid });
-    setPeriodMonth(nextUnpaid);
+    setVendor({
+      ...v,
+      stall,
+      profile,
+      statement,
+      paidMap: statement.effectiveMap,
+      getMonthFee,
+      nextUnpaid
+    });
+    setPeriodMonth(nextUnpaid <= 12 ? nextUnpaid : currentMonth);
     setAmount("");
   };
 
@@ -445,9 +446,16 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
     }
   };
 
-  const monthFee = vendor ? vendor.getMonthFee(periodMonth) : 0;
-  const alreadyPaid = vendor ? (vendor.paidMap[periodMonth] || 0) : 0;
-  const remaining = Math.max(0, monthFee - alreadyPaid);
+  const isBolante = (vendor?.stall?.section || "").toLowerCase().includes("bolante");
+  const selectedRow = (periodYear === (vendor?.statement ? new Date().getFullYear() : 0))
+    ? vendor?.statement?.rows?.[periodMonth - 1]
+    : null;
+
+  const monthFee = selectedRow?.baseDue ?? (vendor ? vendor.getMonthFee(periodMonth) : 0);
+  const alreadyPaid = selectedRow?.paid ?? (vendor ? (vendor.paidMap[periodMonth] || 0) : 0);
+  const monthPenalty = selectedRow?.penalty ?? 0;
+  const totalMonthDue = selectedRow?.totalDue ?? monthFee;
+  const remaining = selectedRow?.balance ?? Math.max(0, monthFee - alreadyPaid);
   const payAmount = payType === "full" ? remaining : (Number(amount) || 0);
   const isOverpay = payAmount > remaining;
 
@@ -691,9 +699,23 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
             {/* Fee breakdown */}
             <div className="rounded-xl border bg-secondary/40 px-4 py-3 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Monthly Fee ({MONTHS_FULL[periodMonth - 1]})</span>
+                <span className="text-muted-foreground">Base Monthly Fee</span>
                 <span className="font-mono text-foreground">{fmt(monthFee)}</span>
               </div>
+              {monthPenalty > 0 && (
+                <div className="flex justify-between text-red-600 font-semibold">
+                  <span className="flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> 25% Late Surcharge (Past 20th)
+                  </span>
+                  <span className="font-mono">+{fmt(monthPenalty)}</span>
+                </div>
+              )}
+              {monthPenalty > 0 && (
+                <div className="flex justify-between font-medium">
+                  <span className="text-muted-foreground">Total Bill for {MONTHS_FULL[periodMonth - 1]}</span>
+                  <span className="font-mono text-foreground font-bold">{fmt(totalMonthDue)}</span>
+                </div>
+              )}
               {alreadyPaid > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Already Paid</span>
@@ -702,7 +724,7 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
               )}
               <div className="flex justify-between border-t pt-2">
                 <span className="font-semibold text-foreground">Balance Due</span>
-                <span className={`font-mono text-xl font-bold ${remaining === 0 ? "text-success" : "text-foreground"}`}>{fmt(remaining)}</span>
+                <span className={`font-mono text-xl font-bold ${remaining === 0 ? "text-success" : (monthPenalty > 0 ? "text-red-600" : "text-foreground")}`}>{fmt(remaining)}</span>
               </div>
               {remaining === 0 && (
                 <p className="text-xs text-success flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" />This month is fully paid</p>

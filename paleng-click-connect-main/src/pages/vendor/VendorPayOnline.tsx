@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -261,24 +262,21 @@ const VendorPayOnline = () => {
         return s ? Number(s.amount) : defaultRate;
       };
 
-      const rawPaidMap: Record<number, number> = {};
-      payments.forEach(p => {
-        if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
+      const statement = calculateMonthlyStatement({
+        year: currentYear,
+        getMonthFee,
+        payments,
+        isBolante,
       });
 
-      const effectiveMap: Record<number, number> = {};
-      let carry = 0;
-      for (let m = 1; m <= 12; m++) {
-        const due_m = getMonthFee(m);
-        const credited = (rawPaidMap[m] || 0) + carry;
-        effectiveMap[m] = credited;
-        carry = credited >= due_m ? credited - due_m : 0;
-      }
+      const effectiveMap = statement.effectiveMap;
+      const rawPaidMap = statement.rawPaidMap;
 
       let nextUnpaidMonth = 13;
       if (stall && defaultRate > 0) {
         for (let m = 1; m <= 12; m++) {
-          if (effectiveMap[m] < getMonthFee(m)) {
+          const row = statement.rows[m - 1];
+          if (row.balance > 0) {
             nextUnpaidMonth = m;
             break;
           }
@@ -312,6 +310,7 @@ const VendorPayOnline = () => {
         defaultTargetMonth,
         isCurrentMonthPaid,
         allRegularPaid,
+        statement,
         effectiveMap,
         rawPaidMap,
         getMonthFee,
@@ -334,11 +333,15 @@ const VendorPayOnline = () => {
   const currentYear = data?.currentYear || new Date().getFullYear();
   const currentMonth = data?.currentMonth || (new Date().getMonth() + 1);
 
-  // Month-specific calculations
-  const selectedMonthFee = data ? data.getMonthFee(selectedMonth) : 0;
-  const selectedMonthPaid = data ? (data.effectiveMap[selectedMonth] || 0) : 0;
-  const selectedMonthBalance = Math.max(0, selectedMonthFee - selectedMonthPaid);
-  const isSelectedMonthSettled = selectedMonthFee > 0 && selectedMonthPaid >= selectedMonthFee;
+  // Month-specific calculations from standardized statement
+  const selectedRow = data?.statement?.rows?.[selectedMonth - 1];
+  const selectedMonthFee = selectedRow?.baseDue ?? (data ? data.getMonthFee(selectedMonth) : 0);
+  const selectedMonthPaid = selectedRow?.paid ?? (data ? (data.effectiveMap[selectedMonth] || 0) : 0);
+  const selectedMonthPenalty = selectedRow?.penalty ?? 0;
+  const selectedMonthTotalDue = selectedRow?.totalDue ?? selectedMonthFee;
+  const selectedMonthBalance = selectedRow?.balance ?? (selectedMonthFee > 0 ? selectedMonthFee : 0);
+  const isSelectedMonthOverdue = selectedRow?.isOverdue ?? isMonthOverdue(selectedMonth, currentYear, isBolante);
+  const isSelectedMonthSettled = selectedRow ? (selectedRow.isFully || selectedRow.isAdvance) : false;
 
   // Calculate the amount to pay based on selection and mode
   let payAmount = 0;
@@ -346,7 +349,7 @@ const VendorPayOnline = () => {
     payAmount = Number(customAmount || 0);
   } else {
     if (paymentMode === "month_due") {
-      // If month has remaining balance, use balance; if already fully paid, use the full monthly rate for advance credit
+      // If month has remaining balance (including penalty if late), use balance; if already fully settled, use full monthly rate for advance credit
       payAmount = selectedMonthBalance > 0 ? selectedMonthBalance : selectedMonthFee;
     } else {
       payAmount = Number(customAmount || 0);
@@ -669,28 +672,52 @@ const VendorPayOnline = () => {
 
                 <div className="px-5 py-4 space-y-2.5 text-sm">
                   <div className="flex justify-between">
-                    <span style={{ color: "rgba(255,255,255,0.65)" }}>Monthly Rate ({MONTHS[selectedMonth - 1]})</span>
+                    <span style={{ color: "rgba(255,255,255,0.65)" }}>Base Stall Rental</span>
                     <span className="font-mono text-white">{fmt(selectedMonthFee)}</span>
                   </div>
+
+                  {selectedMonthPenalty > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-red-300 font-semibold flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 text-red-300" />
+                        25% Late Penalty (Past 20th)
+                      </span>
+                      <span className="font-mono text-red-300 font-bold">+{fmt(selectedMonthPenalty)}</span>
+                    </div>
+                  )}
+
+                  {selectedMonthPenalty > 0 && (
+                    <div className="flex justify-between">
+                      <span style={{ color: "rgba(255,255,255,0.85)" }} className="font-medium">Total Bill for {MONTHS[selectedMonth - 1]}</span>
+                      <span className="font-mono text-white font-bold">{fmt(selectedMonthTotalDue)}</span>
+                    </div>
+                  )}
 
                   {selectedMonthPaid > 0 && (
                     <>
                       <div className="flex justify-between">
-                        <span style={{ color: "rgba(255,255,255,0.65)" }}>Already Credited</span>
+                        <span style={{ color: "rgba(255,255,255,0.65)" }}>Already Credited / Partial Paid</span>
                         <span className="font-mono text-green-300 font-medium">− {fmt(selectedMonthPaid)}</span>
                       </div>
                       <div style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
                     </>
                   )}
 
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center pt-1">
                     <span className="text-white font-bold">
-                      {isSelectedMonthSettled ? "Amount (Advance Credit)" : (selectedMonthPaid > 0 ? "Remaining Balance" : "Amount Due")}
+                      {isSelectedMonthSettled ? "Amount (Advance Credit)" : (selectedMonthPaid > 0 ? "Remaining Balance" : (selectedMonthPenalty > 0 ? "Total Due with Penalty" : "Amount Due"))}
                     </span>
                     <span className="font-mono text-3xl font-black text-white">
                       {fmt(isSelectedMonthSettled ? selectedMonthFee : selectedMonthBalance)}
                     </span>
                   </div>
+
+                  {selectedMonthPenalty > 0 && !isSelectedMonthSettled && (
+                    <div className="rounded-lg bg-red-500/20 border border-red-400/30 p-2 text-xs text-red-200 flex items-start gap-1.5 mt-1">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-300 shrink-0 mt-0.5" />
+                      <span>Due date was the 20th. You can pay in full or make partial payments until this balance is ₱0.00.</span>
+                    </div>
+                  )}
 
                   {isSelectedMonthSettled && (
                     <div className="rounded-lg bg-green-500/20 border border-green-400/30 p-2 text-xs text-green-200 flex items-center gap-1.5 mt-1">
@@ -709,7 +736,7 @@ const VendorPayOnline = () => {
                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-primary" /> Select Billing Month
                   </p>
-                  <span className="text-xs text-muted-foreground">Year {currentYear}</span>
+                  <span className="text-xs text-muted-foreground">Due 20th · Year {currentYear}</span>
                 </div>
 
                 {/* Month pills grid */}
@@ -721,6 +748,7 @@ const VendorPayOnline = () => {
                     const mPaid = data ? (data.effectiveMap[mNum] || 0) : 0;
                     const isPaid = mFee > 0 && mPaid >= mFee;
                     const isCurrent = mNum === currentMonth;
+                    const isOverdueMonth = !isPaid && isMonthOverdue(mNum, currentYear);
 
                     return (
                       <button
@@ -732,17 +760,21 @@ const VendorPayOnline = () => {
                             ? "border-primary bg-primary text-white shadow-sm ring-2 ring-primary/20"
                             : isPaid
                               ? "border-green-200 bg-green-50/70 text-green-800 hover:bg-green-100/70"
-                              : isCurrent
-                                ? "border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100/70 font-bold"
-                                : "border-border bg-background text-foreground hover:bg-slate-50"
+                              : isOverdueMonth
+                                ? "border-red-200 bg-red-50/70 text-red-900 hover:bg-red-100/70 font-semibold"
+                                : isCurrent
+                                  ? "border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100/70 font-bold"
+                                  : "border-border bg-background text-foreground hover:bg-slate-50"
                         }`}
                       >
                         <div className="text-[11px] font-bold">{mShort}</div>
                         <div className="text-[9px] mt-0.5 truncate">
                           {isPaid ? (
                             <span className={isSelected ? "text-green-200" : "text-green-700"}>Paid ✓</span>
+                          ) : isOverdueMonth ? (
+                            <span className={isSelected ? "text-red-200" : "text-red-600"}>+25% Late</span>
                           ) : isCurrent ? (
-                            <span className={isSelected ? "text-amber-200" : "text-amber-700"}>Current</span>
+                            <span className={isSelected ? "text-amber-200" : "text-amber-700"}>Due 20th</span>
                           ) : (
                             <span className={isSelected ? "text-blue-100" : "text-muted-foreground"}>
                               {mNum > currentMonth ? "Adv" : "—"}

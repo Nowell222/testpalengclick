@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTHS_FULL  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -144,19 +145,32 @@ const AdminReports = () => {
         const st=v.stalls as any;
         const rateKey = `monthly_rate_${targetYear}`;
         const rate = st ? (st[rateKey] || st.monthly_rate_2026 || st.monthly_rate || 0) : 0;
+        const isBolante = (st?.section || "").toLowerCase().includes("bolante");
         const vPay=completed.filter(p=>p.vendor_id===v.id&&p.period_year===targetYear);
-        const map:Record<number,number>={};
-        vPay.forEach(p=>{if(p.period_month)map[p.period_month]=(map[p.period_month]||0)+Number(p.amount);});
-        const totalPaid=Object.values(map).reduce((s,v)=>s+v,0);
-        const outstanding=MONTHS_FULL.reduce((sum,_,i)=>{const m=i+1;if(m>currentMonth)return sum;return sum+Math.max(0,rate-(map[m]||0));},0);
-        const paidThisMonth=map[currentMonth]||0;
-        const monthsOverdue=MONTHS_FULL.slice(0,currentMonth).filter((_,i)=>(map[i+1]||0)<rate).length;
+        
+        const statement = calculateMonthlyStatement({
+          year: targetYear,
+          getMonthFee: () => Number(rate),
+          payments: vPay,
+          isBolante,
+        });
+
+        const totalPaid = statement.totalPaid;
+        const outstanding = statement.totalOutstanding;
+        const monthsOverdue = statement.rows.slice(0, currentMonth).filter(r => r.isOverdue && r.balance > 0).length;
+        const currentMonthRow = statement.rows[currentMonth - 1];
+        const thisMonthStatus = (currentMonthRow?.isFully || currentMonthRow?.isAdvance)
+          ? "paid"
+          : (currentMonthRow?.isPartial ? "partial" : "unpaid");
+        const paidThisMonth = currentMonthRow?.paid || 0;
+        const remainingThisMonth = currentMonthRow?.balance || 0;
+
         return {
           vendorId:v.id,userId:v.user_id,name:pr?`${pr.first_name} ${pr.last_name}`:"Unknown",
           contact:pr?.contact_number||"—",accountStatus:pr?.status||"active",
           stall:st?.stall_number||"—",section:st?.section||"General",rate,totalPaid,outstanding,monthsOverdue,
-          thisMonthStatus:paidThisMonth>=rate?"paid":paidThisMonth>0?"partial":"unpaid",
-          paidThisMonth,remainingThisMonth:Math.max(0,rate-paidThisMonth),map,
+          thisMonthStatus,
+          paidThisMonth,remainingThisMonth,map:statement.displayPaidMap,
         };
       });
 

@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -22,6 +23,7 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
   const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
+  const isBolante = (stall?.section || "").toLowerCase().includes("bolante");
 
   // Per-month fee: reads from fee schedules if set, else falls back to stall default rate
   const getMonthFee = (m: number): number => {
@@ -29,81 +31,14 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
     return s ? Number(s.amount) : defaultRate;
   };
 
-  // ── STEP 1: Raw paid map from DB ─────────────────────────────────────────
-  const rawPaidMap: Record<number, number> = {};
-  (payments || [])
-    .filter((p: any) => p.status === "completed" && p.period_year === currentYear)
-    .forEach((p: any) => {
-      if (p.period_month)
-        rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
-    });
-
-  const effMap: Record<number, number> = {};
-  let carry = 0;
-  for (let m = 1; m <= 12; m++) {
-    const isOverdue = m < currentMonth;
-    const baseDue = getMonthFee(m);
-    const credited = (rawPaidMap[m] || 0) + carry;
-
-    // Flat 25% surcharge for overdue unpaid balances
-    // const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
-    const penalty = 0; // Penalty temporarily disabled
-    const totalDue = baseDue + penalty;
-
-    effMap[m] = credited;
-
-    if (credited >= totalDue) {
-      carry = credited - totalDue;
-    } else {
-      carry = 0;
-    }
-  }
-
-  // ── STEP 3: Summary totals ───────────────────────────────────────────────
-  const totalPaid = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
-
-  const totalOutstanding = MONTHS.reduce((sum, _, i) => {
-    const m = i + 1;
-    if (m > currentMonth) return sum;
-    const isOverdue = m < currentMonth;
-    const baseDue = getMonthFee(m);
-    // const penalty = isOverdue && ((effMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
-    const penalty = 0; // Penalty temporarily disabled
-    const totalDue = baseDue + penalty;
-    return sum + Math.max(0, totalDue - (effMap[m] || 0));
-  }, 0);
-
-  // ── STEP 4: Build rows with correct display values ───────────────────────
-  const rows = MONTHS.map((name, i) => {
-    const m = i + 1;
-    const baseDue = getMonthFee(m);
-    const credited = effMap[m] || 0;
-    const isOverdue = m < currentMonth;
-    // const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
-    const penalty = 0; // Penalty temporarily disabled
-    const totalDue = baseDue + penalty;
-
-    const displayPaid = Math.min(credited, totalDue);
-    const balance = Math.max(0, totalDue - credited);
-    const isAdvance = m > currentMonth && credited >= totalDue;   // future, fully covered
-    const isFuture = m > currentMonth && credited === 0;    // future, nothing paid
-    const isFully = credited >= totalDue && !isAdvance;         // past/current fully paid
-    const isPartial = credited > 0 && credited < totalDue;       // partial — any month
-    return {
-      month: name,
-      monthNum: m,
-      due: totalDue,
-      baseDue,
-      penalty,
-      paid: displayPaid,
-      balance,
-      isFully,
-      isPartial,
-      isAdvance,
-      isFuture,
-      isOverdue
-    };
+  const statement = calculateMonthlyStatement({
+    year: currentYear,
+    getMonthFee,
+    payments,
+    isBolante,
   });
+
+  const rows = statement.rows.map(r => ({ ...r, due: r.totalDue }));
 
   return {
     vendorId: vendor.id,
@@ -113,8 +48,8 @@ const buildSOA = (vendor: any, profile: any, payments: any[], schedules: any[] =
     currentYear,
     currentMonth,
     rows,
-    totalPaid,
-    totalOutstanding,
+    totalPaid: statement.totalPaid,
+    totalOutstanding: statement.totalOutstanding,
     allPayments: payments,
   };
 };
@@ -124,13 +59,15 @@ const getPrintHTML = (soa: any) => {
   const rows = soa.rows.map((r: any) => `
     <tr class="${r.isFuture ? "future" : ""}">
       <td>${r.month} ${soa.currentYear}</td>
-      <td class="num">₱${r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
+      <td class="num">₱${r.baseDue.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
+      <td class="num" style="${r.penalty > 0 ? "color:#c0392b;font-weight:bold" : "color:#888"}">${r.penalty > 0 ? `+₱${r.penalty.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—"}</td>
+      <td class="num" style="font-weight:600">₱${r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</td>
       <td class="num">${r.paid > 0 ? `₱${r.paid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—"}</td>
       <td class="num ${r.balance > 0 && !r.isFuture && !r.isAdvance ? "bal" : ""}">
         ${(r.isFully || r.isAdvance) ? "₱0.00" : `₱${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`}
       </td>
       <td class="status ${r.isAdvance ? "advance" : r.isFully ? "paid" : r.isPartial ? "partial" : r.isFuture ? "future-s" : "unpaid"}">
-        ${r.isAdvance ? " Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
+        ${r.isAdvance ? "Advance" : r.isFully ? "✓ Paid" : r.isPartial ? "Partial" : r.isFuture ? "Upcoming" : "Unpaid"}
       </td>
     </tr>`).join("");
 
@@ -147,6 +84,7 @@ const getPrintHTML = (soa: any) => {
     .header .lgu { font-size: 13px; font-weight: bold; margin: 4px 0; }
     .header .title { font-size: 18px; font-weight: bold; letter-spacing: 1px; margin-top: 6px; }
     .header .subtitle { font-size: 10px; color: #555; margin-top: 2px; }
+    .notice { padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 4px; font-size: 10px; margin-bottom: 16px; line-height: 1.4; }
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; padding: 12px; background: #f7f7f7; border: 1px solid #ddd; border-radius: 6px; }
     .info-item label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
     .info-item p { font-weight: bold; font-size: 13px; margin-top: 2px; }
@@ -188,6 +126,10 @@ const getPrintHTML = (soa: any) => {
     <div class="subtitle">Public Market Stall Rental — Fiscal Year ${soa.currentYear}</div>
   </div>
 
+  <div class="notice">
+    <strong>Payment Due Date:</strong> Monthly stall rental is due every <strong>20th of the month</strong>. A <strong>25% statutory late penalty</strong> is assessed on unpaid balances after the 20th.
+  </div>
+
   <div class="info-grid">
     <div class="info-item"><label>Vendor Name</label><p>${soa.profile?.first_name} ${soa.profile?.last_name}</p></div>
     <div class="info-item"><label>Stall Number</label><p>${soa.stall?.stall_number || "—"}</p></div>
@@ -201,7 +143,9 @@ const getPrintHTML = (soa: any) => {
     <thead>
       <tr>
         <th>Period</th>
-        <th class="num">Amount Due</th>
+        <th class="num">Base Rate</th>
+        <th class="num">Penalty (25%)</th>
+        <th class="num">Total Due</th>
         <th class="num">Amount Paid</th>
         <th class="num">Balance</th>
         <th style="text-align:center">Status</th>
@@ -415,6 +359,8 @@ const CashierSOA = () => {
 
     const tableData = selected.rows.map((r: any) => [
       `${r.month} ${selected.currentYear}`,
+      `PHP ${r.baseDue.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
+      r.penalty > 0 ? `+PHP ${r.penalty.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—",
       `PHP ${r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
       r.paid > 0 ? `PHP ${r.paid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}` : "—",
       (r.isFully || r.isAdvance) ? "PHP 0.00" : `PHP ${r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
@@ -423,7 +369,7 @@ const CashierSOA = () => {
 
     autoTable(doc, {
       startY: 80,
-      head: [['Period', 'Amount Due', 'Paid', 'Balance', 'Status']],
+      head: [['Period', 'Base Rate', 'Penalty (25%)', 'Total Due', 'Paid', 'Balance', 'Status']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [26, 26, 26] }
@@ -431,8 +377,13 @@ const CashierSOA = () => {
 
     const finalY = (doc as any).lastAutoTable.finalY || 80;
 
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.text("* Note: Stall rental is due every 20th of the month. 25% statutory penalty applies to unpaid balances after the 20th.", 15, finalY + 6);
+
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Paid (${selected.currentYear}):`, 15, finalY + 10);
+    doc.setFontSize(9);
+    doc.text(`Total Paid (${selected.currentYear}):`, 15, finalY + 14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(39, 174, 96);
     doc.text(`PHP ${selected.totalPaid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`, 60, finalY + 10);
@@ -629,52 +580,63 @@ const CashierSOA = () => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-secondary/60 border-b">
-                          <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Period</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Amount Due</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Amount Paid</th>
-                          <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Balance</th>
-                          <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">Status</th>
+                          <th className="px-3.5 py-2.5 text-left font-medium text-muted-foreground text-xs">Period</th>
+                          <th className="px-3.5 py-2.5 text-right font-medium text-muted-foreground text-xs">Base Rate</th>
+                          <th className="px-3.5 py-2.5 text-right font-medium text-muted-foreground text-xs">Penalty (25%)</th>
+                          <th className="px-3.5 py-2.5 text-right font-medium text-muted-foreground text-xs">Total Due</th>
+                          <th className="px-3.5 py-2.5 text-right font-medium text-muted-foreground text-xs">Amount Paid</th>
+                          <th className="px-3.5 py-2.5 text-right font-medium text-muted-foreground text-xs">Balance</th>
+                          <th className="px-3.5 py-2.5 text-center font-medium text-muted-foreground text-xs">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
                         {selected.rows.map((r: any) => (
                           <tr key={r.monthNum} className={`transition-colors hover:bg-secondary/20 ${r.isFuture ? "opacity-40" : ""}`}>
-                            <td className="px-4 py-2.5 text-foreground font-medium">
+                            <td className="px-3.5 py-2.5 text-foreground font-medium text-xs">
                               {r.month} {selected.currentYear}
-                              {/* r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span> */}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono text-foreground">
+                            <td className="px-3.5 py-2.5 text-right font-mono text-muted-foreground text-xs">
+                              ₱{r.baseDue.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                              {r.penalty > 0 ? (
+                                <span className="text-red-600 font-bold">+₱{r.penalty.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-3.5 py-2.5 text-right font-mono text-foreground font-semibold text-xs">
                               ₱{r.due.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono">
+                            <td className="px-3.5 py-2.5 text-right font-mono text-xs">
                               {r.paid > 0
                                 ? <span className="text-success font-semibold">₱{r.paid.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
                                 : <span className="text-muted-foreground">—</span>}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono font-semibold">
+                            <td className="px-3.5 py-2.5 text-right font-mono font-semibold text-xs">
                               {(r.isFully || r.isAdvance)
                                 ? <span className="text-success font-mono">₱0.00</span>
                                 : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>
                                   ₱{r.balance.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
                                 </span>}
                             </td>
-                            <td className="px-4 py-2.5 text-center">
+                            <td className="px-3.5 py-2.5 text-center">
                               {r.isAdvance ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                                   Advance
                                 </span>
                               ) : r.isFully ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
                                   <CheckCircle2 className="h-3 w-3" /> Paid
                                 </span>
                               ) : r.isPartial ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                                   Partial
                                 </span>
                               ) : r.isFuture && !r.isPartial ? (
-                                <span className="text-xs text-muted-foreground">Upcoming</span>
+                                <span className="text-[11px] text-muted-foreground">Upcoming</span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
                                   <AlertCircle className="h-3 w-3" /> Unpaid
                                 </span>
                               )}

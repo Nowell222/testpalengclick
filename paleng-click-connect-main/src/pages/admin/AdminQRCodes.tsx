@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
@@ -23,55 +24,49 @@ const METHOD_CONFIG: Record<string, { icon: any; color: string; label: string; b
 };
 
 const fetchVendorByQR = async (qrValue: string) => {
-  const { data: vendor } = await supabase
+  const { data: vendor, error } = await supabase
     .from("vendors")
-    .select("id, user_id, qr_code, award_date, stall_id, stalls(*)")
-    .eq("qr_code", qrValue)
-    .single();
-  if (!vendor) return null;
+    .select("*, stalls(*)")
+    .eq("qr_code", qrValue.trim())
+    .maybeSingle();
+  if (error || !vendor) return null;
+  const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", vendor.user_id).single();
+  const { data: payments } = await supabase.from("payments").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false });
+  const { data: schedules } = await supabase.from("stall_fee_schedules").select("*").eq("stall_id", vendor.stall_id || "");
+  return buildVendorData(vendor, profile, payments || [], schedules || []);
+};
 
-  const [profileRes, paymentsRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("user_id", vendor.user_id).single(),
-    supabase.from("payments").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }),
-  ]);
-  const profile  = profileRes.data;
-  const payments = paymentsRes.data || [];
-  const stall    = vendor.stalls as any;
-  const currentYear  = new Date().getFullYear();
+const buildVendorData = (vendor: any, profile: any, payments: any[], schedules: any[]) => {
+  const stall = vendor?.stalls as any;
+  const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const defaultRate  = stall?.monthly_rate || 1450;
-
-  const { data: schedules } = stall?.id
-    ? await (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", stall.id).eq("year", currentYear)
-    : { data: [] };
-  const getMonthFee = (m: number): number => {
-    const s = (schedules || []).find((s: any) => s.month === m);
+  const yearRateKey = `monthly_rate_${currentYear}` as string;
+  const defaultRate = stall ? (((stall as any)?.[yearRateKey] ? Number((stall as any)[yearRateKey]) : null) || stall?.monthly_rate || 0) : 0;
+  const getMonthFee = (m: number) => {
+    const s = schedules.find((s: any) => s.month === m && s.year === currentYear);
     return s ? Number(s.amount) : defaultRate;
   };
-  const rawPaidMap: Record<number, number> = {};
-  payments.filter(p => p.status === "completed" && p.period_year === currentYear).forEach(p => {
-    if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
+  const isBolante = (stall?.section || "").toLowerCase().includes("bolante");
+
+  const statement = calculateMonthlyStatement({
+    year: currentYear,
+    getMonthFee,
+    payments,
+    isBolante,
   });
-  const effMap: Record<number, number> = {};
-  let carry = 0;
-  for (let m = 1; m <= 12; m++) {
-    const due_m = getMonthFee(m);
-    const credited = (rawPaidMap[m] || 0) + carry;
-    effMap[m] = credited;
-    carry = credited >= due_m ? (credited - due_m) : 0;
-  }
-  const monthPaidMap: Record<number, number> = {};
-  for (let m = 1; m <= 12; m++) monthPaidMap[m] = Math.min(effMap[m], getMonthFee(m));
-  const monthlyRate        = getMonthFee(currentMonth);
-  const paidThisMonth      = effMap[currentMonth] || 0;
-  const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
-  const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
-  const totalPaidYear      = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
-  const monthsPaid         = Array.from({length: 12}, (_, i) => i + 1).filter(m => (effMap[m] || 0) >= getMonthFee(m)).length;
-  const totalOutstanding   = MONTHS.reduce((sum, _, i) => {
-    const m = i + 1; if (m > currentMonth) return sum;
-    return sum + Math.max(0, getMonthFee(m) - (effMap[m] || 0));
-  }, 0);
+
+  const effMap = statement.effectiveMap;
+  const rawPaidMap = statement.rawPaidMap;
+  const monthPaidMap = statement.displayPaidMap;
+  const monthlyRate = getMonthFee(currentMonth);
+  const currentMonthRow = statement.rows[currentMonth - 1];
+  const paidThisMonth = currentMonthRow?.paid || 0;
+  const isCurrentMonthPaid = !!(currentMonthRow?.isFully || currentMonthRow?.isAdvance);
+  const remainingThisMonth = currentMonthRow?.balance || 0;
+  const totalPaidYear = statement.totalPaid;
+  const monthsPaid = statement.monthsPaid;
+  const totalOutstanding = statement.totalOutstanding;
+
   return { vendor, profile, stall, payments: payments.slice(0, 8), monthlyRate, monthPaidMap, effMap, getMonthFee,
     paidThisMonth, isCurrentMonthPaid, remainingThisMonth, totalPaidYear, monthsPaid, totalOutstanding, currentMonth, currentYear };
 };

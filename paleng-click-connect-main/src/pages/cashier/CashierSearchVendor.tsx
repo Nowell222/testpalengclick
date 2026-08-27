@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { preloadVendorDirectory, getCachedVendorsDirectory } from "@/lib/vendorCache";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
@@ -25,17 +26,13 @@ const CashierSearchVendor = () => {
     networkMode: "always",
     queryFn: async () => {
       try {
-        const { data: vendorList } = await supabase
-          .from("vendors")
-          .select("id, user_id, qr_code, award_date, stalls(stall_number, section, monthly_rate, monthly_rate_2026, location, status)");
-        if (!vendorList) return [];
-        const userIds = vendorList.map(v => v.user_id);
-        const [profilesRes, paymentsRes] = await Promise.all([
-          supabase.from("profiles").select("user_id, first_name, last_name, contact_number, address, status").in("user_id", userIds),
-          supabase.from("payments")
-            .select("vendor_id, amount, status, period_month, period_year, payment_method, payment_type, reference_number, receipt_number, created_at")
-            .in("vendor_id", vendorList.map(v => v.id)).order("created_at", { ascending: false }),
+        const [vendorsRes, profilesRes, paymentsRes] = await Promise.all([
+          supabase.from("vendors").select("id, user_id, qr_code, award_date, stalls(stall_number, section, monthly_rate, monthly_rate_2026, location, status)"),
+          supabase.from("profiles").select("user_id, first_name, last_name, contact_number, address, status"),
+          supabase.from("payments").select("id, vendor_id, amount, status, payment_method, period_month, period_year, created_at, receipt_number"),
         ]);
+
+        const vendorList = vendorsRes.data || [];
         const profiles = profilesRes.data || [];
         const allPayments = paymentsRes.data || [];
         const currentYear = new Date().getFullYear();
@@ -47,24 +44,25 @@ const CashierSearchVendor = () => {
           const monthlyRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
           const vendorPayments = allPayments.filter(p => p.vendor_id === v.id);
           const completedPayments = vendorPayments.filter(p => p.status === "completed" && p.period_year === currentYear);
-          const monthPaidMap: Record<number, number> = {};
-          completedPayments.forEach(p => {
-            if (p.period_month) monthPaidMap[p.period_month] = (monthPaidMap[p.period_month] || 0) + Number(p.amount);
+
+          const isBolante = (stall?.section || "").toLowerCase().includes("bolante");
+          const statement = calculateMonthlyStatement({
+            year: currentYear,
+            getMonthFee: () => monthlyRate,
+            payments: completedPayments,
+            isBolante,
           });
-          const paidThisMonth = monthPaidMap[currentMonth] || 0;
-          const isCurrentMonthPaid = paidThisMonth >= monthlyRate;
-          const remainingThisMonth = Math.max(0, monthlyRate - paidThisMonth);
-          let nextUnpaid = currentMonth;
+
+          let nextUnpaid = 13;
           for (let m = 1; m <= 12; m++) {
-            if ((monthPaidMap[m] || 0) < monthlyRate) { nextUnpaid = m; break; }
-            if (m === 12) nextUnpaid = 13;
+            if (statement.rows[m - 1]?.balance > 0) { nextUnpaid = m; break; }
           }
-          const totalPaidYear = Object.values(monthPaidMap).reduce((s, v) => s + v, 0);
-          const totalOutstanding = MONTHS.reduce((sum, _, i) => {
-            const month = i + 1;
-            if (month > currentMonth) return sum;
-            return sum + Math.max(0, monthlyRate - (monthPaidMap[month] || 0));
-          }, 0);
+          const paidThisMonth = statement.rows[currentMonth - 1]?.paid || 0;
+          const isCurrentMonthPaid = !!(statement.rows[currentMonth - 1]?.isFully || statement.rows[currentMonth - 1]?.isAdvance);
+          const remainingThisMonth = statement.rows[currentMonth - 1]?.balance || 0;
+          const totalPaidYear = statement.totalPaid;
+          const totalOutstanding = statement.totalOutstanding;
+          const monthPaidMap = statement.displayPaidMap;
           return {
             id: v.id, userId: v.user_id, qrCode: v.qr_code, awardDate: v.award_date,
             name: profile ? `${profile.first_name} ${profile.last_name}` : "Unknown",

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { calculateMonthlyStatement, computeMonthPenalty, PAYMENT_DUE_DAY, PENALTY_RATE, isMonthOverdue } from "@/lib/utils";
 
 interface DelinquentRow {
   vendorId: string;
@@ -53,7 +54,6 @@ export default function BploDelinquents() {
     queryFn: async () => {
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
-      const yearStart = `${currentYear - 1}-01-01T00:00:00`;
 
       const [paymentsRes, vendorsRes] = await Promise.all([
         supabase.from("payments").select("*").eq("status", "completed").eq("period_year", currentYear),
@@ -69,34 +69,29 @@ export default function BploDelinquents() {
         .select("user_id,first_name,last_name,contact_number,status")
         .in("user_id", userIds);
 
-      const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
       const vendorStatus = vendors.map(v => {
         const pr = profiles?.find(p => p.user_id === v.user_id);
         const st = v.stalls as any;
         const rate = st ? (Number(st.monthly_rate_2026) || Number(st.monthly_rate) || 0) : 0;
+        const isBolante = (st?.section || "").toLowerCase().includes("bolante");
         
         // Filter payments for this specific vendor in the current year
         const vPay = payments.filter(p => p.vendor_id === v.id);
         
-        const map: Record<number, number> = {};
-        vPay.forEach(p => {
-          if (p.period_month) {
-            map[p.period_month] = (map[p.period_month] || 0) + Number(p.amount);
-          }
+        const statement = calculateMonthlyStatement({
+          year: currentYear,
+          getMonthFee: () => rate,
+          payments: vPay,
+          isBolante,
         });
 
-        const totalPaid = Object.values(map).reduce((s, val) => s + val, 0);
-        
-        // Calculate outstanding balance up to the current month
-        const outstanding = months.reduce((sum, _, i) => {
-          const m = i + 1;
-          if (m > currentMonth) return sum;
-          return sum + Math.max(0, rate - (map[m] || 0));
-        }, 0);
-
-        const paidThisMonth = map[currentMonth] || 0;
-        const monthsOverdue = months.slice(0, currentMonth).filter((_, i) => (map[i + 1] || 0) < rate).length;
+        const totalPaid = statement.totalPaid;
+        const outstanding = statement.totalOutstanding;
+        const monthsOverdue = statement.rows.slice(0, currentMonth).filter(r => r.isOverdue && r.balance > 0).length;
+        const currentMonthRow = statement.rows[currentMonth - 1];
+        const thisMonthStatus = (currentMonthRow?.isFully || currentMonthRow?.isAdvance)
+          ? "paid"
+          : (currentMonthRow?.isPartial ? "partial" : "unpaid");
 
         return {
           vendorId: v.id,
@@ -110,7 +105,7 @@ export default function BploDelinquents() {
           totalPaid,
           outstanding,
           monthsOverdue,
-          thisMonthStatus: paidThisMonth >= rate ? "paid" : paidThisMonth > 0 ? "partial" : "unpaid",
+          thisMonthStatus,
         };
       });
 
