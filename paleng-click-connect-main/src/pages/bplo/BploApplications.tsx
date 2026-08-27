@@ -411,77 +411,85 @@ const BploApplications = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── Hero Header ────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0d1e36 0%,#1e3a8a 60%,#3b82f6 100%)", boxShadow: "0 20px 48px rgba(30,58,138,0.2)" }}>
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 border border-white/20 text-blue-100">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
+    <div className="space-y-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden text-white" style={{ background: "linear-gradient(135deg,#0d1e36 0%,#1e3a8a 60%,#3b82f6 100%)", boxShadow: "0 12px 32px rgba(13,30,54,0.15)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">BPLO Application & Permit Review</h1>
-            <p className="text-xs mt-1 text-blue-200">Verify business permits, receipts, and activate vendor accounts</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-200">BPLO Licensing Portal</span>
+              <span className="h-1 w-1 rounded-full bg-blue-400" />
+              <span className="text-[10px] text-blue-100">Permit Verification</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Application & Permit Review</h1>
+            <p className="text-xs text-blue-100/70 mt-0.5">Verify business permits, receipts, and activate vendor accounts</p>
+          </div>
+
+          <div className="rounded-xl px-4 py-2 text-right bg-white/10 border border-white/20 shrink-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-blue-200">Pending Review</p>
+            <p className="font-mono text-lg font-bold text-white leading-none mt-0.5">{counts.pending}</p>
+            <p className="text-[10px] text-blue-100/70 mt-0.5">{counts.total} total applications</p>
           </div>
         </div>
       </div>
 
-      {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Applications</p>
-            <p className="text-2xl font-black mt-1">{counts.total}</p>
+      {/* ── 3 KPI Cards ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Total Applications", value: String(counts.total), icon: FileText, iconBg: "bg-blue-100", iconColor: "#2563eb", glow: "#2563eb", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Pending Verification", value: String(counts.pending), icon: Clock, iconBg: counts.pending > 0 ? "bg-amber-100" : "bg-secondary", iconColor: counts.pending > 0 ? "#f59e0b" : "hsl(220,10%,55%)", glow: counts.pending > 0 ? "#f59e0b" : "transparent", gradient: counts.pending > 0 ? "from-amber-50 to-amber-50/30" : "from-secondary to-secondary/30" },
+          { label: "Verified & Approved", value: String(counts.approved), icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
+            <div className="flex items-center justify-between z-10">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              </div>
+            </div>
+            <div className="z-10 mt-2">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
+            </div>
           </div>
-          <div className="bg-slate-100 p-3 rounded-xl text-slate-600"><FileText className="h-5 w-5" /></div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center justify-between border-amber-200 bg-amber-50/50">
-          <div>
-            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider">Pending Permit Verification</p>
-            <p className="text-2xl font-black mt-1 text-amber-900">{counts.pending}</p>
-          </div>
-          <div className="bg-amber-100 p-3 rounded-xl text-amber-600"><Clock className="h-5 w-5" /></div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center justify-between border-emerald-200 bg-emerald-50/50">
-          <div>
-            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Verified & Approved</p>
-            <p className="text-2xl font-black mt-1 text-emerald-900">{counts.approved}</p>
-          </div>
-          <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600"><CheckCircle2 className="h-5 w-5" /></div>
-        </div>
+        ))}
       </div>
 
       {/* ── Filters ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex rounded-xl bg-secondary p-1">
           {["all", "pending", "approved", "rejected"].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${statusFilter === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${statusFilter === s ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"}`}>
               {s === "pending" ? "Pending Verification" : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
         </div>
         <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search vendor name, permit #, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-10 rounded-xl text-xs"
+            className="pl-8 h-9 rounded-xl text-xs bg-background"
           />
         </div>
       </div>
 
       {/* ── Main Split View ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {/* List Pane */}
-        <div className="md:col-span-1 border rounded-2xl bg-card overflow-hidden h-[620px] flex flex-col">
-          <div className="bg-slate-50 px-4 py-3 border-b text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            Applications List ({filteredApps.length})
+        <div className="md:col-span-1 border rounded-2xl bg-card overflow-hidden h-[560px] flex flex-col shadow-xs">
+          <div className="bg-gradient-to-r from-blue-50/50 to-transparent px-3.5 py-2.5 border-b text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+            <span>Applications List</span>
+            <span className="rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 text-[10px] font-bold">{filteredApps.length}</span>
           </div>
-          <div className="overflow-y-auto flex-1 p-2 space-y-2">
+          <div className="overflow-y-auto flex-1 p-2 space-y-1.5">
             {isLoading ? (
-              <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>
+              <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-blue-600" /></div>
             ) : filteredApps.length === 0 ? (
               <div className="text-center p-8 text-xs text-muted-foreground">No applications found.</div>
             ) : (
@@ -490,15 +498,15 @@ const BploApplications = () => {
                 const conf = STATUS_CONFIG[app.status as keyof typeof STATUS_CONFIG];
                 return (
                   <div key={app.id} onClick={() => setSelectedApp(app)}
-                    className={`p-3.5 rounded-xl cursor-pointer transition-all border ${isActive ? "border-blue-500 bg-blue-50/60 shadow-sm" : "border-transparent hover:bg-slate-50 hover:border-slate-200"}`}>
-                    <div className="flex justify-between items-start mb-1">
-                      <p className={`font-bold text-sm ${isActive ? "text-blue-950" : "text-foreground"}`}>{app.first_name} {app.last_name}</p>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${conf.color}`}>
+                    className={`p-3 rounded-xl cursor-pointer transition-all border ${isActive ? "border-blue-500 bg-blue-50/70 shadow-xs font-medium" : "border-transparent hover:bg-secondary/60 text-foreground"}`}>
+                    <div className="flex justify-between items-start mb-0.5">
+                      <p className={`font-semibold text-xs ${isActive ? "text-blue-950 font-bold" : "text-foreground"}`}>{app.first_name} {app.last_name}</p>
+                      <span className={`inline-flex items-center px-1.5 py-0.2 rounded-full text-[9px] font-bold border ${conf.color}`}>
                         {app.status.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-xs font-mono text-blue-700 font-semibold truncate">Permit: {app.business_permit_number || "Unverified"}</p>
-                    <p className="text-[11px] text-muted-foreground truncate mt-1">{app.preferred_section || "Blank Section"}</p>
+                    <p className="text-[11px] font-mono text-blue-700 font-semibold truncate">Permit: {app.business_permit_number || "Unverified"}</p>
+                    <p className="text-[10px] text-muted-foreground truncate mt-0.5">{app.preferred_section || "Blank Section"}</p>
                   </div>
                 );
               })
@@ -509,13 +517,13 @@ const BploApplications = () => {
         {/* Details Pane */}
         <div className="md:col-span-2">
           {selectedApp ? (
-            <div className="border rounded-2xl bg-card shadow-sm overflow-hidden h-full flex flex-col">
-              <div className="border-b bg-slate-50 px-6 py-4 flex justify-between items-center">
+            <div className="border rounded-2xl bg-card shadow-xs overflow-hidden h-full flex flex-col">
+              <div className="border-b bg-gradient-to-r from-blue-50/50 to-transparent px-4 py-3 flex justify-between items-center">
                 <div>
-                  <h2 className="font-bold text-lg text-foreground">Permit & Application Details</h2>
-                  <p className="text-xs text-muted-foreground">Submitted {new Date(selectedApp.application_date || selectedApp.applied_at || selectedApp.created_at).toLocaleString()}</p>
+                  <h2 className="font-bold text-sm text-foreground">Permit & Application Details</h2>
+                  <p className="text-[10px] text-muted-foreground">Submitted {new Date(selectedApp.application_date || selectedApp.applied_at || selectedApp.created_at).toLocaleString()}</p>
                 </div>
-                <div className={`px-3 py-1 rounded-full border text-xs font-bold flex items-center gap-1.5 ${STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].color}`}>
+                <div className={`px-2.5 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 ${STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].color}`}>
                   {STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].label}
                 </div>
               </div>

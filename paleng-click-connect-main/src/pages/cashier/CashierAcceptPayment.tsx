@@ -554,19 +554,19 @@ const WalkInPayment = ({ cashierProfile, activeShift }: { cashierProfile: any; a
       {/* Search bar */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search by stall, section, or vendor name…"
-            className="h-11 pl-10 rounded-xl"
+            className="h-9 pl-9 rounded-xl text-xs bg-background"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             onKeyDown={e => e.key === "Enter" && searchVendor()} />
         </div>
-        <Button onClick={searchVendor} disabled={searching || !searchTerm.trim()} className="rounded-xl px-5 gap-1.5">
-          {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+        <Button onClick={searchVendor} disabled={searching || !searchTerm.trim()} className="rounded-xl px-4 gap-1.5 h-9 text-xs font-semibold">
+          {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />} Search
         </Button>
         {(vendor || searchResults.length > 0) && (
-          <Button variant="outline" size="icon" className="rounded-xl shrink-0" onClick={reset} title="Clear">
-            <X className="h-4 w-4" />
+          <Button variant="outline" size="icon" className="rounded-xl shrink-0 h-9 w-9" onClick={reset} title="Clear">
+            <X className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
@@ -891,21 +891,28 @@ const CashierAcceptPayment = () => {
       if (!subs?.length) return [];
       const vendorIds = [...new Set(subs.map((s: any) => s.vendor_id))];
       const { data: vendors } = await supabase.from("vendors")
-        .select("id, user_id, stalls(stall_number, section)")
+        .select("id, user_id, stall_id, stalls(stall_number, section)")
         .in("id", vendorIds);
       const userIds = vendors?.map((v: any) => v.user_id) || [];
-      const { data: profiles } = await supabase.from("profiles")
-        .select("user_id, first_name, last_name")
-        .in("user_id", userIds);
+      const [{ data: profiles }, { data: apps }] = await Promise.all([
+        supabase.from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", userIds),
+        supabase.from("vendor_applications")
+          .select("applicant_user_id, preferred_section")
+          .in("applicant_user_id", userIds),
+      ]);
       return subs.map((s: any) => {
         const v = vendors?.find((v: any) => v.id === s.vendor_id);
         const pr = profiles?.find((pr: any) => pr.user_id === v?.user_id);
+        const app = apps?.find((a: any) => a.applicant_user_id === v?.user_id);
         const st = v?.stalls as any;
+        const isBolante = !st && (!!app?.preferred_section?.toLowerCase().includes("bolante") || !v?.stall_id);
         return {
           ...s,
           vendor_name: pr ? `${pr.first_name} ${pr.last_name}` : "Unknown",
-          stall: st?.stall_number || "—",
-          section: st?.section || "",
+          stall: st?.stall_number || (isBolante ? "Bolante" : "—"),
+          section: st?.section || app?.preferred_section || (isBolante ? "Bolante Section" : "General"),
         };
       });
     },
@@ -1011,6 +1018,11 @@ const CashierAcceptPayment = () => {
     mutationFn: async (p: any) => {
       const { error } = await supabase.from("payments").update({ status: "completed", processed_by: user?.id, shift_id: activeShift?.id || null }).eq("id", p.id);
       if (error) throw error;
+      if (p.reference_number) {
+        await supabase.from("payment_submissions")
+          .update({ status: "accepted", payment_id: p.id, processed_by: user?.id, processed_at: new Date().toISOString() })
+          .eq("ocr_reference", p.reference_number);
+      }
       // Resolve actual auth user_id from vendor record
       const { data: vendorRow } = await supabase.from("vendors").select("user_id").eq("id", p.vendor_id).single();
       const recipientUserId = vendorRow?.user_id;
@@ -1426,9 +1438,9 @@ Please contact the cashier or try paying again through another method.`,
               <div className="divide-y">
                 {[
                   { label: "Vendor", value: viewSubmission.vendor_name },
-                  { label: "Stall", value: `${viewSubmission.stall} — ${viewSubmission.section}` },
+                  { label: "Stall / Section", value: viewSubmission.stall === "Bolante" ? (viewSubmission.section ? `Bolante — ${viewSubmission.section}` : "Bolante Section") : `${viewSubmission.stall} — ${viewSubmission.section}` },
                   { label: "Period", value: `${MONTHS_FULL[(viewSubmission.period_month || 1) - 1]} ${viewSubmission.period_year}` },
-                  { label: "Payment Type", value: viewSubmission.payment_type === "staggered" ? "Partial" : "Full" },
+                  { label: "Payment Type", value: viewSubmission.payment_type === "staggered" ? "Partial / Custom" : "Full Payment" },
                   { label: "Method", value: "InstaPay / Bank Transfer" },
                   { label: "Submitted", value: new Date(viewSubmission.created_at).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) },
                 ].map(r => (

@@ -83,45 +83,46 @@ const AdminSMS = () => {
       ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{background:"linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)",boxShadow:"0 20px 48px rgba(15,110,86,0.15)"}}>
-        {[[200,"-60px","-60px","top","right"],[250,"-100px","-60px","bottom","left"]].map(([sz,a,b,v,h],i)=>(
-          <div key={i} style={{position:"absolute",[v as string]:a,[h as string]:b,width:sz,height:sz,borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.08)",pointerEvents:"none"}}/>
-        ))}
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>Admin Portal</p>
-            <h1 className="text-2xl font-bold text-white">SMS Management</h1>
-            <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Send reminders, confirmations, and announcements to vendors</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Communications</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">SMS Management</h1>
+            <p className="text-xs text-white/70 mt-0.5">Send payment reminders, alerts, and official announcements to vendors</p>
           </div>
-          <div className="rounded-2xl px-5 py-4 text-right" style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",minWidth:150}}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{color:"rgba(255,255,255,0.6)"}}>Messages Sent</p>
-            <p className="font-mono text-[22px] font-bold text-white mt-1">{logStats.delivered}</p>
-            <p className="text-[11px] mt-0.5" style={{color:"rgba(255,255,255,0.5)"}}>{logStats.total} total logged</p>
+          <div className="rounded-xl px-4 py-2 text-right bg-white/10 border border-white/20 shrink-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-200">Messages Sent</p>
+            <p className="font-mono text-lg font-bold text-white leading-none mt-0.5">{logStats.delivered}</p>
+            <p className="text-[10px] text-emerald-100/70 mt-0.5">{logStats.total} total logged</p>
           </div>
         </div>
       </div>
 
-      {/* ── KPI cards ────────────────────────────────────────────────────── */}
+      {/* ── 3 Top KPI cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          {label:"Delivered", value:logStats.delivered, icon:CheckCircle2, iconBg:"bg-emerald-100",iconColor:"#10b981",glow:"#10b981",gradient:"from-emerald-50 to-emerald-50/40"},
-          {label:"Pending",   value:logStats.pending,   icon:Clock,        iconBg:logStats.pending>0?"bg-amber-100":"bg-secondary",iconColor:logStats.pending>0?"#f59e0b":"hsl(220,10%,55%)",glow:logStats.pending>0?"#f59e0b":"transparent",gradient:logStats.pending>0?"from-amber-50 to-amber-50/40":"from-secondary to-secondary/40"},
-          {label:"Failed",    value:logStats.failed,    icon:AlertCircle,  iconBg:logStats.failed>0?"bg-red-100":"bg-secondary",iconColor:logStats.failed>0?"#ef4444":"hsl(220,10%,55%)",glow:logStats.failed>0?"#ef4444":"transparent",gradient:logStats.failed>0?"from-red-50 to-red-50/40":"from-secondary to-secondary/40"},
-        ].map((c,i)=>(
-          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`} style={{minHeight:100}}>
-            <div className="absolute -bottom-6 -right-6 w-16 h-16 rounded-full opacity-[0.08] blur-lg" style={{background:c.glow}}/>
+          { label: "Delivered", value: String(logStats.delivered), icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "Pending", value: String(logStats.pending), icon: Clock, iconBg: logStats.pending > 0 ? "bg-amber-100" : "bg-secondary", iconColor: logStats.pending > 0 ? "#f59e0b" : "hsl(220,10%,55%)", glow: logStats.pending > 0 ? "#f59e0b" : "transparent", gradient: logStats.pending > 0 ? "from-amber-50 to-amber-50/30" : "from-secondary to-secondary/30" },
+          { label: "Failed", value: String(logStats.failed), icon: AlertCircle, iconBg: logStats.failed > 0 ? "bg-rose-100" : "bg-secondary", iconColor: logStats.failed > 0 ? "#f43f5e" : "hsl(220,10%,55%)", glow: logStats.failed > 0 ? "#f43f5e" : "transparent", gradient: logStats.failed > 0 ? "from-rose-50 to-rose-50/30" : "from-secondary to-secondary/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                <c.icon className="h-4 w-4" style={{color:c.iconColor}}/>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
               </div>
             </div>
             <div className="z-10 mt-2">
-              <p className="font-mono text-[20px] font-bold text-foreground">{c.value}</p>
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
             </div>
           </div>
         ))}
@@ -131,8 +132,8 @@ const AdminSMS = () => {
       <div className="flex gap-1 rounded-xl bg-secondary p-1">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${
-              tab === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${
+              tab === key ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"
             }`}>
             <Icon className="h-3.5 w-3.5"/>{label}
           </button>

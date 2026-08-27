@@ -59,30 +59,31 @@ const CashierShiftHistory = () => {
   });
 
   return (
-    <div className="space-y-5">
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)", boxShadow: "0 20px 48px rgba(15,110,86,0.15)" }}>
-        {[[200, "-60px", "-60px", "top", "right"], [250, "-100px", "-60px", "bottom", "left"]].map(([sz, a, b, v, h], i) => (
-          <div key={i} style={{ position: "absolute", [v as string]: a, [h as string]: b, width: sz, height: sz, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
-        ))}
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 border border-white/20">
-            <CalendarRange className="h-6 w-6 text-emerald-100" />
-          </div>
+    <div className="space-y-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">Shift History & Reconciliation</h1>
-            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>View your past shifts, float amounts, and cash drawer reconciliations</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Audit & Float</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Shift History & Cash Drawer Reconciliation</h1>
+            <p className="text-xs text-white/70 mt-0.5">Review drawer balances, starting floats, and cashier reconciliations</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Left Column: Shift List */}
-        <div className="md:col-span-1 space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+        <div className="md:col-span-1 space-y-2.5 max-h-[70vh] overflow-y-auto pr-1">
           {isLoading ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-emerald-600" /></div>
           ) : shifts.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground text-sm border rounded-2xl bg-card">No shift history found.</div>
+            <div className="text-center py-10 text-muted-foreground text-xs border rounded-2xl bg-card">No shift history found.</div>
           ) : (
             shifts.map((shift: any) => {
               const isSelected = selectedShift?.id === shift.id;
@@ -92,35 +93,35 @@ const CashierShiftHistory = () => {
                 <div
                   key={shift.id}
                   onClick={() => setSelectedShift(shift)}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${isSelected ? "bg-emerald-50 border-emerald-300 shadow-md" : "bg-card hover:bg-slate-50 border-slate-200"
+                  className={`cursor-pointer rounded-xl border p-3 transition-all ${isSelected ? "bg-emerald-50 border-emerald-300 shadow-xs" : "bg-card hover:bg-slate-50 border-border"
                     }`}
                 >
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-1.5">
                     <div>
-                      <p className={`text-sm font-bold ${isSelected ? "text-emerald-800" : "text-foreground"}`}>
+                      <p className={`text-xs font-bold ${isSelected ? "text-emerald-800" : "text-foreground"}`}>
                         {openDate.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
                       </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Clock className="h-3 w-3" /> {openDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         <span className="mx-1">•</span>
                         <span className="truncate max-w-[100px]">{shift.cashier_name}</span>
                       </p>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider ${isClosed ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700 animate-pulse"
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider ${isClosed ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700 animate-pulse"
                       }`}>
                       {shift.status.toUpperCase()}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between mt-3 text-xs">
+                  <div className="flex items-center justify-between mt-2 text-xs">
                     <div>
-                      <p className="text-muted-foreground">Collected</p>
-                      <p className="font-mono font-semibold text-foreground">{fmt(shift.system_computed_cash)}</p>
+                      <p className="text-[10px] text-muted-foreground">Collected</p>
+                      <p className="font-mono font-semibold text-foreground text-xs">{fmt(shift.system_computed_cash)}</p>
                     </div>
                     {isClosed && (
                       <div className="text-right">
-                        <p className="text-muted-foreground">Discrepancy</p>
-                        <p className={`font-mono font-bold ${shift.discrepancy === 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        <p className="text-[10px] text-muted-foreground">Discrepancy</p>
+                        <p className={`font-mono font-bold text-xs ${shift.discrepancy === 0 ? "text-emerald-600" : "text-red-600"}`}>
                           {shift.discrepancy > 0 ? "+" : ""}{fmt(shift.discrepancy)}
                         </p>
                       </div>
@@ -135,82 +136,82 @@ const CashierShiftHistory = () => {
         {/* Right Column: Shift Details */}
         <div className="md:col-span-2">
           {selectedShift ? (
-            <div className="rounded-2xl border bg-card shadow-sm overflow-hidden sticky top-24">
-              <div className="border-b bg-slate-50 px-6 py-4 flex items-center justify-between">
+            <div className="rounded-2xl border bg-card shadow-xs overflow-hidden sticky top-24">
+              <div className="border-b bg-gradient-to-r from-emerald-50/50 to-transparent px-4 py-3 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-foreground">Shift Details</h3>
-                  <p className="text-xs text-muted-foreground">ID: {selectedShift.id} • Cashier: {selectedShift.cashier_name}</p>
+                  <h3 className="font-bold text-foreground text-xs">Shift Details</h3>
+                  <p className="text-[10px] text-muted-foreground">ID: {selectedShift.id} • Cashier: {selectedShift.cashier_name}</p>
                 </div>
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider ${selectedShift.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-700"
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider ${selectedShift.status === "closed" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-700"
                   }`}>
                   {selectedShift.status === "closed" ? "CLOSED SHIFT" : "ACTIVE SHIFT"}
                 </span>
               </div>
 
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+              <div className="p-4 space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-0.5">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Opened At</p>
-                    <p className="font-medium text-sm">{new Date(selectedShift.opened_at).toLocaleString("en-PH")}</p>
+                    <p className="font-medium text-xs">{new Date(selectedShift.opened_at).toLocaleString("en-PH")}</p>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Closed At</p>
-                    <p className="font-medium text-sm">{selectedShift.closed_at ? new Date(selectedShift.closed_at).toLocaleString("en-PH") : "—"}</p>
+                    <p className="font-medium text-xs">{selectedShift.closed_at ? new Date(selectedShift.closed_at).toLocaleString("en-PH") : "—"}</p>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-5 grid grid-cols-2 gap-y-4 gap-x-8">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 grid grid-cols-2 gap-y-3 gap-x-6">
                   <div>
-                    <p className="text-xs text-emerald-600/80 font-medium mb-1">Starting Cash (Float)</p>
-                    <p className="font-mono text-xl font-bold text-emerald-900">{fmt(selectedShift.starting_cash)}</p>
+                    <p className="text-[10px] text-emerald-600/80 font-medium mb-0.5">Starting Cash (Float)</p>
+                    <p className="font-mono text-base font-bold text-emerald-900">{fmt(selectedShift.starting_cash)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-emerald-600/80 font-medium mb-1">System Collected</p>
-                    <p className="font-mono text-xl font-bold text-emerald-900">+ {fmt(selectedShift.system_computed_cash)}</p>
+                    <p className="text-[10px] text-emerald-600/80 font-medium mb-0.5">System Collected</p>
+                    <p className="font-mono text-base font-bold text-emerald-900">+ {fmt(selectedShift.system_computed_cash)}</p>
                   </div>
-                  <div className="col-span-2 border-t border-emerald-200/60 pt-4">
-                    <p className="text-xs text-emerald-600/80 font-medium mb-1">Expected Total in Drawer</p>
-                    <p className="font-mono text-2xl font-bold text-emerald-700">{fmt(selectedShift.starting_cash + selectedShift.system_computed_cash)}</p>
+                  <div className="col-span-2 border-t border-emerald-200/60 pt-3">
+                    <p className="text-[10px] text-emerald-600/80 font-medium mb-0.5">Expected Total in Drawer</p>
+                    <p className="font-mono text-lg font-bold text-emerald-700">{fmt(selectedShift.starting_cash + selectedShift.system_computed_cash)}</p>
                   </div>
                 </div>
 
                 {selectedShift.status === "closed" ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between rounded-xl bg-slate-50 border p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 border p-3">
                       <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Actual Cash Counted</p>
-                        <p className="font-mono text-xl font-bold text-foreground">{fmt(selectedShift.actual_ending_cash)}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground mb-0.5">Actual Cash Counted</p>
+                        <p className="font-mono text-base font-bold text-foreground">{fmt(selectedShift.actual_ending_cash)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Discrepancy</p>
-                        <div className={`flex items-center justify-end gap-1 font-mono text-lg font-bold ${selectedShift.discrepancy === 0 ? "text-emerald-600" : "text-red-600"
+                        <p className="text-[10px] font-medium text-muted-foreground mb-0.5">Discrepancy</p>
+                        <div className={`flex items-center justify-end gap-1 font-mono text-base font-bold ${selectedShift.discrepancy === 0 ? "text-emerald-600" : "text-red-600"
                           }`}>
-                          {selectedShift.discrepancy === 0 ? <CheckCircle2 className="h-5 w-5" /> :
-                            selectedShift.discrepancy > 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                          {selectedShift.discrepancy === 0 ? <CheckCircle2 className="h-4 w-4" /> :
+                            selectedShift.discrepancy > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                           {selectedShift.discrepancy > 0 ? "+" : ""}{fmt(selectedShift.discrepancy)}
                         </div>
                       </div>
                     </div>
                     {selectedShift.notes && (
-                      <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                        <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Notes</p>
-                        <p className="text-sm text-amber-900/80">{selectedShift.notes}</p>
+                      <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+                        <p className="text-[10px] font-semibold text-amber-800 uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><FileText className="h-3 w-3" /> Notes</p>
+                        <p className="text-xs text-amber-900/80">{selectedShift.notes}</p>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 flex flex-col items-center justify-center text-center">
-                    <Activity className="h-8 w-8 text-slate-400 mb-2 animate-pulse" />
-                    <p className="font-semibold text-slate-700">Shift is currently active</p>
-                    <p className="text-xs text-slate-500 mt-1">Close the shift from the dashboard to perform final cash reconciliation.</p>
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 flex flex-col items-center justify-center text-center">
+                    <Activity className="h-6 w-6 text-slate-400 mb-1.5 animate-pulse" />
+                    <p className="font-semibold text-xs text-slate-700">Shift is currently active</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Close the shift from the dashboard to perform final cash reconciliation.</p>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed bg-card h-full min-h-[400px] flex flex-col items-center justify-center text-muted-foreground">
-              <FileText className="h-10 w-10 text-slate-200 mb-3" />
-              <p className="font-medium">Select a shift to view details</p>
+            <div className="rounded-2xl border border-dashed bg-card h-full min-h-[300px] flex flex-col items-center justify-center text-muted-foreground">
+              <FileText className="h-8 w-8 text-slate-300 mb-2" />
+              <p className="font-medium text-xs">Select a shift on the left to view reconciliation</p>
             </div>
           )}
         </div>

@@ -1,13 +1,13 @@
 import VendorBottomNav from "@/components/VendorBottomNav";
 import { useState, useRef, useEffect } from "react";
-import { createWorker } from "tesseract.js";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2, Loader2, AlertTriangle, ArrowLeft,
   ChevronRight, Upload, Image, X, Scan, Building2,
-  Clock, FileText, Eye, XCircle, Lock,
+  Clock, FileText, Eye, XCircle, Lock, Shield,
+  Store, Calendar, Sparkles, Check, Info, BadgeCheck,
 } from "lucide-react";
 import { scanReceipt } from "@/lib/geminiReceiptScanner";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,8 +15,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`;
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmt = (n: number) => `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const DS = {
   gradientHeader: "linear-gradient(160deg, #0d2240 0%, #1a3a5f 45%, #1d4ed8 80%, #2563eb 100%)",
@@ -32,6 +36,13 @@ const BANK_DETAILS = {
   instapayQR: "/bankqr.png",
   notes: "Pay via InstaPay, bank transfer, GCash, or Maya to this account.",
 };
+
+const BOLANTE_CATEGORIES = [
+  { id: "business_permit", label: "Business Permit & Licensing (BPLO)", desc: "Annual / renewal municipal business permit requirement" },
+  { id: "regulatory_fee", label: "Annual Regulatory & Inspection Fee", desc: "Bolante section vendor regulatory compliance" },
+  { id: "market_clearance", label: "Market & Sanitary Clearance", desc: "Sanitary inspection and market operational permit" },
+  { id: "custom_fee", label: "Custom Requirement / Assessment Fee", desc: "Special assessment or custom permit payment" },
+];
 
 // ─── Step Bar ──────────────────────────────────────────────────────────────────
 const Steps = ({ current }: { current: 1 | 2 | 3 | 4 }) => (
@@ -101,15 +112,27 @@ const OCRResult = ({ data }: { data: any }) => {
   );
 };
 
-// ─── Component ─────────────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────────
 const VendorPayOnline = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [payType, setPayType] = useState<"full" | "staggered">("full");
-  const [staggeredAmount, setStaggeredAmount] = useState("");
+
+  // Month & Payment Mode selection
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [monthInitialized, setMonthInitialized] = useState(false);
+
+  // For regular stall vendors: 'month_due' | 'custom_advance' | 'permit_requirement'
+  const [paymentMode, setPaymentMode] = useState<"month_due" | "custom_advance" | "permit_requirement">("month_due");
+  const [customAmount, setCustomAmount] = useState("");
+
+  // For Bolante vendors
+  const [bolanteCategory, setBolanteCategory] = useState<string>("Business Permit & Licensing (BPLO)");
+  const [permitNote, setPermitNote] = useState("");
+
+  // Receipt & OCR state
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [ocrData, setOcrData] = useState<any | null>(null);
@@ -136,27 +159,18 @@ const VendorPayOnline = () => {
   };
 
   const checkDuplicateReference = async (ref: string): Promise<boolean> => {
-    if (!ref || ref.trim().length < 4) {
-      return false;
-    }
+    if (!ref || ref.trim().length < 4) return false;
     const rawRef = ref.trim();
     const normalizedRef = rawRef.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-    if (normalizedRef.length < 4) {
-      return false;
-    }
+    if (normalizedRef.length < 4) return false;
 
     setIsCheckingDuplicate(true);
     try {
-      // 1. Try SECURITY DEFINER RPC first to check all submissions & payments across system
       const { data: rpcDup, error: rpcErr } = await supabase.rpc("check_reference_exists" as any, {
         p_reference: rawRef
       });
+      if (!rpcErr && rpcDup === true) return true;
 
-      if (!rpcErr && rpcDup === true) {
-        return true;
-      }
-
-      // 2. Fallback check using normalized string matching on accessible submissions
       const { data: submissions } = await supabase
         .from("payment_submissions")
         .select("id, status, ocr_reference")
@@ -167,11 +181,7 @@ const VendorPayOnline = () => {
         return sRef && sRef === normalizedRef;
       });
 
-      if (match) {
-        return true;
-      }
-
-      return false;
+      return !!match;
     } catch (err) {
       console.error("Error checking duplicate reference:", err);
       return false;
@@ -181,7 +191,6 @@ const VendorPayOnline = () => {
   };
 
   useEffect(() => {
-    // If the uploaded receipt image itself was detected as duplicate, keep the duplicate error locked
     if (isReceiptImageDuplicate && detectedRef) {
       setDuplicateRefError(`Reference number "${detectedRef}" has already been submitted for a previous payment. Duplicate receipts are not allowed.`);
       return;
@@ -209,14 +218,29 @@ const VendorPayOnline = () => {
     queryFn: async () => {
       const { data: vendor } = await supabase
         .from("vendors")
-        .select("id, stall_id, stalls(id, stall_number, section, monthly_rate)")
+        .select("id, stall_id, business_permit_number, award_receipt_number, stalls(id, stall_number, section, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028)")
         .eq("user_id", user!.id)
         .single();
       if (!vendor) return null;
 
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, contact_number")
+        .eq("user_id", user!.id)
+        .single();
+
+      const { data: appData } = await supabase
+        .from("vendor_applications")
+        .select("preferred_section, business_permit_number, award_receipt_number")
+        .eq("applicant_user_id", user!.id)
+        .maybeSingle();
+
       const stall = vendor.stalls as any;
+      const preferredSection = appData?.preferred_section || null;
+      const isBolante = !stall && (!!preferredSection?.toLowerCase().includes("bolante") || !vendor.stall_id);
       const defaultRate = stall ? (Number(stall.monthly_rate_2026) || Number(stall.monthly_rate) || 0) : 0;
       const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
 
       const [paymentsRes, schedulesRes] = await Promise.all([
         supabase.from("payments")
@@ -229,7 +253,6 @@ const VendorPayOnline = () => {
             .select("*").eq("stall_id", stall.id).eq("year", currentYear)
           : Promise.resolve({ data: [] }),
       ]);
-
 
       const payments = paymentsRes.data || [];
       const schedules = schedulesRes.data || [];
@@ -253,29 +276,88 @@ const VendorPayOnline = () => {
       }
 
       let nextUnpaidMonth = 13;
-      for (let m = 1; m <= 12; m++) {
-        if (effectiveMap[m] < getMonthFee(m)) { nextUnpaidMonth = m; break; }
+      if (stall && defaultRate > 0) {
+        for (let m = 1; m <= 12; m++) {
+          if (effectiveMap[m] < getMonthFee(m)) {
+            nextUnpaidMonth = m;
+            break;
+          }
+        }
       }
 
-      const monthlyRate = getMonthFee(nextUnpaidMonth);
-      const paidForNextMonth = effectiveMap[nextUnpaidMonth] || 0;
-      const remainingBalance = Math.max(0, monthlyRate - paidForNextMonth);
+      const isCurrentMonthPaid = stall && defaultRate > 0 ? (effectiveMap[currentMonth] || 0) >= getMonthFee(currentMonth) : true;
+      const allRegularPaid = stall && defaultRate > 0 ? nextUnpaidMonth > 12 : false;
 
-      return { vendor, stall, monthlyRate, nextUnpaidMonth, paidForNextMonth, remainingBalance, allPaid: nextUnpaidMonth > 12 };
+      // Determine default recommended target month
+      let defaultTargetMonth = currentMonth;
+      if (stall && defaultRate > 0) {
+        if (nextUnpaidMonth <= 12) {
+          defaultTargetMonth = nextUnpaidMonth;
+        } else {
+          // If all months up to Dec are paid, default to upcoming year cycle or current month
+          defaultTargetMonth = currentMonth;
+        }
+      }
+
+      return {
+        vendor,
+        profile,
+        stall,
+        defaultRate,
+        currentYear,
+        currentMonth,
+        isBolante,
+        preferredSection,
+        nextUnpaidMonth,
+        defaultTargetMonth,
+        isCurrentMonthPaid,
+        allRegularPaid,
+        effectiveMap,
+        rawPaidMap,
+        getMonthFee,
+        businessPermitNumber: appData?.business_permit_number || vendor.business_permit_number || null,
+      };
     },
   });
 
+  // Automatically initialize selectedMonth to recommended default target month
+  useEffect(() => {
+    if (data?.defaultTargetMonth && !monthInitialized) {
+      setSelectedMonth(data.defaultTargetMonth);
+      setMonthInitialized(true);
+    }
+  }, [data?.defaultTargetMonth, monthInitialized]);
+
   const stall = data?.stall;
-  const monthlyRate = data?.monthlyRate ?? 0;
-  const nextUnpaidMonth = data?.nextUnpaidMonth || (new Date().getMonth() + 1);
-  const remainingBalance = data?.remainingBalance || monthlyRate;
-  const paidForNextMonth = data?.paidForNextMonth || 0;
-  const payAmount = payType === "full" ? remainingBalance : Number(staggeredAmount || 0);
+  const isBolante = !!data?.isBolante;
+  const preferredSection = data?.preferredSection || (isBolante ? "Bolante Section" : "General");
+  const currentYear = data?.currentYear || new Date().getFullYear();
+  const currentMonth = data?.currentMonth || (new Date().getMonth() + 1);
+
+  // Month-specific calculations
+  const selectedMonthFee = data ? data.getMonthFee(selectedMonth) : 0;
+  const selectedMonthPaid = data ? (data.effectiveMap[selectedMonth] || 0) : 0;
+  const selectedMonthBalance = Math.max(0, selectedMonthFee - selectedMonthPaid);
+  const isSelectedMonthSettled = selectedMonthFee > 0 && selectedMonthPaid >= selectedMonthFee;
+
+  // Calculate the amount to pay based on selection and mode
+  let payAmount = 0;
+  if (isBolante) {
+    payAmount = Number(customAmount || 0);
+  } else {
+    if (paymentMode === "month_due") {
+      // If month has remaining balance, use balance; if already fully paid, use the full monthly rate for advance credit
+      payAmount = selectedMonthBalance > 0 ? selectedMonthBalance : selectedMonthFee;
+    } else {
+      payAmount = Number(customAmount || 0);
+    }
+  }
+
   const actualSubmittedAmount = (paidAmount && !isNaN(Number(paidAmount)) && Number(paidAmount) > 0)
     ? Number(paidAmount)
     : payAmount;
-  const excessCredit = actualSubmittedAmount > remainingBalance ? actualSubmittedAmount - remainingBalance : 0;
-  const canProceed = payType === "full" ? remainingBalance > 0 : (!!staggeredAmount && Number(staggeredAmount) > 0);
+
+  const canProceed = payAmount > 0;
 
   const handleFileSelect = async (file: File) => {
     setReceiptFile(file);
@@ -302,7 +384,6 @@ const VendorPayOnline = () => {
         setDetectedRef(results.reference_number);
         setRefNum(results.reference_number);
 
-        // Immediately check if the scanned receipt reference was already used
         const isDup = await checkDuplicateReference(results.reference_number);
         if (isDup) {
           setIsReceiptImageDuplicate(true);
@@ -363,13 +444,12 @@ const VendorPayOnline = () => {
         .getPublicUrl(filePath);
       const receiptUrl = urlData.publicUrl;
 
-       /*
-   
-      */
       const finalAmount = (paidAmount && !isNaN(Number(paidAmount)) && Number(paidAmount) > 0)
         ? Number(paidAmount)
         : payAmount;
-      const isPartial = finalAmount < remainingBalance;
+
+      const isPartial = !isBolante && paymentMode === "month_due" && finalAmount < selectedMonthBalance;
+      const paymentType = isPartial || paymentMode === "custom_advance" ? "staggered" : "due";
 
       const { data: submission, error: subError } = await supabase
         .from("payment_submissions")
@@ -378,35 +458,44 @@ const VendorPayOnline = () => {
           vendor_user_id: user!.id,
           stall_id: data.vendor.stall_id || null,
           amount: finalAmount,
-          period_month: nextUnpaidMonth,
-          period_year: new Date().getFullYear(),
+          period_month: selectedMonth >= 1 && selectedMonth <= 12 ? selectedMonth : currentMonth,
+          period_year: currentYear,
           payment_method: "instapay",
-          payment_type: isPartial ? "staggered" : "due",
+          payment_type: paymentType,
           receipt_url: receiptUrl,
           receipt_path: filePath,
           ocr_reference: refNum || null,
           ocr_amount: finalAmount,
           ocr_datetime: ocrData?.datetime || null,
-          ocr_recipient: ocrData?.recipient || null,
-          ocr_raw: ocrData ? JSON.stringify(ocrData) : null,
+          ocr_recipient: isBolante ? bolanteCategory : (paymentMode === "permit_requirement" ? "Business Permit / Requirement" : (ocrData?.recipient || null)),
+          ocr_raw: JSON.stringify({ ...(ocrData || {}), bolanteCategory: isBolante ? bolanteCategory : null, purpose: isBolante ? bolanteCategory : paymentMode }),
           status: "pending",
         })
         .select("id")
         .single();
       if (subError) throw new Error(`Submission failed: ${subError.message}`);
 
+      // Notify cashiers
       const { data: cashiers } = await supabase
         .from("user_roles")
         .select("user_id")
         .eq("role", "cashier");
 
       if (cashiers?.length) {
-        const vendorName = `${stall?.stall_number} — ${stall?.section}`;
+        const vendorDisplayName = data.profile ? `${data.profile.first_name} ${data.profile.last_name}` : "Vendor";
+        const title = isBolante
+          ? `📋 Bolante Requirement Payment — ${fmt(finalAmount)}`
+          : `📋 New Online Payment — ${fmt(finalAmount)}`;
+
+        const message = isBolante
+          ? `Bolante Vendor ${vendorDisplayName} (${preferredSection}) submitted a payment receipt for ${bolanteCategory}.\n• Amount: ${fmt(finalAmount)}\n• Period: ${MONTHS[selectedMonth - 1]} ${currentYear}\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`
+          : `Vendor ${stall?.stall_number ? `Stall ${stall.stall_number} (${stall.section})` : vendorDisplayName} submitted a payment receipt for ${MONTHS[selectedMonth - 1]} ${currentYear}.\n• Amount: ${fmt(finalAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`;
+
         await supabase.from("notifications").insert(
           cashiers.map((c: any) => ({
             user_id: c.user_id,
-            title: `📋 New Online Payment — ${fmt(finalAmount)}`,
-            message: `Vendor ${vendorName} submitted a payment receipt for ${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}.\n• Amount: ${fmt(finalAmount)}\n• Method: InstaPay / Bank Transfer\n• Ref: ${refNum || "—"}\n\nPlease review and verify in Accept Payment.`,
+            title,
+            message,
             type: "info",
           }))
         );
@@ -430,21 +519,12 @@ const VendorPayOnline = () => {
     </div>
   );
 
-  if (data?.allPaid) return (
-    <div className="flex flex-col items-center justify-center py-20 text-center max-w-sm mx-auto">
-      <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-50">
-        <CheckCircle2 className="h-10 w-10 text-green-600" />
-      </div>
-      <h2 className="text-2xl font-bold text-foreground">All Paid for {new Date().getFullYear()}!</h2>
-      <p className="mt-2 text-muted-foreground">You have no outstanding balance for this year.</p>
-    </div>
-  );
-
+  // Step 4: Submission Confirmation
   if (step === 4) return (
     <div className="-mx-4 -mt-4 lg:mx-0 lg:mt-0">
       <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-6 text-center">
-          <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-3">
+          <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-3 shadow-lg">
             <CheckCircle2 className="h-9 w-9 text-white" />
           </div>
           <h2 className="text-2xl font-black text-white">Receipt Submitted!</h2>
@@ -455,8 +535,8 @@ const VendorPayOnline = () => {
       </div>
 
       <div className="hidden lg:flex flex-col items-center justify-center py-12 text-center max-w-sm mx-auto space-y-5">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-success/10">
-          <CheckCircle2 className="h-10 w-10 text-success" />
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600">
+          <CheckCircle2 className="h-10 w-10 text-green-600" />
         </div>
         <div>
           <h2 className="text-2xl font-bold text-foreground">Receipt Submitted!</h2>
@@ -467,12 +547,12 @@ const VendorPayOnline = () => {
       </div>
 
       <div className="px-4 py-4 lg:px-8 lg:max-w-sm lg:mx-auto space-y-4">
-        <div className="rounded-2xl border bg-card p-5 space-y-2.5 text-sm">
+        <div className="rounded-2xl border bg-card p-5 space-y-2.5 text-sm shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Submission Summary</p>
           {[
-            { label: "Stall", value: `${stall?.stall_number} — ${stall?.section}` },
-            { label: "Period", value: `${MONTHS[nextUnpaidMonth - 1]} ${new Date().getFullYear()}` },
-            { label: "Amount", value: fmt(payAmount) },
+            { label: "Account / Stall", value: isBolante ? `Bolante — ${preferredSection}` : `${stall?.stall_number || "—"} (${stall?.section || "General"})` },
+            { label: "Period / Purpose", value: isBolante ? `${bolanteCategory} (${MONTHS[selectedMonth - 1]} ${currentYear})` : `${MONTHS[selectedMonth - 1]} ${currentYear}` },
+            { label: "Amount", value: fmt(actualSubmittedAmount) },
             { label: "Reference", value: refNum || "—" },
             { label: "Status", value: "⏳ Pending cashier review" },
           ].map(r => (
@@ -485,13 +565,14 @@ const VendorPayOnline = () => {
 
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 flex items-start gap-2">
           <Clock className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>The cashier will review your receipt and confirm your payment. You'll be notified once it's approved.</span>
+          <span>The cashier will review your receipt and confirm your payment. You'll receive a notification once verified.</span>
         </div>
 
-        <Button variant="outline" className="w-full" onClick={() => {
-          setStep(1); setReceiptFile(null); setReceiptPreview(null);
-          setOcrData(null); setStaggeredAmount(""); setSubmissionId(null);
-          setRefNum(""); setPaidAmount("");
+        <Button variant="outline" className="w-full rounded-xl h-11" onClick={() => {
+          setStep(1);
+          resetReceiptState();
+          setCustomAmount("");
+          setSubmissionId(null);
         }}>
           Submit Another Payment
         </Button>
@@ -505,14 +586,22 @@ const VendorPayOnline = () => {
       <div className="lg:hidden" style={{ background: DS.gradientHeader, paddingBottom: 0 }}>
         <div className="px-5 pt-5 pb-3">
           <h1 className="text-2xl font-black text-white">Pay Online</h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Pay via bank transfer or e-wallet and upload your receipt</p>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
+            {isBolante
+              ? "Pay for your business permit & regulatory requirements"
+              : "Pay stall rental or advance fees & upload your receipt"}
+          </p>
         </div>
       </div>
 
       {/* Desktop page header */}
       <div className="hidden lg:block" style={{ padding: "28px 32px 0" }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Pay Online</h1>
-        <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Pay via bank transfer or e-wallet and upload your receipt</p>
+        <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>
+          {isBolante
+            ? "Pay for your business permit, regulatory compliance, and municipal fees online"
+            : "Pay stall rental or advance fees via bank transfer / e-wallet and upload your receipt"}
+        </p>
       </div>
 
       {/* Step bar */}
@@ -520,114 +609,372 @@ const VendorPayOnline = () => {
 
       <div className="px-4 py-4 lg:px-8 lg:pb-8 lg:max-w-2xl space-y-4">
 
-        {/* ── STEP 1: Review ─────────────────────────────────────────────── */}
+        {/* ── STEP 1: Review & Configure Payment ─────────────────────────────── */}
         {step === 1 && (
           <div className="space-y-4">
-            {/* Bill card */}
-            <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: DS.gradientHeader }}>
-              <div className="flex items-start justify-between p-5">
-                <div>
-                  <p className="text-[9px] uppercase tracking-[2px]" style={{ color: "rgba(255,255,255,0.55)" }}>Billing Period</p>
-                  <p className="text-xl font-black text-white mt-1">{MONTHS[nextUnpaidMonth - 1]} {new Date().getFullYear()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] uppercase tracking-[1px]" style={{ color: "rgba(255,255,255,0.55)" }}>Stall</p>
-                  <p className="font-mono font-black text-white text-xl">{stall?.stall_number || "—"}</p>
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>{stall?.section}</p>
-                </div>
-              </div>
-              <div className="mx-5" style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
-              <div className="px-5 py-4 space-y-2.5 text-sm">
-                <div className="flex justify-between">
-                  <span style={{ color: "rgba(255,255,255,0.65)" }}>Monthly Rate</span>
-                  <span className="font-mono text-white">{fmt(monthlyRate)}</span>
-                </div>
-                {paidForNextMonth > 0 && (
-                  <>
-                    <div className="flex justify-between">
-                      <span style={{ color: "rgba(255,255,255,0.65)" }}>Already Paid</span>
-                      <span className="font-mono text-green-300 font-medium">− {fmt(paidForNextMonth)}</span>
-                    </div>
-                    <div style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
-                  </>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-white font-bold">{paidForNextMonth > 0 ? "Remaining Balance" : "Amount Due"}</span>
-                  <span className="font-mono text-3xl font-black text-white">{fmt(remainingBalance)}</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Payment type */}
-            <div className="rounded-2xl border bg-card p-5 shadow-civic space-y-3">
-              <p className="text-sm font-bold text-foreground">Payment Type</p>
-              <div className="flex rounded-xl bg-slate-100 p-1">
-                <button onClick={() => setPayType("full")}
-                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${payType === "full" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>
-                  Full Payment
-                </button>
-                <button onClick={() => setPayType("staggered")}
-                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${payType === "staggered" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>
-                  Custom / Advance
-                </button>
-              </div>
-              {payType === "staggered" && (
-                <div className="space-y-3">
-                  {excessCredit > 0 ? (
-                    <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm flex items-start gap-2 text-emerald-800">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-bold text-emerald-900">Advance Overpayment</p>
-                        <p className="text-xs text-emerald-700 mt-0.5">
-                          {fmt(remainingBalance)} covers current due in full. The excess <strong>{fmt(excessCredit)}</strong> will automatically credit & deduct from next month's rate!
-                        </p>
-                      </div>
+            {/* ── BOLANTE VENDOR CARD ── */}
+            {isBolante ? (
+              <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: DS.gradientHeader }}>
+                <div className="flex items-start justify-between p-5">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-300/30 text-[11px] font-bold mb-2">
+                      <Shield className="h-3.5 w-3.5" /> Bolante Section Vendor
                     </div>
-                  ) : (
-                    <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-sm flex items-start gap-2 text-blue-800">
-                      <Clock className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-                      <p className="text-blue-800 text-xs">Enter any amount (partial payment or larger advance payment).</p>
+                    <p className="text-xl font-black text-white">{preferredSection}</p>
+                    <p className="text-xs text-white/70 mt-1">No monthly physical stall rent required</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] uppercase tracking-[1px] text-white/60">Permit Status</p>
+                    <p className="font-bold text-white text-sm mt-0.5">
+                      {data?.businessPermitNumber ? `Permit #${data.businessPermitNumber}` : "Registered"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mx-5" style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
+
+                <div className="px-5 py-4 space-y-3">
+                  <div className="rounded-xl bg-white/10 p-3 text-xs text-white/90 leading-relaxed border border-white/10 flex items-start gap-2.5">
+                    <Info className="h-4 w-4 shrink-0 text-amber-300 mt-0.5" />
+                    <span>
+                      Bolante vendors do not occupy a fixed physical stall. You can use this portal to pay for your <strong>Business Permit (BPLO)</strong>, <strong>Mayor's Permit</strong>, and <strong>regulatory requirements</strong> online.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── REGULAR STALL VENDOR BILL CARD ── */
+              <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: DS.gradientHeader }}>
+                <div className="flex items-start justify-between p-5">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[2px]" style={{ color: "rgba(255,255,255,0.55)" }}>Target Billing Period</p>
+                    <p className="text-xl font-black text-white mt-1">
+                      {MONTHS[selectedMonth - 1]} {currentYear}
+                    </p>
+                    {selectedMonth > currentMonth && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-200 bg-blue-500/30 px-2 py-0.5 rounded-full mt-1.5 border border-blue-300/30">
+                        <Sparkles className="h-2.5 w-2.5" /> Advance Payment
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] uppercase tracking-[1px]" style={{ color: "rgba(255,255,255,0.55)" }}>Stall</p>
+                    <p className="font-mono font-black text-white text-xl">{stall?.stall_number || "—"}</p>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>{stall?.section || "General"}</p>
+                  </div>
+                </div>
+
+                <div className="mx-5" style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
+
+                <div className="px-5 py-4 space-y-2.5 text-sm">
+                  <div className="flex justify-between">
+                    <span style={{ color: "rgba(255,255,255,0.65)" }}>Monthly Rate ({MONTHS[selectedMonth - 1]})</span>
+                    <span className="font-mono text-white">{fmt(selectedMonthFee)}</span>
+                  </div>
+
+                  {selectedMonthPaid > 0 && (
+                    <>
+                      <div className="flex justify-between">
+                        <span style={{ color: "rgba(255,255,255,0.65)" }}>Already Credited</span>
+                        <span className="font-mono text-green-300 font-medium">− {fmt(selectedMonthPaid)}</span>
+                      </div>
+                      <div style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
+                    </>
+                  )}
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-white font-bold">
+                      {isSelectedMonthSettled ? "Amount (Advance Credit)" : (selectedMonthPaid > 0 ? "Remaining Balance" : "Amount Due")}
+                    </span>
+                    <span className="font-mono text-3xl font-black text-white">
+                      {fmt(isSelectedMonthSettled ? selectedMonthFee : selectedMonthBalance)}
+                    </span>
+                  </div>
+
+                  {isSelectedMonthSettled && (
+                    <div className="rounded-lg bg-green-500/20 border border-green-400/30 p-2 text-xs text-green-200 flex items-center gap-1.5 mt-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-300 shrink-0" />
+                      <span>{MONTHS[selectedMonth - 1]} is already settled. You can still pay extra advance credit or select another month.</span>
                     </div>
                   )}
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Amount to Pay (₱)</Label>
+                </div>
+              </div>
+            )}
+
+            {/* ── BILLING MONTH SELECTOR (only for regular stall vendors with monthly stall rental) ── */}
+            {!isBolante && (
+              <div className="rounded-2xl border bg-card p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-primary" /> Select Billing Month
+                  </p>
+                  <span className="text-xs text-muted-foreground">Year {currentYear}</span>
+                </div>
+
+                {/* Month pills grid */}
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                  {MONTHS_SHORT.map((mShort, idx) => {
+                    const mNum = idx + 1;
+                    const isSelected = selectedMonth === mNum;
+                    const mFee = data ? data.getMonthFee(mNum) : 0;
+                    const mPaid = data ? (data.effectiveMap[mNum] || 0) : 0;
+                    const isPaid = mFee > 0 && mPaid >= mFee;
+                    const isCurrent = mNum === currentMonth;
+
+                    return (
+                      <button
+                        key={mNum}
+                        type="button"
+                        onClick={() => setSelectedMonth(mNum)}
+                        className={`relative py-2 px-1 rounded-xl text-center border text-xs font-medium transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary text-white shadow-sm ring-2 ring-primary/20"
+                            : isPaid
+                              ? "border-green-200 bg-green-50/70 text-green-800 hover:bg-green-100/70"
+                              : isCurrent
+                                ? "border-amber-300 bg-amber-50/70 text-amber-900 hover:bg-amber-100/70 font-bold"
+                                : "border-border bg-background text-foreground hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="text-[11px] font-bold">{mShort}</div>
+                        <div className="text-[9px] mt-0.5 truncate">
+                          {isPaid ? (
+                            <span className={isSelected ? "text-green-200" : "text-green-700"}>Paid ✓</span>
+                          ) : isCurrent ? (
+                            <span className={isSelected ? "text-amber-200" : "text-amber-700"}>Current</span>
+                          ) : (
+                            <span className={isSelected ? "text-blue-100" : "text-muted-foreground"}>
+                              {mNum > currentMonth ? "Adv" : "—"}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── PAYMENT CONFIGURATION (BOLANTE vs STALL) ── */}
+            {isBolante ? (
+              /* BOLANTE REQUIREMENT SELECTOR */
+              <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Select Requirement / Payment Purpose</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Choose the municipal requirement you are paying for</p>
+                </div>
+
+                <div className="space-y-2">
+                  {BOLANTE_CATEGORIES.map(cat => {
+                    const isSelected = bolanteCategory === cat.label;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setBolanteCategory(cat.label)}
+                        className={`w-full p-3.5 rounded-xl border text-left transition-all flex items-start justify-between gap-3 ${
+                          isSelected
+                            ? "border-primary bg-blue-50/60 ring-1 ring-primary"
+                            : "border-border bg-card hover:bg-slate-50"
+                        }`}
+                      >
+                        <div>
+                          <p className={`text-xs font-bold ${isSelected ? "text-primary" : "text-foreground"}`}>
+                            {cat.label}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{cat.desc}</p>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                          isSelected ? "border-primary bg-primary text-white" : "border-slate-300"
+                        }`}>
+                          {isSelected && <Check className="h-2.5 w-2.5" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Quick amount presets */}
+                <div className="space-y-2 pt-2 border-t">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Amount to Pay (₱) <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {["500", "1000", "1500", "2000"].map(amt => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setCustomAmount(amt)}
+                        className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                          customAmount === amt
+                            ? "bg-primary text-white border-primary shadow-sm"
+                            : "bg-slate-50 text-slate-700 border-border hover:bg-slate-100"
+                        }`}
+                      >
+                        ₱{Number(amt).toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="relative mt-2">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono font-bold text-base">₱</span>
                     <Input
                       type="number"
-                      placeholder="e.g. 55.00"
-                      value={staggeredAmount}
-                      onChange={e => setStaggeredAmount(e.target.value)}
-                      className="h-11 rounded-xl font-mono text-lg"
+                      placeholder="Enter custom amount (e.g. 500.00)"
+                      value={customAmount}
+                      onChange={e => setCustomAmount(e.target.value)}
+                      className="h-11 pl-8 rounded-xl font-mono text-base"
                     />
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              /* REGULAR STALL PAYMENT MODE SELECTOR */
+              <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Payment Type</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Pay standard monthly rate, advance lump-sum, or municipal permit fees</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 rounded-xl bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode("month_due")}
+                    className={`rounded-lg py-2.5 text-xs font-bold transition-all ${
+                      paymentMode === "month_due" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    Full Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode("custom_advance")}
+                    className={`rounded-lg py-2.5 text-xs font-bold transition-all ${
+                      paymentMode === "custom_advance" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    Custom / Advance
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMode("permit_requirement")}
+                    className={`rounded-lg py-2.5 text-xs font-bold transition-all ${
+                      paymentMode === "permit_requirement" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                  >
+                    Permit / Fee
+                  </button>
+                </div>
+
+                {paymentMode === "month_due" && (
+                  <div className="space-y-2">
+                    <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 flex items-start gap-2">
+                      <Clock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-blue-900">
+                          {selectedMonth > currentMonth ? `Advance payment for ${MONTHS[selectedMonth - 1]} ${currentYear}` : `Payment for ${MONTHS[selectedMonth - 1]} ${currentYear}`}
+                        </p>
+                        <p className="text-blue-700 mt-0.5">
+                          Will submit <strong>{fmt(payAmount)}</strong> to cover the {MONTHS[selectedMonth - 1]} monthly stall rental.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMode === "custom_advance" && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800 flex items-start gap-2">
+                      <Sparkles className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-blue-900">Custom / Advance Amount</p>
+                        <p className="text-blue-700 mt-0.5">
+                          Enter any custom amount. Any excess beyond the current due automatically rolls over as advance credit for subsequent months!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Amount to Pay (₱) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono font-bold">₱</span>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 1500.00"
+                          value={customAmount}
+                          onChange={e => setCustomAmount(e.target.value)}
+                          className="h-11 pl-8 rounded-xl font-mono text-base"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {paymentMode === "permit_requirement" && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-xs text-purple-800 flex items-start gap-2">
+                      <Shield className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-purple-900">Business Permit & Regulatory Payment</p>
+                        <p className="text-purple-700 mt-0.5">
+                          Use this option to pay for BPLO business permits, clearances, and regulatory assessments.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Amount to Pay (₱) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-mono font-bold">₱</span>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 500.00"
+                          value={customAmount}
+                          onChange={e => setCustomAmount(e.target.value)}
+                          className="h-11 pl-8 rounded-xl font-mono text-base"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
+              type="button"
               className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm rounded-2xl py-4 transition-all disabled:opacity-50"
               style={{ background: DS.gradientCard, boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
               disabled={!canProceed}
               onClick={() => setStep(2)}>
               <ChevronRight className="h-4 w-4" />
-              Continue to Payment Details
+              Continue to Payment Details ({fmt(payAmount)})
             </button>
           </div>
         )}
 
-        {/* ── STEP 2: Payment details ─────────────────────────────────────── */}
+        {/* ── STEP 2: Payment Details & Bank Transfer ──────────────────────── */}
         {step === 2 && (
           <div className="space-y-4">
             <button onClick={() => setStep(1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="h-4 w-4" /> Back
+              <ArrowLeft className="h-4 w-4" /> Back to Review
             </button>
 
             <div className="rounded-xl border bg-slate-50 px-4 py-3 flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">{MONTHS[nextUnpaidMonth - 1]} {new Date().getFullYear()} · {payType === "staggered" ? "Partial" : "Full"}</span>
+              <span className="text-muted-foreground">
+                {isBolante
+                  ? `${bolanteCategory} · ${currentYear}`
+                  : `${MONTHS[selectedMonth - 1]} ${currentYear} · ${paymentMode === "month_due" ? "Full Month" : paymentMode === "custom_advance" ? "Advance / Custom" : "Permit Fee"}`}
+              </span>
               <span className="font-mono font-bold text-foreground text-base">{fmt(payAmount)}</span>
             </div>
 
-            {/* Bank card */}
-            <div className="rounded-2xl border bg-card overflow-hidden shadow-civic">
+            {/* Bank details card */}
+            <div className="rounded-2xl border bg-card overflow-hidden shadow-sm">
               <div className="text-center py-4 px-5" style={{ background: DS.blue900 }}>
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <Building2 className="h-5 w-5 text-white opacity-70" />
@@ -651,6 +998,7 @@ const VendorPayOnline = () => {
                         </span>
                         {r.mono && (
                           <button
+                            type="button"
                             onClick={() => { navigator.clipboard.writeText(r.value); toast.success("Copied!"); }}
                             className="text-xs font-bold hover:underline shrink-0"
                             style={{ color: DS.blue600 }}>
@@ -666,7 +1014,7 @@ const VendorPayOnline = () => {
 
                 {BANK_DETAILS.instapayQR && (
                   <div className="flex flex-col items-center gap-2 py-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Scan QR to Pay</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Scan QR to Pay</p>
                     <img
                       src={BANK_DETAILS.instapayQR}
                       alt="Bank QR Code"
@@ -683,25 +1031,30 @@ const VendorPayOnline = () => {
                   style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
                   <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">Send Exactly</p>
                   <p className="font-mono text-3xl font-black text-green-700">{fmt(payAmount)}</p>
-                  <p className="text-xs text-slate-500 mt-1">{MONTHS[nextUnpaidMonth - 1]} {new Date().getFullYear()} · Stall {stall?.stall_number}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {isBolante
+                      ? `${bolanteCategory} · ${preferredSection}`
+                      : `${MONTHS[selectedMonth - 1]} ${currentYear} · Stall ${stall?.stall_number || "—"}`}
+                  </p>
                 </div>
 
                 <p className="text-xs text-center text-muted-foreground">{BANK_DETAILS.notes}</p>
               </div>
             </div>
 
-            {/* Instructions */}
+            {/* How to pay instructions */}
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2 text-sm text-amber-800">
               <p className="font-bold">How to pay:</p>
               <ol className="list-decimal list-inside space-y-1 text-xs leading-relaxed">
                 <li>Open your GCash, Maya, or banking app</li>
                 <li>Send <strong>{fmt(payAmount)}</strong> to the account above via InstaPay or bank transfer</li>
-                <li>Save or screenshot your payment confirmation/receipt</li>
-                <li>Come back here and upload the screenshot in the next step</li>
+                <li>Save or screenshot your payment confirmation / receipt</li>
+                <li>Proceed to the next step to upload the screenshot for verification</li>
               </ol>
             </div>
 
             <button
+              type="button"
               className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm rounded-2xl py-4"
               style={{ background: DS.gradientCard, boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
               onClick={() => setStep(3)}>
@@ -711,7 +1064,7 @@ const VendorPayOnline = () => {
           </div>
         )}
 
-        {/* ── STEP 3: Upload receipt ──────────────────────────────────────── */}
+        {/* ── STEP 3: Upload Receipt & Submit ───────────────────────────────── */}
         {step === 3 && (
           <div className="space-y-4">
             <button onClick={() => setStep(2)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
@@ -720,19 +1073,11 @@ const VendorPayOnline = () => {
 
             <div className="rounded-xl border bg-slate-50 px-4 py-3 space-y-1">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Submitting for {MONTHS[nextUnpaidMonth - 1]} {new Date().getFullYear()}</span>
+                <span className="text-muted-foreground">
+                  Submitting for {isBolante ? `${bolanteCategory} (${currentYear})` : `${MONTHS[selectedMonth - 1]} ${currentYear}`}
+                </span>
                 <span className="font-mono font-bold text-foreground">{fmt(actualSubmittedAmount)}</span>
               </div>
-              {actualSubmittedAmount < remainingBalance && (
-                <p className="text-[11px] text-amber-700 font-medium pt-1 border-t border-slate-200">
-                  ℹ️ Partial Payment: <strong>{fmt(actualSubmittedAmount)}</strong> will be submitted. Remaining balance after approval: <strong>{fmt(remainingBalance - actualSubmittedAmount)}</strong>.
-                </p>
-              )}
-              {actualSubmittedAmount > remainingBalance && (
-                <p className="text-[11px] text-blue-700 font-medium pt-1 border-t border-slate-200">
-                  ✨ Excess Payment: <strong>{fmt(actualSubmittedAmount)}</strong> will be submitted. Excess <strong>{fmt(actualSubmittedAmount - remainingBalance)}</strong> will roll over as credit towards next month.
-                </p>
-              )}
             </div>
 
             {/* Upload area */}
@@ -765,6 +1110,7 @@ const VendorPayOnline = () => {
                       className="w-full max-h-64 object-contain rounded-xl border bg-white"
                     />
                     <button
+                      type="button"
                       onClick={e => { e.stopPropagation(); resetReceiptState(); }}
                       className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-card border shadow-sm hover:bg-secondary">
                       <X className="h-3.5 w-3.5" />
@@ -817,6 +1163,7 @@ const VendorPayOnline = () => {
                             }`}
                           />
                         </div>
+
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             Actual Amount Paid (₱) <span className="text-red-500">*</span>
@@ -859,14 +1206,14 @@ const VendorPayOnline = () => {
                       {ocrData && !duplicateRefError && (
                         <div className="rounded-xl bg-green-50 border border-green-100 p-3 text-[11px] text-green-800 flex items-start gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span>We've pre-filled these from your receipt. Please double-check they are exactly correct.</span>
+                          <span>We've pre-filled details from your receipt. Please double-check they are correct.</span>
                         </div>
                       )}
 
                       {!ocrData && !ocrLoading && !duplicateRefError && (
                         <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-[11px] text-slate-600 flex items-start gap-2">
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span>We couldn't auto-read the receipt. Please type the details manually.</span>
+                          <span>We couldn't auto-read the receipt. Please type the reference number and amount manually.</span>
                         </div>
                       )}
                     </div>
@@ -874,12 +1221,14 @@ const VendorPayOnline = () => {
 
                   <div className="flex gap-2 pt-2">
                     <Button
+                      type="button"
                       variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-[11px] gap-1.5 text-muted-foreground"
                       onClick={e => { e.stopPropagation(); resetReceiptState(); fileRef.current?.click(); }}
                     >
                       <Image className="h-3.5 w-3.5" /> Change Image
                     </Button>
                     <Button
+                      type="button"
                       variant="outline" size="sm" className="flex-1 h-9 rounded-xl text-[11px] gap-1.5 text-muted-foreground"
                       onClick={e => { e.stopPropagation(); resetReceiptState(); fileRef.current?.click(); }}
                     >
@@ -907,6 +1256,7 @@ const VendorPayOnline = () => {
             )}
 
             <button
+              type="button"
               className="w-full flex items-center justify-center gap-2 text-white font-bold text-sm rounded-2xl py-4 transition-all disabled:opacity-50"
               style={{ background: DS.gradientCard, boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
               disabled={!receiptFile || !refNum || !paidAmount || ocrLoading || isCheckingDuplicate || isReceiptImageDuplicate || !!duplicateRefError || submitReceipt.isPending}

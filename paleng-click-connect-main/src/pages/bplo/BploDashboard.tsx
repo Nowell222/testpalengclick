@@ -479,10 +479,10 @@ export default function BploDashboard() {
           { label: "Active Permits", value: isLoading ? "..." : String(activePermits), sub: `${permitRate}% compliance rate`, icon: Award, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
           { label: "Delinquents", value: isLoading ? "..." : String(delinquentCount), sub: delinquentCount > 0 ? "Requires review" : "All active", icon: AlertTriangle, iconBg: delinquentCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: delinquentCount > 0 ? "#f59e0b" : "#10b981", glow: delinquentCount > 0 ? "#f59e0b" : "#10b981", gradient: delinquentCount > 0 ? "from-amber-50 to-amber-50/30" : "from-emerald-50 to-emerald-50/30" },
         ].map((c, i) => (
-          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-sm transition-all duration-300 group`}>
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
-              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-sm ${c.iconBg}`}>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
                 <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
               </div>
             </div>
@@ -499,29 +499,29 @@ export default function BploDashboard() {
 
         {/* LEFT COLUMN (8 Cols): Vendor Directory & Search */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-card border rounded-2xl shadow-xs overflow-hidden">
             
             {/* Search & Filter Header */}
-            <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+            <div className="p-3.5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-gradient-to-r from-blue-50/50 to-transparent">
               <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 <Input
                   type="text"
                   placeholder="Search vendor name, stall number, permit..."
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  className="pl-9 h-9 rounded-xl border-slate-200 text-xs bg-white focus:border-blue-500 outline-none"
+                  className="pl-8 h-9 rounded-xl border bg-background text-xs"
                 />
                 {search && (
                   <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    <X size={14} />
+                    <X size={13} />
                   </button>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
                 <select
-                  className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs focus:border-blue-500 outline-none"
+                  className="h-9 rounded-xl border bg-background px-3 text-xs"
                   value={filterStatus}
                   onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
                 >
@@ -539,69 +539,69 @@ export default function BploDashboard() {
 
             {/* Table */}
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Loader2 className="w-7 h-7 animate-spin text-blue-600" />
+              <div className="flex flex-col items-center justify-center py-12 gap-2.5">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                 <p className="text-xs text-muted-foreground">Loading vendor licensing data...</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b bg-slate-100/70 text-slate-600 text-left">
-                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Vendor Info</th>
-                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Stall Details</th>
-                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Area (sqm)</th>
-                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Permit Number</th>
-                      <th className="px-4 py-3 font-bold uppercase tracking-wider">Receipt #</th>
-                      <th className="px-4 py-3 font-bold uppercase tracking-wider text-right">Actions</th>
+                    <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d1e36 0%,#1e3a8a 100%)" }}>
+                      <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Vendor Info</th>
+                      <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Stall Details</th>
+                      <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Area (sqm)</th>
+                      <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Permit Number</th>
+                      <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Receipt #</th>
+                      <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border">
                     {paginatedVendors.map((v) => (
-                      <tr key={v.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="font-bold text-foreground">{v.name}</p>
+                      <tr key={v.id} className="hover:bg-blue-50/30 transition-colors">
+                        <td className="px-4 py-2.5">
+                          <p className="font-semibold text-foreground text-xs">{v.name}</p>
                           <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5"><Phone size={10} /> {v.contact}</p>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-2.5">
                           {v.stallId ? (
                             <button
                               onClick={() => handleStallHistoryClick(v.stallId, v.stallNumber)}
-                              className="font-semibold text-blue-600 hover:text-blue-800 hover:underline font-mono text-left"
+                              className="font-semibold text-blue-600 hover:text-blue-800 hover:underline font-mono text-left text-xs"
                             >
                               Stall {v.stallNumber}
                             </button>
                           ) : (
-                            <span className="font-mono text-slate-700">Stall {v.stallNumber}</span>
+                            <span className="font-mono text-foreground font-semibold text-xs">Stall {v.stallNumber}</span>
                           )}
                           <p className="text-[10px] text-muted-foreground">{v.section}</p>
                         </td>
-                        <td className="px-4 py-3 font-mono font-semibold text-slate-700">{v.areaMeasurement}</td>
-                        <td className="px-4 py-3 font-mono">
+                        <td className="px-4 py-2.5 font-mono font-medium text-foreground">{v.areaMeasurement}</td>
+                        <td className="px-4 py-2.5 font-mono">
                           {v.businessPermitNumber ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-100">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
                               <FileText size={10} /> {v.businessPermitNumber}
                             </span>
                           ) : (
                             <span className="text-amber-600 font-semibold text-[10px]">No Permit</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-mono text-slate-700">
+                        <td className="px-4 py-2.5 font-mono text-foreground">
                           {v.awardReceiptNumber ? (
                             <div>
-                              <p className="font-semibold">{v.awardReceiptNumber}</p>
+                              <p className="font-semibold text-xs">{v.awardReceiptNumber}</p>
                               {v.awardPaymentDate && <p className="text-[9px] text-muted-foreground">{v.awardPaymentDate}</p>}
                             </div>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-2.5 text-right">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleEditClick(v)}
-                            className="h-7 text-xs rounded-lg gap-1 border-slate-200 text-slate-700 hover:bg-slate-100"
+                            className="h-7 text-xs rounded-lg gap-1 border text-foreground hover:bg-secondary px-2.5"
                           >
                             <Edit3 size={11} /> Edit
                           </Button>

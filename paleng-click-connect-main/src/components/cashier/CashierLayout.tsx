@@ -216,8 +216,8 @@ const CashierLayout = () => {
               </span>
             </div>
           </header>
-          <main style={{ flex: 1, overflowY: "auto", padding: "24px", background: ROLE_COLORS.bg }}>
-            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <main style={{ flex: 1, overflowY: "auto", padding: "20px 24px", background: ROLE_COLORS.bg }}>
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <PushNotificationBanner />
               <Outlet />
             </div>

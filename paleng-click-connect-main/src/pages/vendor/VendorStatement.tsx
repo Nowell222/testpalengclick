@@ -1,6 +1,6 @@
 import VendorBottomNav from "@/components/VendorBottomNav";
 import { useRef, useState } from "react";
-import { Loader2, Printer, Download, CheckCircle2, AlertCircle, TrendingUp, Calendar, ChevronDown } from "lucide-react";
+import { Loader2, Printer, Download, CheckCircle2, AlertCircle, TrendingUp, Calendar, ChevronDown, Shield, Store, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -22,9 +23,89 @@ const DS = {
   blue100: "#dbeafe",
 };
 
-// ─── Print HTML — kept exactly as original ────────────────────────────────────
+// ─── Print HTML — handles both Regular Stall and Bolante ──────────────────────
 const getPrintHTML = (data: any) => {
-  const { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate } = data;
+  const { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate, isBolante, preferredSection, bolantePayments, permitNumber } = data;
+
+  if (isBolante) {
+    const bolanteRowsHTML = (bolantePayments || []).map((p: any) => `
+      <tr>
+        <td>${new Date(p.created_at).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}</td>
+        <td style="font-weight:600">${p.requirement_name || p.purpose || "Business Permit & Licensing (BPLO)"}</td>
+        <td class="c" style="font-family:monospace">${p.or_number || p.reference_number || "—"}</td>
+        <td class="c">${(p.payment_method || "InstaPay").toUpperCase()}</td>
+        <td class="r" style="font-family:monospace;font-weight:bold">${fmt(Number(p.amount))}</td>
+        <td class="c paid">✓ Completed</td>
+      </tr>`).join("");
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Statement of Compliance - ${profile?.first_name} ${profile?.last_name}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:32px}
+  .hdr{text-align:center;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:18px}
+  .rep{font-size:9px;letter-spacing:2px;color:#666;text-transform:uppercase}
+  .lgu{font-size:13px;font-weight:bold;margin:3px 0}
+  .ttl{font-size:18px;font-weight:bold;letter-spacing:1px;margin-top:5px}
+  .sub{font-size:10px;color:#666;margin-top:2px}
+  .notice{padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;color:#166534;border-radius:6px;font-size:11px;margin-bottom:14px;line-height:1.4}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;background:#f7f7f7;border:1px solid #ddd;border-radius:4px;padding:12px}
+  .info-item label{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:0.5px}
+  .info-item p{font-weight:bold;font-size:12px;margin-top:2px}
+  table{width:100%;border-collapse:collapse;margin-bottom:14px}
+  thead tr{background:#111;color:#fff}
+  thead th{padding:7px 10px;text-align:left;font-size:11px}
+  thead th.r{text-align:right} thead th.c{text-align:center}
+  tbody tr{border-bottom:1px solid #eee}
+  tbody td{padding:7px 10px}
+  td.r{text-align:right;font-family:monospace}
+  td.c{text-align:center;font-size:11px;font-weight:bold}
+  td.paid{color:#15803d}
+  .totals{border-top:2px solid #111;padding-top:10px}
+  .t-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+  .t-row.big{font-size:15px;font-weight:bold;border-top:1px solid #ddd;margin-top:4px;padding-top:8px}
+  .t-row.big .v{color:#15803d}
+  .sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;margin-top:48px}
+  .sig-line{border-top:1px solid #111;padding-top:6px;text-align:center;font-size:10px;color:#555}
+  .sig-name{font-weight:bold;font-size:11px;color:#111;text-transform:uppercase}
+  .footer{margin-top:28px;text-align:center;font-size:9px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}
+</style></head><body>
+<div class="hdr">
+  <div class="rep">Republic of the Philippines</div>
+  <div class="lgu">Municipality of San Juan, Batangas · Office of the Municipal Treasurer</div>
+  <div class="ttl">STATEMENT OF PAYMENTS & REGULATORY COMPLIANCE</div>
+  <div class="sub">Bolante Section Vendor — Fiscal Year ${currentYear}</div>
+</div>
+<div class="notice">
+  <strong>Certification:</strong> Official municipal compliance summary for registered Bolante vendor <strong>${profile?.first_name} ${profile?.last_name}</strong>. Bolante vendors do not occupy fixed physical market stalls and are exempt from physical stall rental.
+</div>
+<div class="info">
+  <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
+  <div class="info-item"><label>Permit Number</label><p>${permitNumber || "Registered"}</p></div>
+  <div class="info-item"><label>Section</label><p>${preferredSection || "Bolante Section"}</p></div>
+  <div class="info-item"><label>Physical Stall Rent</label><p>Exempt (₱0.00)</p></div>
+  <div class="info-item"><label>Vendor Classification</label><p>Bolante (Mobile / Ambulant)</p></div>
+  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
+</div>
+<table>
+  <thead><tr><th>Date</th><th>Requirement / Description</th><th class="c">OR / Ref No.</th><th class="c">Method</th><th class="r">Amount Paid</th><th class="c">Status</th></tr></thead>
+  <tbody>
+    ${bolanteRowsHTML.length > 0 ? bolanteRowsHTML : `<tr><td colspan="6" style="text-align:center;padding:18px;color:#777">No payments recorded for Fiscal Year ${currentYear}</td></tr>`}
+  </tbody>
+</table>
+<div class="totals">
+  <div class="t-row"><span style="color:#555">Total Regulatory Fees & Permits Paid (${currentYear})</span><span class="v" style="color:#15803d;font-family:monospace;font-weight:bold">${fmt(totalPaid)}</span></div>
+  <div class="t-row big"><span>COMPLIANCE STATUS</span><span class="v" style="font-family:sans-serif;color:#15803d">✓ Registered & Active</span></div>
+</div>
+<div class="sigs">
+  <div><div style="height:40px"></div><div class="sig-line"><div class="sig-name">${profile?.first_name} ${profile?.last_name}</div>Vendor / Bolante Representative</div></div>
+  <div><div style="height:40px"></div><div class="sig-line"><div class="sig-name">Cashier</div>Prepared by</div></div>
+  <div><div style="height:40px"></div><div class="sig-line"><div class="sig-name">Municipal Treasurer</div>Noted by</div></div>
+</div>
+<div class="footer">PALENG-CLICK System · Computer-generated document · ${new Date().toLocaleString("en-PH")}</div>
+</body></html>`;
+  }
+
+  // Regular Stall Vendor
   const rowsHTML = rows.map((r: any) => `
     <tr class="${r.isFuture ? "future" : ""}">
       <td>${r.month} ${currentYear}</td>
@@ -77,7 +158,7 @@ const getPrintHTML = (data: any) => {
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
-  <div class="info-item"><label>Section</label><p>${stall?.section || data?.preferredSection || "General"}</p></div>
+  <div class="info-item"><label>Section</label><p>${stall?.section || preferredSection || "General"}</p></div>
   <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
   <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
@@ -123,14 +204,64 @@ const VendorStatement = () => {
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data: vendor } = await supabase.from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, location, area_measurement)").eq("user_id", user!.id).single();
-      const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user!.id).single();
-      const { data: appData } = await supabase.from("vendor_applications").select("preferred_section").eq("applicant_user_id", user!.id).maybeSingle();
-      const [paymentsRes, schedulesRes] = await Promise.all([
+      const { data: vendor } = await supabase
+        .from("vendors")
+        .select("id, stall_id, business_permit_number, award_receipt_number, stalls(stall_number, section, monthly_rate, monthly_rate_2026, monthly_rate_2027, monthly_rate_2028, location, area_measurement)")
+        .eq("user_id", user!.id)
+        .single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, contact_number")
+        .eq("user_id", user!.id)
+        .single();
+      const { data: appData } = await supabase
+        .from("vendor_applications")
+        .select("preferred_section, business_permit_number")
+        .eq("applicant_user_id", user!.id)
+        .maybeSingle();
+
+      const [paymentsRes, submissionsRes, schedulesRes] = await Promise.all([
         supabase.from("payments").select("*").eq("vendor_id", vendor?.id || "").eq("status", "completed").order("created_at", { ascending: true }),
+        supabase.from("payment_submissions").select("*").eq("vendor_id", vendor?.id || "").order("created_at", { ascending: true }),
         vendor?.stall_id ? (supabase.from("stall_fee_schedules" as any) as any).select("*").eq("stall_id", vendor.stall_id).eq("year", selectedYear) : Promise.resolve({ data: [] }),
       ]);
-      return { vendor, profile, payments: paymentsRes.data || [], stall: vendor?.stalls as any, schedules: schedulesRes.data || [], preferredSection: appData?.preferred_section || null };
+
+      const subMap: Record<string, any> = {};
+      (submissionsRes.data || []).forEach((s: any) => {
+        if (s.payment_id) subMap[s.payment_id] = s;
+        if (s.ocr_reference) subMap[s.ocr_reference] = s;
+        subMap[s.id] = s;
+      });
+
+      const stall = vendor?.stalls as any;
+      const preferredSection = appData?.preferred_section || null;
+      const isBolante = !stall && (!!preferredSection?.toLowerCase().includes("bolante") || !vendor?.stall_id);
+
+      const enrichedPayments = (paymentsRes.data || []).map((p: any) => {
+        const sub = subMap[p.id] || (p.reference_number ? subMap[p.reference_number] : null);
+        let purpose = sub?.ocr_recipient || null;
+        if (!purpose && sub?.ocr_raw) {
+          try {
+            const raw = typeof sub.ocr_raw === "string" ? JSON.parse(sub.ocr_raw) : sub.ocr_raw;
+            purpose = raw.bolanteCategory || raw.purpose || null;
+          } catch {}
+        }
+        if (!purpose) {
+          purpose = isBolante ? "Business Permit & Licensing (BPLO)" : "Public Market Stall Rental";
+        }
+        return { ...p, requirement_name: purpose, purpose };
+      });
+
+      return {
+        vendor,
+        profile,
+        payments: enrichedPayments,
+        stall,
+        schedules: schedulesRes.data || [],
+        preferredSection,
+        appData,
+        isBolante,
+      };
     },
   });
 
@@ -144,6 +275,10 @@ const VendorStatement = () => {
   const profile = data?.profile;
   const payments = data?.payments || [];
   const schedules = data?.schedules || [];
+  const preferredSection = data?.preferredSection || null;
+  const isBolante = !stall && (!!preferredSection?.toLowerCase().includes("bolante") || !data?.vendor?.stall_id);
+  const permitNumber = data?.vendor?.business_permit_number || data?.appData?.business_permit_number || null;
+
   // Use year-specific rate, fallback to generic monthly_rate
   const yearRateKey = `monthly_rate_${selectedYear}` as string;
   const defaultRate = stall ? (((stall as any)?.[yearRateKey] ? Number((stall as any)[yearRateKey]) : null) || stall?.monthly_rate || 0) : 0;
@@ -155,20 +290,22 @@ const VendorStatement = () => {
   const currentYear = selectedYear;
   const currentMonth = selectedYear === thisYear ? new Date().getMonth() + 1 : 12;
 
+  // Filter payments for this year
+  const yearPayments = payments.filter((p: any) => {
+    if (p.period_year) return p.period_year === selectedYear;
+    return new Date(p.created_at).getFullYear() === selectedYear;
+  });
+
   const rawPaidMap: Record<number, number> = {};
-  payments.filter((p: any) => p.period_year === selectedYear).forEach((p: any) => {
+  yearPayments.forEach((p: any) => {
     if (p.period_month) rawPaidMap[p.period_month] = (rawPaidMap[p.period_month] || 0) + Number(p.amount);
   });
 
   const displayPaidMap: Record<number, number> = {};
   let carryOver = 0;
   for (let m = 1; m <= 12; m++) {
-    const isOverdue = m < currentMonth;
     const baseDue = getMonthFee(m);
-    // Flat 25% surcharge for overdue unpaid balances
-    // const penalty = isOverdue && ((rawPaidMap[m] || 0) + carryOver < baseDue) ? baseDue * 0.25 : 0;
-    const penalty = 0; // Penalty temporarily disabled
-    const totalDue = baseDue + penalty;
+    const totalDue = baseDue;
 
     const credited = (rawPaidMap[m] || 0) + carryOver;
     displayPaidMap[m] = credited;
@@ -180,21 +317,19 @@ const VendorStatement = () => {
     }
   }
 
-  const totalPaid = Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
+  const bolanteTotalPaid = yearPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+  const totalPaid = isBolante ? bolanteTotalPaid : Object.values(rawPaidMap).reduce((s, v) => s + v, 0);
 
-  const totalOutstanding = MONTHS.reduce((sum, _, i) => {
+  const totalOutstanding = isBolante ? 0 : MONTHS.reduce((sum, _, i) => {
     const m = i + 1;
     if (m > currentMonth) return sum;
     const baseDue = getMonthFee(m);
-    const isOverdue = m < currentMonth;
-    // const penalty = isOverdue && ((displayPaidMap[m] || 0) < baseDue) ? baseDue * 0.25 : 0;
-    const penalty = 0; // Penalty temporarily disabled
-    const totalDue = baseDue + penalty;
+    const totalDue = baseDue;
     const paid = displayPaidMap[m] || 0;
     return sum + Math.max(0, totalDue - paid);
   }, 0);
 
-  const monthsPaid = MONTHS.filter((_, i) => {
+  const monthsPaid = isBolante ? 0 : MONTHS.filter((_, i) => {
     const m = i + 1;
     return (displayPaidMap[m] || 0) >= getMonthFee(m);
   }).length;
@@ -204,10 +339,7 @@ const VendorStatement = () => {
     const baseDue = getMonthFee(m);
     const isOverdue = m < currentMonth;
     const credited = displayPaidMap[m] || 0;
-
-    // const penalty = isOverdue && (credited < baseDue) ? baseDue * 0.25 : 0;
-    const penalty = 0; // Penalty temporarily disabled
-    const totalDue = baseDue + penalty;
+    const totalDue = baseDue;
 
     const displayPaid = Math.min(credited, totalDue);
     const balance = Math.max(0, totalDue - credited);
@@ -215,10 +347,22 @@ const VendorStatement = () => {
     const isFuture = m > currentMonth && credited === 0;
     const isFully = credited >= totalDue && !isAdvance;
     const isPartial = credited > 0 && credited < totalDue;
-    return { month, monthNum: m, due: totalDue, baseDue, penalty, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture, isOverdue };
+    return { month, monthNum: m, due: totalDue, baseDue, penalty: 0, paid: displayPaid, balance, isFully, isPartial, isAdvance, isFuture, isOverdue };
   });
 
-  const printData = { profile, stall, rows, totalPaid, totalOutstanding, currentYear, monthlyRate: defaultRate };
+  const printData = {
+    profile,
+    stall,
+    rows,
+    totalPaid,
+    totalOutstanding,
+    currentYear,
+    monthlyRate: defaultRate,
+    isBolante,
+    preferredSection,
+    bolantePayments: yearPayments,
+    permitNumber,
+  };
 
   const doPrint = () => {
     const frame = printRef.current;
@@ -228,6 +372,83 @@ const VendorStatement = () => {
   };
 
   const doDownloadPDF = () => {
+    if (isBolante) {
+      const doc = new jsPDF();
+      doc.setFont("helvetica");
+      doc.setFontSize(10);
+      doc.text("Republic of the Philippines", 105, 15, { align: "center" });
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Municipality of San Juan, Batangas", 105, 22, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.text("Office of the Municipal Treasurer", 105, 28, { align: "center" });
+      doc.setFontSize(15);
+      doc.setFont("helvetica", "bold");
+      doc.text("STATEMENT OF PAYMENTS & COMPLIANCE", 105, 39, { align: "center" });
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Bolante Section Vendor — Fiscal Year ${currentYear}`, 105, 45, { align: "center" });
+
+      doc.setFontSize(9);
+      doc.text(`Vendor Name: ${profile?.first_name} ${profile?.last_name}`, 15, 58);
+      doc.text(`Permit Number: ${permitNumber || "Registered"}`, 15, 64);
+      doc.text(`Section: ${preferredSection || "Bolante Section"}`, 15, 70);
+
+      doc.text(`Vendor Type: Bolante (Mobile / Ambulant)`, 115, 58);
+      doc.text(`Physical Stall Rent: Exempt (₱0.00)`, 115, 64);
+      doc.text(`Date Printed: ${new Date().toLocaleDateString("en-PH")}`, 115, 70);
+
+      const tableData = yearPayments.map((p: any) => [
+        new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }),
+        p.requirement_name || p.purpose || "Business Permit & Licensing (BPLO)",
+        p.or_number || p.reference_number || "—",
+        (p.payment_method || "InstaPay").toUpperCase(),
+        fmt(Number(p.amount)),
+        "Completed"
+      ]);
+
+      autoTable(doc, {
+        startY: 78,
+        head: [['Date', 'Requirement / Description', 'OR / Ref No.', 'Method', 'Amount Paid', 'Status']],
+        body: tableData.length > 0 ? tableData : [['—', `No payments recorded for FY ${currentYear}`, '—', '—', '₱0.00', '—']],
+        theme: 'grid',
+        headStyles: { fillColor: [13, 34, 64] }
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY || 80;
+
+      doc.setFont("helvetica", "normal");
+      doc.text(`Total Regulatory Fees & Permits Paid (${currentYear}):`, 15, finalY + 10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(22, 163, 74);
+      doc.text(fmt(totalPaid), 110, finalY + 10);
+
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(`COMPLIANCE STATUS:`, 15, finalY + 18);
+      doc.setTextColor(22, 163, 74);
+      doc.text("Registered & Active in Bolante Section ✓", 65, finalY + 18);
+
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`${profile?.first_name} ${profile?.last_name}`, 30, finalY + 45, { align: "center" });
+      doc.line(15, finalY + 41, 45, finalY + 41);
+      doc.text("Vendor / Bolante Rep.", 30, finalY + 50, { align: "center" });
+
+      doc.text("Cashier", 105, finalY + 45, { align: "center" });
+      doc.line(90, finalY + 41, 120, finalY + 41);
+      doc.text("Prepared by", 105, finalY + 50, { align: "center" });
+
+      doc.text("Municipal Treasurer", 180, finalY + 45, { align: "center" });
+      doc.line(165, finalY + 41, 195, finalY + 41);
+      doc.text("Noted by", 180, finalY + 50, { align: "center" });
+
+      doc.save(`Statement_${profile?.first_name}_${profile?.last_name}_Bolante_${currentYear}.pdf`);
+      return;
+    }
+
+    // Regular Stall Vendor PDF
     const doc = new jsPDF();
     doc.setFont("helvetica");
     doc.setFontSize(10);
@@ -247,7 +468,7 @@ const VendorStatement = () => {
     doc.setFontSize(10);
     doc.text(`Vendor Name: ${profile?.first_name} ${profile?.last_name}`, 15, 60);
     doc.text(`Stall Number: ${stall?.stall_number || "—"}`, 15, 66);
-    doc.text(`Section: ${stall?.section || "General"}`, 15, 72);
+    doc.text(`Section: ${stall?.section || preferredSection || "General"}`, 15, 72);
     doc.text(`Monthly Rate: ${fmt(monthlyRate)}`, 120, 60);
     doc.text(`Location: ${stall?.location || "—"}`, 120, 66);
     doc.text(`Date Printed: ${new Date().toLocaleDateString("en-PH")}`, 120, 72);
@@ -308,10 +529,27 @@ const VendorStatement = () => {
       {/* Mobile mini-hero */}
       <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-5">
-          <h1 className="text-2xl font-black text-white">Statement of Account</h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Official summary of your stall rental</p>
+          <h1 className="text-2xl font-black text-white">
+            {isBolante ? "Statement of Payments" : "Statement of Account"}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
+            {isBolante
+              ? "Official record of municipal permits & regulatory compliance"
+              : "Official summary of your stall rental"}
+          </p>
           <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {[
+            {isBolante ? [
+              { label: "Total Paid", value: fmt(totalPaid), green: true },
+              { label: "Physical Rent", value: "Exempt", green: true },
+              { label: "Compliance", value: "Active ✓", green: true },
+            ].map(s => (
+              <div key={s.label} className="shrink-0 rounded-xl px-3 py-2.5"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)", minWidth: 100 }}>
+                <p className="font-mono text-base font-black"
+                  style={{ color: s.green ? "#4ade80" : "white" }}>{s.value}</p>
+                <p className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{s.label}</p>
+              </div>
+            )) : [
               { label: "Total Paid", value: fmt(totalPaid), green: true },
               { label: "Months Paid", value: `${monthsPaid}/${currentMonth}` },
               { label: "Outstanding", value: fmt(totalOutstanding), green: totalOutstanding === 0 },
@@ -330,8 +568,14 @@ const VendorStatement = () => {
       {/* Desktop header */}
       <div className="hidden lg:flex items-start justify-between flex-wrap gap-3" style={{ padding: "28px 32px 0" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Statement of Account</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Official summary of your stall rental</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>
+            {isBolante ? "Statement of Payments & Regulatory Compliance" : "Statement of Account"}
+          </h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>
+            {isBolante
+              ? "Official municipal summary of business permits, clearances, and regulatory fees"
+              : "Official summary of your stall rental"}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
@@ -355,12 +599,17 @@ const VendorStatement = () => {
 
       {/* Desktop summary cards */}
       <div className="hidden lg:grid grid-cols-2 gap-3 sm:grid-cols-4" style={{ padding: "16px 32px 0" }}>
-        {[
+        {(isBolante ? [
+          { label: "Vendor Type", value: "Bolante Section", color: "#0f172a", icon: Store, bg: "#f1f5f9" },
+          { label: "Total Paid", value: fmt(totalPaid), color: "#16a34a", icon: TrendingUp, bg: "#dcfce7" },
+          { label: "Physical Rent", value: "Exempt", color: "#2563eb", icon: Shield, bg: "#dbeafe" },
+          { label: "Compliance Status", value: "Active ✓", color: "#16a34a", icon: CheckCircle2, bg: "#dcfce7" },
+        ] : [
           { label: "Monthly Rate", value: fmt(monthlyRate), color: "#0f172a", icon: Calendar, bg: "#f1f5f9" },
           { label: "Total Paid", value: fmt(totalPaid), color: "#16a34a", icon: TrendingUp, bg: "#dcfce7" },
           { label: "Months Paid", value: `${monthsPaid} / ${currentMonth}`, color: monthsPaid === currentMonth ? "#16a34a" : "#2563eb", icon: CheckCircle2, bg: monthsPaid === currentMonth ? "#dcfce7" : "#dbeafe" },
           { label: "Outstanding", value: fmt(totalOutstanding), color: totalOutstanding === 0 ? "#16a34a" : "#d97706", icon: AlertCircle, bg: totalOutstanding === 0 ? "#dcfce7" : "#fef3c7" },
-        ].map(c => (
+        ]).map(c => (
           <div key={c.label} style={{ borderRadius: 16, border: "1px solid #e2e8f0", background: "#fff", padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <p style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", color: "#94a3b8" }}>{c.label}</p>
@@ -398,7 +647,7 @@ const VendorStatement = () => {
         </div>
       </div>
 
-      {/* SOA Document */}
+      {/* SOA / Compliance Document */}
       <div className="mx-3 lg:mx-8 my-3 lg:my-5 rounded-2xl border bg-card shadow-civic overflow-hidden lg:max-w-3xl">
 
         {/* Document header */}
@@ -406,22 +655,35 @@ const VendorStatement = () => {
           <p className="text-xs tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.5)" }}>Republic of the Philippines</p>
           <p className="text-sm font-bold text-white">Municipality of San Juan, Batangas</p>
           <p className="text-sm font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>Office of the Municipal Treasurer</p>
-          <p className="text-xl font-bold tracking-wide mt-2 text-white">STATEMENT OF ACCOUNT</p>
-          <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>Public Market Stall Rental — Fiscal Year {currentYear}</p>
+          <p className="text-xl font-bold tracking-wide mt-2 text-white">
+            {isBolante ? "STATEMENT OF PAYMENTS & COMPLIANCE" : "STATEMENT OF ACCOUNT"}
+          </p>
+          <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
+            {isBolante
+              ? `Bolante Section Vendor — Fiscal Year ${currentYear}`
+              : `Public Market Stall Rental — Fiscal Year ${currentYear}`}
+          </p>
         </div>
 
         <div className="p-4 lg:p-6 space-y-5">
           {/* Vendor info */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm rounded-2xl px-4 py-4 sm:grid-cols-3"
             style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-            {[
+            {(isBolante ? [
+              { label: "Vendor Name", value: `${profile?.first_name} ${profile?.last_name}` },
+              { label: "Permit Number", value: permitNumber || "Registered" },
+              { label: "Section", value: preferredSection || "Bolante Section" },
+              { label: "Physical Stall Rent", value: "Exempt (₱0.00)" },
+              { label: "Vendor Type", value: "Bolante (Ambulant / Mobile)" },
+              { label: "Date Printed", value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },
+            ] : [
               { label: "Vendor Name", value: `${profile?.first_name} ${profile?.last_name}` },
               { label: "Stall Number", value: stall?.stall_number || "—" },
-              { label: "Section", value: stall?.section || data?.preferredSection || "General" },
+              { label: "Section", value: stall?.section || preferredSection || "General" },
               { label: "Location", value: stall?.location || "—" },
               { label: "Monthly Rate", value: fmt(monthlyRate) },
               { label: "Date Printed", value: new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }) },
-            ].map(({ label, value }) => (
+            ]).map(({ label, value }) => (
               <div key={label}>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
                 <p className="font-semibold text-foreground mt-0.5">{value}</p>
@@ -429,87 +691,155 @@ const VendorStatement = () => {
             ))}
           </div>
 
-          {/* Payment table — ORIGINAL debit/credit format preserved */}
-          <div className="rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ background: DS.blue900 }}>
-                  <th className="px-4 py-2.5 text-left font-medium text-white text-xs">Period</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Amount Due</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Paid</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Balance</th>
-                  <th className="px-4 py-2.5 text-center font-medium text-white text-xs">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {rows.map(r => (
-                  <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
-                    <td className="px-4 py-2.5 font-medium text-foreground">
-                      {r.month} {currentYear}
-                      {/* r.penalty > 0 && <span className="block text-[10px] text-red-500 font-normal">Includes ₱{r.penalty} late penalty</span> */}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono">
-                      {r.paid > 0
-                        ? <span className="text-green-600 font-semibold">{fmt(r.paid)}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono font-semibold">
-                      {(r.isFully || r.isAdvance)
-                        ? <span className="text-green-600 font-mono">₱0.00</span>
-                        : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      {r.isAdvance ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          Advance
-                        </span>
-                      ) : r.isFully ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-200 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                          <CheckCircle2 className="h-3 w-3" /> Paid
-                        </span>
-                      ) : r.isPartial ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                          Partial
-                        </span>
-                      ) : r.isFuture && !r.isPartial ? (
-                        <span className="text-xs text-muted-foreground">Upcoming</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                          <AlertCircle className="h-3 w-3" /> Unpaid
-                        </span>
-                      )}
-                    </td>
+          {/* Table (Bolante transactions vs Regular 12-month calendar) */}
+          {isBolante ? (
+            <div className="rounded-xl border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: DS.blue900 }}>
+                    <th className="px-4 py-2.5 text-left font-medium text-white text-xs">Date</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-white text-xs">Requirement / Description</th>
+                    <th className="px-4 py-2.5 text-center font-medium text-white text-xs">OR / Ref No.</th>
+                    <th className="px-4 py-2.5 text-center font-medium text-white text-xs">Method</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Amount Paid</th>
+                    <th className="px-4 py-2.5 text-center font-medium text-white text-xs">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y">
+                  {yearPayments.map((p: any) => (
+                    <tr key={p.id} className="transition-colors hover:bg-slate-50">
+                      <td className="px-4 py-2.5 font-medium text-foreground">
+                        {new Date(p.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                      </td>
+                      <td className="px-4 py-2.5 text-foreground font-semibold">
+                        {p.requirement_name || p.purpose || "Business Permit & Licensing (BPLO)"}
+                      </td>
+                      <td className="px-4 py-2.5 text-center font-mono text-xs text-muted-foreground">
+                        {p.or_number || p.reference_number || "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-center uppercase text-xs font-semibold text-slate-700">
+                        {p.payment_method || "InstaPay"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-bold text-green-700">
+                        {fmt(Number(p.amount))}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-200 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                          <CheckCircle2 className="h-3 w-3" /> Completed
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {yearPayments.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-10 px-4 text-slate-400">
+                        <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm font-medium">No payments recorded for Fiscal Year {currentYear}</p>
+                        <Link to="/vendor/pay">
+                          <Button size="sm" variant="hero" className="mt-3">Pay Requirements Online</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-xl border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: DS.blue900 }}>
+                    <th className="px-4 py-2.5 text-left font-medium text-white text-xs">Period</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Amount Due</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Paid</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-white text-xs">Balance</th>
+                    <th className="px-4 py-2.5 text-center font-medium text-white text-xs">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {rows.map(r => (
+                    <tr key={r.monthNum} className={`transition-colors hover:bg-slate-50 ${r.isFuture ? "opacity-40" : ""}`}>
+                      <td className="px-4 py-2.5 font-medium text-foreground">
+                        {r.month} {currentYear}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-foreground">{fmt(r.due)}</td>
+                      <td className="px-4 py-2.5 text-right font-mono">
+                        {r.paid > 0
+                          ? <span className="text-green-600 font-semibold">{fmt(r.paid)}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono font-semibold">
+                        {(r.isFully || r.isAdvance)
+                          ? <span className="text-green-600 font-mono">₱0.00</span>
+                          : <span className={r.isFuture && !r.isPartial ? "text-muted-foreground" : "text-accent"}>{fmt(r.balance)}</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {r.isAdvance ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                            Advance
+                          </span>
+                        ) : r.isFully ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-200 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                            <CheckCircle2 className="h-3 w-3" /> Paid
+                          </span>
+                        ) : r.isPartial ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                            Partial
+                          </span>
+                        ) : r.isFuture && !r.isPartial ? (
+                          <span className="text-xs text-muted-foreground">Upcoming</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 border border-red-200 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                            <AlertCircle className="h-3 w-3" /> Unpaid
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-          {/* Totals — original format preserved */}
+          {/* Totals */}
           <div className="rounded-xl border px-5 py-4 space-y-2 text-sm"
             style={{ background: "#f8fafc", borderColor: "#e2e8f0" }}>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Total Paid ({currentYear})</span>
+              <span className="text-muted-foreground">
+                {isBolante ? `Total Permits & Regulatory Fees Paid (${currentYear})` : `Total Paid (${currentYear})`}
+              </span>
               <span className="font-mono font-bold text-green-600">{fmt(totalPaid)}</span>
             </div>
-            <div className="flex justify-between border-t pt-2">
-              <span className="font-semibold text-foreground">TOTAL OUTSTANDING BALANCE</span>
-              <span className={`font-mono text-xl font-bold ${totalOutstanding === 0 ? "text-green-600" : "text-accent"}`}>
-                {fmt(totalOutstanding)}
-              </span>
-            </div>
+            {isBolante ? (
+              <div className="flex justify-between border-t pt-2">
+                <span className="font-semibold text-foreground">PHYSICAL STALL RENT STATUS</span>
+                <span className="font-mono text-base font-bold text-green-700">Exempt (₱0.00)</span>
+              </div>
+            ) : (
+              <div className="flex justify-between border-t pt-2">
+                <span className="font-semibold text-foreground">TOTAL OUTSTANDING BALANCE</span>
+                <span className={`font-mono text-xl font-bold ${totalOutstanding === 0 ? "text-green-600" : "text-accent"}`}>
+                  {fmt(totalOutstanding)}
+                </span>
+              </div>
+            )}
           </div>
 
-          {totalOutstanding === 0 && (
+          {isBolante ? (
+            <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
+              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+              <p className="text-sm font-medium text-green-800">
+                Registered Bolante vendor in good standing with the Municipality of San Juan, Batangas. 🎉
+              </p>
+            </div>
+          ) : totalOutstanding === 0 ? (
             <div className="flex items-center gap-3 rounded-xl px-4 py-3"
               style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
               <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
               <p className="text-sm font-medium text-green-800">All stall fees for {currentYear} are fully settled. 🎉</p>
             </div>
-          )}
-
-          {totalOutstanding > 0 && (
+          ) : (
             <div className="flex items-center justify-between rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-accent shrink-0" />
@@ -524,7 +854,7 @@ const VendorStatement = () => {
           {/* Signature lines */}
           <div className="grid grid-cols-3 gap-6 pt-4">
             {[
-              { name: `${profile?.first_name} ${profile?.last_name}`, role: "Vendor / Lessee" },
+              { name: `${profile?.first_name} ${profile?.last_name}`, role: isBolante ? "Vendor / Bolante Rep." : "Vendor / Lessee" },
               { name: "Cashier", role: "Prepared by" },
               { name: "Municipal Treasurer", role: "Noted by" },
             ].map(s => (

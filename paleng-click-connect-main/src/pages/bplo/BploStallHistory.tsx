@@ -344,50 +344,54 @@ export default function BploStallHistory() {
   }, [stalls, search, filterSection]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Hero Header */}
       {(() => {
         const isEemoOrAdmin = role === "eemo" || role === "admin";
         const heroGrad = isEemoOrAdmin ? ADMIN_GRAD : BPLO_GRAD;
         const registryTag = role === "eemo" ? "Viewer Registry" : (role === "admin" ? "Municipal Registry" : "BPLO Registry");
         const subtextColor = isEemoOrAdmin ? "text-emerald-200" : "text-blue-200";
-        const descColor = isEemoOrAdmin ? "text-emerald-100" : "text-blue-100";
-        const shadowColor = isEemoOrAdmin ? "0 20px 48px rgba(15, 110, 86, 0.15)" : "0 20px 48px rgba(30, 58, 138, 0.15)";
+        const descColor = isEemoOrAdmin ? "text-emerald-100/70" : "text-blue-100/70";
+        const shadowColor = isEemoOrAdmin ? "0 12px 32px rgba(15, 110, 86, 0.12)" : "0 12px 32px rgba(13, 30, 54, 0.12)";
 
         return (
-          <div className="rounded-2xl p-6 relative overflow-hidden text-white" style={{ background: heroGrad, boxShadow: shadowColor }}>
-            <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+          <div className="rounded-2xl p-5 relative overflow-hidden text-white" style={{ background: heroGrad, boxShadow: shadowColor }}>
+            <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
             <div className="relative flex items-center justify-between flex-wrap gap-4">
               <div>
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] mb-1 ${subtextColor}`}>{registryTag}</p>
-                <h1 className="text-2xl font-extrabold">Stall Ownership Histories</h1>
-                <p className={`text-xs mt-1 ${descColor}`}>Review historical owner timelines, transitions, and permit details for San Juan Public Market stalls.</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${subtextColor}`}>{registryTag}</span>
+                  <span className="h-1 w-1 rounded-full bg-blue-400" />
+                  <span className="text-[10px] text-blue-100">Ownership Archives</span>
+                </div>
+                <h1 className="text-xl font-bold text-white leading-snug">Stall Ownership Histories</h1>
+                <p className={`text-xs mt-0.5 ${descColor}`}>Review historical owner timelines, transitions, and permit details for San Juan Public Market stalls.</p>
               </div>
-              <Button onClick={() => refetchStalls()} variant="outline" className="h-10 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border">
-                <RefreshCw size={14} /> Refresh Directory
+              <Button onClick={() => refetchStalls()} variant="outline" className="h-9 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border text-xs px-3.5 font-semibold">
+                <RefreshCw size={13} /> Refresh Directory
               </Button>
             </div>
           </div>
         );
       })()}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Stall Directory */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50 space-y-3 shrink-0">
+        <div className="lg:col-span-1 bg-card rounded-2xl border shadow-xs overflow-hidden flex flex-col h-[560px]">
+          <div className="p-3 border-b bg-gradient-to-r from-blue-50/50 to-transparent space-y-2 shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
               <Input
                 type="text"
                 placeholder="Search stall number..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-10 rounded-xl border-slate-200 text-sm focus:border-blue-500 outline-none"
+                className="pl-8 h-9 rounded-xl border bg-background text-xs"
               />
             </div>
             <select
-              className="w-full h-10 rounded-xl border border-slate-200 bg-background px-3 text-sm focus:border-blue-500 outline-none"
+              className="w-full h-9 rounded-xl border bg-background px-3 text-xs"
               value={filterSection}
               onChange={(e) => setFilterSection(e.target.value)}
             >
@@ -396,14 +400,14 @@ export default function BploStallHistory() {
             </select>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-slate-50/20">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {loadingStalls ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                <p className="text-xs text-slate-400">Loading directory...</p>
+                <p className="text-xs text-muted-foreground">Loading directory...</p>
               </div>
             ) : filteredStalls.length === 0 ? (
-              <p className="text-center py-12 text-xs text-slate-400 font-semibold">No stalls found matching criteria.</p>
+              <p className="text-center py-12 text-xs text-muted-foreground font-semibold">No stalls found matching criteria.</p>
             ) : (
               filteredStalls.map((s) => {
                 const isSelected = selectedStall?.id === s.id;
@@ -412,23 +416,23 @@ export default function BploStallHistory() {
                   <div
                     key={s.id}
                     onClick={() => setSelectedStall(s)}
-                    className={`p-3.5 rounded-xl cursor-pointer transition-all border ${isSelected
-                        ? (isEemoOrAdmin ? "bg-emerald-50 border-emerald-200 shadow-sm" : "bg-blue-50 border-blue-200 shadow-sm")
-                        : "bg-white border-transparent hover:bg-slate-50/80 hover:border-slate-200"
+                    className={`p-3 rounded-xl cursor-pointer transition-all border ${isSelected
+                        ? (isEemoOrAdmin ? "bg-emerald-50 border-emerald-300 shadow-xs" : "bg-blue-50 border-blue-300 shadow-xs")
+                        : "border-transparent hover:bg-secondary/60 text-foreground"
                       }`}
                   >
                     <div className="flex justify-between items-start">
-                      <p className={`font-black text-sm font-mono ${isSelected ? (isEemoOrAdmin ? "text-emerald-900" : "text-blue-900") : "text-slate-900"}`}>Stall {s.stall_number}</p>
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${s.status === "occupied"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
+                      <p className={`font-bold text-xs font-mono ${isSelected ? (isEemoOrAdmin ? "text-emerald-900" : "text-blue-950") : "text-foreground"}`}>Stall {s.stall_number}</p>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.2 text-[9px] font-bold uppercase ${s.status === "occupied"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-amber-100 text-amber-800"
                         }`}>
-                        {s.status === "occupied" ? <CheckCircle size={10} /> : <XCircle size={10} />}
+                        {s.status === "occupied" ? <CheckCircle size={9} /> : <XCircle size={9} />}
                         {s.status}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 font-semibold mt-1 truncate">{s.section}</p>
-                    {s.location && <p className="text-[10px] text-slate-400 mt-0.5 truncate italic">📍 {s.location}</p>}
+                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5 truncate">{s.section}</p>
+                    {s.location && <p className="text-[9px] text-muted-foreground mt-0.5 truncate italic">📍 {s.location}</p>}
                   </div>
                 );
               })
@@ -437,7 +441,7 @@ export default function BploStallHistory() {
         </div>
 
         {/* Right: Timeline View */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-[600px] flex flex-col">
+        <div className="lg:col-span-2 bg-card rounded-2xl border shadow-xs overflow-hidden h-[560px] flex flex-col">
           {selectedStall ? (
             <>
               {(() => {

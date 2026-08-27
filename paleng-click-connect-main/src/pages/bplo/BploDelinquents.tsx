@@ -147,73 +147,75 @@ export default function BploDelinquents() {
   }, [delinquents, search, filterSection]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
-      {/* Hero Header */}
-      <div className="rounded-2xl p-6 relative overflow-hidden text-white" style={{ background: BPLO_GRAD, boxShadow: "0 20px 48px rgba(30, 58, 138, 0.15)" }}>
-        <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+      {/* Executive Header Banner */}
+      <div className="rounded-2xl p-5 relative overflow-hidden text-white" style={{ background: BPLO_GRAD, boxShadow: "0 12px 32px rgba(13,30,54,0.15)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
         <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1 text-blue-200">BPLO Auditor Dashboard</p>
-            <h1 className="text-2xl font-extrabold">Delinquent Vendor Payments</h1>
-            <p className="text-xs mt-1 text-blue-100">Monitor overdue monthly rental collections, compliance status, and outstanding balances.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-200">BPLO Auditor Dashboard</span>
+              <span className="h-1 w-1 rounded-full bg-blue-400" />
+              <span className="text-[10px] text-blue-100">Compliance & Arrears</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Delinquent Vendor Payments</h1>
+            <p className="text-xs text-blue-100/70 mt-0.5">Monitor overdue monthly rental collections, compliance status, and outstanding balances.</p>
           </div>
-          <Button onClick={() => refetch()} variant="outline" className="h-10 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border">
-            <RefreshCw size={14} /> Refresh Logs
+          <Button onClick={() => refetch()} variant="outline" className="h-9 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border text-xs px-3.5 font-semibold">
+            <RefreshCw size={13} /> Refresh Logs
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* 4 Top KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Total Outstanding", value: isLoading ? "..." : fmt(stats.totalOutstanding), sub: "combined unpaid fees", icon: AlertTriangle, iconBg: "bg-red-50 text-red-600 border-red-100" },
-          { label: "Delinquent Accounts", value: isLoading ? "..." : stats.count, sub: "vendors with arrears", icon: User, iconBg: "bg-blue-50 text-blue-600 border-blue-100" },
-          { label: "Critical Cases (3mo+)", value: isLoading ? "..." : stats.criticalCount, sub: "require immediate action", icon: ShieldAlert, iconBg: "bg-amber-50 text-amber-600 border-amber-100" },
-          { label: "Avg. Arrears Period", value: isLoading ? "..." : `${stats.avgMonths} months`, sub: "average period overdue", icon: Layers, iconBg: "bg-indigo-50 text-indigo-600 border-indigo-100" },
-        ].map((c) => (
-          <div key={c.label} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{c.label}</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-2 font-mono">{c.value}</h3>
-              <p className="text-[10px] text-slate-400 mt-1 font-semibold">{c.sub}</p>
+          { label: "Total Outstanding", value: isLoading ? "..." : fmt(stats.totalOutstanding), sub: "combined unpaid fees", icon: AlertTriangle, iconBg: "bg-rose-100", iconColor: "#f43f5e", glow: "#f43f5e", gradient: "from-rose-50 to-rose-50/30" },
+          { label: "Delinquent Accounts", value: isLoading ? "..." : String(stats.count), sub: "vendors with arrears", icon: User, iconBg: "bg-blue-100", iconColor: "#2563eb", glow: "#2563eb", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Critical Cases (3mo+)", value: isLoading ? "..." : String(stats.criticalCount), sub: "require immediate action", icon: ShieldAlert, iconBg: stats.criticalCount > 0 ? "bg-amber-100" : "bg-secondary", iconColor: stats.criticalCount > 0 ? "#f59e0b" : "hsl(220,10%,55%)", glow: stats.criticalCount > 0 ? "#f59e0b" : "transparent", gradient: stats.criticalCount > 0 ? "from-amber-50 to-amber-50/30" : "from-secondary to-secondary/30" },
+          { label: "Avg. Arrears Period", value: isLoading ? "..." : `${stats.avgMonths} mo`, sub: "average period overdue", icon: Layers, iconBg: "bg-indigo-100", iconColor: "#4f46e5", glow: "#4f46e5", gradient: "from-indigo-50 to-indigo-50/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
+            <div className="flex items-center justify-between z-10">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              </div>
             </div>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-sm ${c.iconBg}`}>
-              <c.icon size={22} />
+            <div className="z-10 mt-2">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filters and List */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-2xl border shadow-xs overflow-hidden">
         
         {/* Controls */}
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500">Search Vendor / Stall</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <Input
-                  type="text"
-                  placeholder="Search name, stall number..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-10 rounded-xl border-slate-200 text-sm focus:border-blue-500 transition-all outline-none"
-                />
-                {search && (
-                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                    <X size={15} />
-                  </button>
-                )}
-              </div>
+        <div className="p-3.5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50/50 to-transparent">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+              <Input
+                type="text"
+                placeholder="Search name, stall number..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 h-9 rounded-xl border bg-background text-xs"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <X size={13} />
+                </button>
+              )}
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-500">Filter Section</label>
+            <div>
               <select 
-                className="w-full h-10 rounded-xl border border-slate-200 bg-background px-3 text-sm focus:border-blue-500 outline-none"
+                className="w-full h-9 rounded-xl border bg-background px-3 text-xs"
                 value={filterSection} 
                 onChange={(e) => setFilterSection(e.target.value)}
               >
@@ -222,41 +224,41 @@ export default function BploDelinquents() {
               </select>
             </div>
           </div>
-          <div className="text-xs font-semibold text-slate-400 uppercase pb-1.5">
+          <div className="text-[11px] font-semibold text-muted-foreground">
             Found {filteredList.length} delinquent vendors
           </div>
         </div>
 
         {/* Directory Table */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-sm text-slate-400">Computing delinquency registers...</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-2.5">
+            <RefreshCw className="w-6 h-6 animate-spin text-blue-600" />
+            <p className="text-xs text-muted-foreground">Computing delinquency registers...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b bg-slate-50 text-slate-500 text-left">
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Vendor Info</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Stall Details</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Overdue Period</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Outstanding Arrears</th>
-                  <th className="px-5 py-4 font-bold text-xs uppercase tracking-wider">Status</th>
+                <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d1e36 0%,#1e3a8a 100%)" }}>
+                  <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Vendor Info</th>
+                  <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Stall Details</th>
+                  <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Overdue Period</th>
+                  <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Outstanding Arrears</th>
+                  <th className="px-4 py-3 font-semibold text-blue-100 text-[11px] uppercase tracking-wider text-left">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {filteredList.map((v) => (
-                  <tr key={v.vendorId} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-slate-900">{v.name}</p>
-                      <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><Phone size={11} /> {v.contact}</p>
+                  <tr key={v.vendorId} className="hover:bg-blue-50/30 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <p className="font-semibold text-foreground text-xs">{v.name}</p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5"><Phone size={10} /> {v.contact}</p>
                     </td>
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-800 font-mono">Stall {v.stall}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{v.section}</p>
+                    <td className="px-4 py-2.5">
+                      <p className="font-semibold text-foreground font-mono text-xs">Stall {v.stall}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{v.section}</p>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-2.5">
                       <span className={`font-bold inline-flex items-center gap-1 ${
                         v.monthsOverdue >= 6 
                           ? "text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-100" 

@@ -69,41 +69,38 @@ const AdminAuditLogs = () => {
   };
 
   return (
-    <div className="space-y-5">
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{background:"linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)",boxShadow:"0 20px 48px rgba(15,110,86,0.15)"}}>
-        {[[200,"-60px","-60px","top","right"],[250,"-100px","-60px","bottom","left"]].map(([sz,a,b,v,h],i)=>(
-          <div key={i} style={{position:"absolute",[v as string]:a,[h as string]:b,width:sz,height:sz,borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.08)",pointerEvents:"none"}}/>
-        ))}
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 border border-white/20">
-              <Shield className="h-6 w-6 text-emerald-100" />
+    <div className="space-y-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Security & Logs</span>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>System Security</p>
-              <h1 className="text-2xl font-bold text-white">Audit Logs</h1>
-              <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Track all critical changes made to system data in real-time</p>
-            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Audit Logs</h1>
+            <p className="text-xs text-white/70 mt-0.5">Track and inspect all critical data modifications and administrative actions</p>
           </div>
         </div>
       </div>
 
       {/* ── Filters ──────────────────────────────────────────────────────── */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
-          <Input placeholder="Search by user or record ID…" className="h-10 pl-10 rounded-xl" value={search} onChange={e=>setSearch(e.target.value)}/>
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"/>
+          <Input placeholder="Search by user or record ID…" className="h-9 pl-9 rounded-xl text-xs" value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <select className="h-10 rounded-xl border bg-background px-3 text-sm min-w-[150px]" value={tableFilter} onChange={e=>setTableFilter(e.target.value)}>
+        <select className="h-9 rounded-xl border bg-background px-3 text-xs min-w-[140px]" value={tableFilter} onChange={e=>setTableFilter(e.target.value)}>
           <option value="all">All Tables</option>
           <option value="payments">Payments</option>
           <option value="stalls">Stalls</option>
           <option value="vendors">Vendors</option>
           <option value="payment_schedules">Payment Schedules</option>
         </select>
-        <select className="h-10 rounded-xl border bg-background px-3 text-sm min-w-[150px]" value={actionFilter} onChange={e=>setActionFilter(e.target.value)}>
+        <select className="h-9 rounded-xl border bg-background px-3 text-xs min-w-[140px]" value={actionFilter} onChange={e=>setActionFilter(e.target.value)}>
           <option value="all">All Actions</option>
           <option value="INSERT">Inserts</option>
           <option value="UPDATE">Updates</option>
@@ -112,25 +109,25 @@ const AdminAuditLogs = () => {
       </div>
 
       {/* ── Logs Table ─────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-emerald-100">
-              <Loader2 className="h-5 w-5 animate-spin text-emerald-600"/>
+          <div className="flex flex-col items-center justify-center py-10 gap-2.5">
+            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-emerald-100">
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-600"/>
             </div>
-            <p className="text-sm text-muted-foreground">Fetching audit trail…</p>
+            <p className="text-xs text-muted-foreground">Fetching audit trail…</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b bg-slate-50">
-                  <th className="px-4 py-3 text-left font-semibold text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">Timestamp</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">User</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">Action</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">Table</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">Record ID</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-500 text-xs uppercase tracking-wider whitespace-nowrap">Details</th>
+                <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
+                  <th className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">Timestamp</th>
+                  <th className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">User</th>
+                  <th className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">Action</th>
+                  <th className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">Table</th>
+                  <th className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">Record ID</th>
+                  <th className="px-4 py-3 text-right font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y">

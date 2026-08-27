@@ -44,16 +44,16 @@ const STATUS_CONFIG: Record<string, { icon: any; badge: string; text: string; la
 // ── Month SOA print ──────────────────────────────────────────────────────────
 const printMonthSOA = (data: {
   profile: any; stall: any; monthName: string; monthNum: number; year: number;
-  payments: any[]; monthlyRate: number; preferredSection?: string | null;
+  payments: any[]; monthlyRate: number; preferredSection?: string | null; isBolante?: boolean;
 }) => {
-  const { profile, stall, monthName, monthNum, year, payments, monthlyRate, preferredSection } = data;
+  const { profile, stall, monthName, monthNum, year, payments, monthlyRate, preferredSection, isBolante } = data;
 
   const completed = payments.filter(p => p.status === "completed");
   const pending = payments.filter(p => p.status === "pending");
   const totalPaid = completed.reduce((s, p) => s + Number(p.amount), 0);
   const totalPend = pending.reduce((s, p) => s + Number(p.amount), 0);
-  const balance = Math.max(0, monthlyRate - totalPaid);
-  const isPaid = totalPaid >= monthlyRate;
+  const balance = isBolante ? 0 : Math.max(0, monthlyRate - totalPaid);
+  const isPaid = isBolante ? true : totalPaid >= monthlyRate;
 
   const ML: Record<string, string> = { gcash: "GCash", paymaya: "Maya", instapay: "InstaPay", cash: "Cash at Cashier" };
 
@@ -64,7 +64,7 @@ const printMonthSOA = (data: {
       <td class="mono">${p.receipt_number || "—"}</td>
       <td class="mono">${p.reference_number || "—"}</td>
       <td>${ML[p.payment_method] || p.payment_method}</td>
-      <td>${p.payment_type === "staggered" ? "Partial" : "Full"}</td>
+      <td>${p.purpose || (isBolante ? "Permit Fee" : (p.payment_type === "staggered" ? "Partial" : "Full"))}</td>
       <td class="r mono ${p.status === "completed" ? "paid" : p.status === "pending" ? "pend" : "fail"}">${fmt(Number(p.amount))}</td>
       <td class="c status-${p.status}">${p.status === "completed" ? "✓ Confirmed" : p.status === "pending" ? "⏳ Pending" : "✗ Failed"}</td>
     </tr>`).join("");
@@ -98,47 +98,34 @@ const printMonthSOA = (data: {
   .paid{color:#27ae60;font-weight:bold} .pend{color:#d4a017} .fail{color:#c0392b}
   .status-completed{color:#27ae60;font-weight:bold} .status-pending{color:#d4a017;font-weight:bold} .status-failed{color:#c0392b}
   .no-tx{text-align:center;padding:16px;color:#888;font-style:italic}
-  .totals{border:2px solid #111;border-radius:4px;padding:12px;margin-bottom:16px}
+  .totals{border-top:2px solid #111;padding-top:8px}
   .t-row{display:flex;justify-content:space-between;padding:3px 0;font-size:11px}
-  .t-row.big{font-size:14px;font-weight:bold;border-top:1px solid #ddd;margin-top:6px;padding-top:8px}
-  .settled{color:#27ae60} .outstanding{color:#c0392b}
-  .status-banner{text-align:center;padding:10px;border-radius:4px;margin-bottom:14px;font-size:13px;font-weight:bold}
-  .status-banner.paid-banner{background:#d5f5e3;border:1px solid #27ae60;color:#1e8449}
-  .status-banner.bal-banner{background:#fdecea;border:1px solid #c0392b;color:#c0392b}
-  .sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;margin-top:40px}
-  .sig-line{border-top:1px solid #111;padding-top:5px;text-align:center;font-size:9px;color:#555}
+  .t-row.big{font-size:13px;font-weight:bold;border-top:1px solid #ddd;margin-top:4px;padding-top:6px}
+  .sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:36px}
+  .sig-line{border-top:1px solid #111;padding-top:4px;text-align:center;font-size:9px;color:#555}
   .sig-name{font-weight:bold;font-size:10px;color:#111;text-transform:uppercase}
-  .footer{margin-top:20px;text-align:center;font-size:8px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}
+  .footer{margin-top:20px;text-align:center;font-size:8px;color:#aaa;border-top:1px solid #ddd;padding-top:6px}
 </style></head><body>
 <div class="hdr">
   <div class="rep">Republic of the Philippines</div>
   <div class="lgu">Municipality of San Juan, Batangas · Office of the Municipal Treasurer</div>
-  <div class="ttl">STATEMENT OF ACCOUNT</div>
-  <div class="sub">Public Market Stall Rental</div>
+  <div class="ttl">STATEMENT OF ACCOUNT — MONTHLY SUMMARY</div>
+  <div class="sub">${isBolante ? "Bolante Section — Regulatory & Permit Payments" : "Public Market Stall Rental"}</div>
   <div class="period-badge">${monthName.toUpperCase()} ${year}</div>
 </div>
 <div class="info">
   <div class="info-item"><label>Vendor Name</label><p>${profile?.first_name} ${profile?.last_name}</p></div>
   <div class="info-item"><label>Stall Number</label><p>${stall?.stall_number || "—"}</p></div>
-  <div class="info-item"><label>Section</label><p>${stall?.section || preferredSection || "General"}</p></div>
+  <div class="info-item"><label>Section</label><p>${stall?.section || preferredSection || "Bolante Section"}</p></div>
+  <div class="info-item"><label>${isBolante ? "Physical Rent" : "Monthly Rate"}</label><p>${isBolante ? "Exempt (₱0.00)" : fmt(monthlyRate)}</p></div>
   <div class="info-item"><label>Location</label><p>${stall?.location || "—"}</p></div>
-  <div class="info-item"><label>Monthly Rate</label><p>${fmt(monthlyRate)}</p></div>
-  <div class="info-item"><label>Date Printed</label><p>${new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p></div>
-</div>
-<div class="summary">
-  <div class="sum-box"><div class="lbl">Monthly Due</div><div class="val">${fmt(monthlyRate)}</div></div>
-  <div class="sum-box paid"><div class="lbl">Total Paid</div><div class="val">${fmt(totalPaid)}</div></div>
-  <div class="sum-box pend"><div class="lbl">Pending</div><div class="val">${fmt(totalPend)}</div></div>
-  <div class="sum-box bal"><div class="lbl">Balance</div><div class="val">${fmt(balance)}</div></div>
-</div>
-<div class="status-banner ${isPaid ? "paid-banner" : "bal-banner"}">
-  ${isPaid ? `✓ ${monthName} ${year} is FULLY PAID` : `⚠ Outstanding Balance: ${fmt(balance)} for ${monthName} ${year}`}
+  <div class="info-item"><label>Printed On</label><p>${new Date().toLocaleDateString("en-PH")}</p></div>
 </div>
 <table>
   <thead>
     <tr>
       <th>Date</th><th>Time</th><th>Receipt No.</th><th>Reference No.</th>
-      <th>Method</th><th>Type</th><th class="r">Amount</th><th class="c">Status</th>
+      <th>Method</th><th>Purpose</th><th class="r">Amount</th><th class="c">Status</th>
     </tr>
   </thead>
   <tbody>
@@ -146,16 +133,11 @@ const printMonthSOA = (data: {
   </tbody>
 </table>
 <div class="totals">
-  <div class="t-row"><span>Monthly Fee Due (${monthName} ${year})</span><span class="mono">${fmt(monthlyRate)}</span></div>
   <div class="t-row"><span>Total Amount Paid</span><span class="mono settled">${fmt(totalPaid)}</span></div>
   ${totalPend > 0 ? `<div class="t-row"><span>Pending (awaiting confirmation)</span><span class="mono pend">${fmt(totalPend)}</span></div>` : ""}
-  <div class="t-row big">
-    <span>BALANCE DUE — ${monthName} ${year}</span>
-    <span class="mono ${isPaid ? "settled" : "outstanding"}">${fmt(balance)}</span>
-  </div>
 </div>
 <div class="sigs">
-  <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">${profile?.first_name} ${profile?.last_name}</div>Vendor / Lessee</div></div>
+  <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">${profile?.first_name} ${profile?.last_name}</div>Vendor / Representative</div></div>
   <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">Cashier</div>Prepared by</div></div>
   <div><div style="height:36px"></div><div class="sig-line"><div class="sig-name">Municipal Treasurer</div>Noted by</div></div>
 </div>
@@ -171,6 +153,13 @@ const HistoryCard = ({ p }: { p: any }) => {
   const StatusIcon = statusCfg.icon;
   const MethodIcon = methodCfg.icon;
 
+  const isBolanteItem = p.isBolante || !!p.purpose;
+  const titleText = isBolanteItem
+    ? (p.purpose || "Business Permit & Licensing (BPLO)")
+    : (p.period_month && p.period_year
+        ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
+        : new Date(p.created_at).toLocaleDateString("en-PH", { month: "long", year: "numeric" }));
+
   return (
     <div className="rounded-2xl border bg-white overflow-hidden shadow-sm"
       style={{ border: "1px solid #e2e8f0" }}>
@@ -180,18 +169,18 @@ const HistoryCard = ({ p }: { p: any }) => {
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-start gap-3">
-          <div className={`mt-0.5 flex h-10 h-10 w-10 shrink-0 items-center justify-center rounded-full ${p.status === "completed" ? "bg-green-100" :
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${p.status === "completed" ? "bg-green-100" :
             p.status === "pending" ? "bg-amber-100" : "bg-red-100"
             }`}>
             <StatusIcon className={`h-5 w-5 ${statusCfg.text}`} />
           </div>
           <div>
-            {/* Billing period label */}
-            <p className="text-[9px] uppercase tracking-widest font-semibold text-slate-400 mb-0.5">Billing Period</p>
+            {/* Label */}
+            <p className="text-[9px] uppercase tracking-widest font-semibold text-slate-400 mb-0.5">
+              {isBolanteItem ? "Payment Requirement" : "Billing Period"}
+            </p>
             <p className="font-bold text-slate-900 text-sm leading-tight">
-              {p.period_month && p.period_year
-                ? `${MONTHS[p.period_month - 1]} ${p.period_year}`
-                : new Date(p.created_at).toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
+              {titleText}
             </p>
             {/* Paid-on date — clearly separated */}
             <p className="text-[11px] text-slate-400 mt-1">
@@ -228,11 +217,13 @@ const HistoryCard = ({ p }: { p: any }) => {
               </div>
               <span className="text-xs text-slate-500">{methodCfg.label}</span>
             </div>
-            <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${p.payment_type === "staggered"
-              ? "border-blue-200 bg-blue-50 text-blue-700"
-              : "border-slate-200 bg-slate-50 text-slate-500"
+            <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${isBolanteItem
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : p.payment_type === "staggered"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-slate-200 bg-slate-50 text-slate-500"
               }`}>
-              {p.payment_type === "staggered" ? "Partial" : "Full Payment"}
+              {isBolanteItem ? (p.purpose || "Permit Fee") : p.payment_type === "staggered" ? "Partial" : "Full Payment"}
             </span>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               {p.reference_number && (
@@ -258,10 +249,13 @@ const HistoryCard = ({ p }: { p: any }) => {
           )}
           {p.is_submission && p.receipt_url && (
             <div className="mx-4 mb-3">
-              <a href={p.receipt_url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5"
-                style={{ background: DS.blue50, color: DS.blue600, border: `1px solid ${DS.blue100}` }}>
-                <Eye className="h-3.5 w-3.5" /> View Uploaded Receipt
+              <a
+                href={p.receipt_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"
+              >
+                <Eye className="h-3.5 w-3.5" /> View Submitted Receipt
               </a>
             </div>
           )}
@@ -271,12 +265,11 @@ const HistoryCard = ({ p }: { p: any }) => {
   );
 };
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Main Page ─────────────────────────────────────────────────────────────────
 const VendorHistory = () => {
   const { user } = useAuth();
-  const printRef = useRef<HTMLIFrameElement>(null);
+  const printIframeRef = useRef<HTMLIFrameElement>(null);
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -294,7 +287,7 @@ const VendorHistory = () => {
     refetchInterval: 5000,
     queryFn: async () => {
       const { data: vendor } = await supabase
-        .from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, location)")
+        .from("vendors").select("id, stall_id, stalls(stall_number, section, monthly_rate, monthly_rate_2026, location)")
         .eq("user_id", user!.id).single();
       const { data: profile } = await supabase
         .from("profiles").select("first_name, last_name")
@@ -307,42 +300,100 @@ const VendorHistory = () => {
         .eq("vendor_id", vendor.id)
         .order("created_at", { ascending: false });
 
-      // Fetch pending online submissions (not yet accepted by cashier)
-      const { data: submissions } = await supabase
+      // Fetch all submissions to correlate metadata and pending ones
+      const { data: allSubmissions } = await supabase
         .from("payment_submissions")
         .select("*")
         .eq("vendor_id", vendor.id)
-        .in("status", ["pending", "rejected"])
         .order("created_at", { ascending: false });
 
-      // Normalise submissions to look like payment rows
-      const pendingRows = (submissions || []).map((s: any) => ({
-        id: `sub_${s.id}`,
-        vendor_id: s.vendor_id,
-        amount: s.amount,
-        status: s.status === "rejected" ? "failed" : "pending",
-        payment_method: s.payment_method || "instapay",
-        payment_type: s.payment_type || "due",
-        period_month: s.period_month,
-        period_year: s.period_year,
-        reference_number: s.ocr_reference || null,
-        receipt_url: s.receipt_url || null,
-        created_at: s.created_at,
-        is_submission: true,   // flag so UI can show "Awaiting verification"
-      }));
+      const { data: appData } = await supabase
+        .from("vendor_applications")
+        .select("preferred_section")
+        .eq("applicant_user_id", user!.id)
+        .maybeSingle();
 
-      const { data: appData } = await supabase.from("vendor_applications").select("preferred_section").eq("applicant_user_id", user!.id).maybeSingle();
+      const subMap: Record<string, any> = {};
+      (allSubmissions || []).forEach((s: any) => {
+        if (s.payment_id) subMap[s.payment_id] = s;
+        if (s.ocr_reference) subMap[s.ocr_reference] = s;
+        subMap[s.id] = s;
+      });
+
+      const stall = vendor.stalls as any;
+      const preferredSection = appData?.preferred_section || null;
+      const confirmedPaymentIds = new Set<string>();
+      const confirmedRefNumbers = new Set<string>();
+      (confirmedPayments || []).forEach((p: any) => {
+        if (p.id) confirmedPaymentIds.add(p.id);
+        if (p.reference_number) confirmedRefNumbers.add(p.reference_number.toLowerCase().trim());
+      });
+
+      // Normalise submissions to look like payment rows only if not yet confirmed/accepted
+      const pendingRows = (allSubmissions || [])
+        .filter((s: any) => {
+          if (s.status !== "pending" && s.status !== "rejected") return false;
+          if (s.payment_id && confirmedPaymentIds.has(s.payment_id)) return false;
+          if (s.ocr_reference && confirmedRefNumbers.has(s.ocr_reference.toLowerCase().trim())) return false;
+          return true;
+        })
+        .map((s: any) => {
+          let purpose = s.ocr_recipient || null;
+          if (!purpose && s.ocr_raw) {
+            try {
+              const raw = typeof s.ocr_raw === "string" ? JSON.parse(s.ocr_raw) : s.ocr_raw;
+              purpose = raw.bolanteCategory || raw.purpose || null;
+            } catch {}
+          }
+          if (!purpose && isBolante) purpose = "Business Permit & Licensing (BPLO)";
+
+          return {
+            id: `sub_${s.id}`,
+            vendor_id: s.vendor_id,
+            amount: s.amount,
+            status: s.status === "rejected" ? "failed" : "pending",
+            payment_method: s.payment_method || "instapay",
+            payment_type: s.payment_type || "due",
+            period_month: s.period_month,
+            period_year: s.period_year,
+            reference_number: s.ocr_reference || null,
+            receipt_url: s.receipt_url || null,
+            created_at: s.created_at,
+            is_submission: true,
+            purpose,
+            isBolante,
+          };
+        });
+
+      const confirmedRows = (confirmedPayments || []).map((p: any) => {
+        const s = subMap[p.id] || (p.reference_number ? subMap[p.reference_number] : null);
+        let purpose = s?.ocr_recipient || null;
+        if (!purpose && s?.ocr_raw) {
+          try {
+            const raw = typeof s.ocr_raw === "string" ? JSON.parse(s.ocr_raw) : s.ocr_raw;
+            purpose = raw.bolanteCategory || raw.purpose || null;
+          } catch {}
+        }
+        if (!purpose && isBolante) purpose = "Business Permit & Licensing (BPLO)";
+
+        return {
+          ...p,
+          purpose,
+          isBolante,
+        };
+      });
 
       // Merge: submissions first (pending on top), then confirmed
-      const merged = [...pendingRows, ...(confirmedPayments || [])];
+      const merged = [...pendingRows, ...confirmedRows];
 
-      return { payments: merged, vendor, profile, stall: vendor.stalls as any, preferredSection: appData?.preferred_section || null };
+      return { payments: merged, vendor, profile, stall, preferredSection, isBolante };
     },
   });
 
   const payments = queryData?.payments || [];
   const profile = queryData?.profile;
   const stall = queryData?.stall;
+  const isBolante = queryData?.isBolante;
   const monthlyRate = stall ? ((stall as any)?.monthly_rate_2026 || (stall as any)?.monthly_rate || 0) : 0;
 
   const availableYears = useMemo(() => {
@@ -361,92 +412,91 @@ const VendorHistory = () => {
     };
   }, [payments]);
 
+  // Filter logic
   const filtered = useMemo(() => {
     return payments.filter((p: any) => {
-      const period = p.period_month && p.period_year
-        ? `${MONTHS[p.period_month - 1]} ${p.period_year}`.toLowerCase() : "";
-      const matchSearch = !search ||
-        period.includes(search.toLowerCase()) ||
-        (p.reference_number || "").toLowerCase().includes(search.toLowerCase()) ||
-        (p.receipt_number || "").toLowerCase().includes(search.toLowerCase()) ||
-        (p.payment_method || "").toLowerCase().includes(search.toLowerCase());
-      const matchStatus = filterStatus === "all" || p.status === filterStatus;
-      const matchMethod = filterMethod === "all" || p.payment_method === filterMethod;
-
-      // Filter by billing period month OR by transaction (paid-on) date month
-      let matchMonth = true;
-      let matchYear = true;
-      if (filterMonth !== "all") {
-        if (filterBy === "period") {
-          matchMonth = p.period_month === Number(filterMonth);
-          matchYear = !p.period_year || p.period_year === filterYear;
-        } else {
-          // "paid" mode — filter by the date the payment was made
-          const paidDate = new Date(p.created_at);
-          matchMonth = paidDate.getMonth() + 1 === Number(filterMonth);
-          matchYear = paidDate.getFullYear() === filterYear;
-        }
-      } else {
-        // When no month filter, still apply year
-        if (filterBy === "period") {
-          matchYear = !p.period_year || p.period_year === filterYear;
-        } else {
-          matchYear = new Date(p.created_at).getFullYear() === filterYear;
-        }
+      // Search
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const refMatch = p.reference_number?.toLowerCase().includes(q);
+        const rcMatch = p.receipt_number?.toLowerCase().includes(q);
+        const amtMatch = String(p.amount).includes(q);
+        const purposeMatch = p.purpose?.toLowerCase().includes(q);
+        if (!refMatch && !rcMatch && !amtMatch && !purposeMatch) return false;
       }
-
-      return matchSearch && matchStatus && matchMethod && matchMonth && matchYear;
+      // Status
+      if (filterStatus !== "all" && p.status !== filterStatus) return false;
+      // Method
+      if (filterMethod !== "all" && p.payment_method !== filterMethod) return false;
+      // Year
+      if (filterYear) {
+        const itemYear = filterBy === "paid"
+          ? new Date(p.created_at).getFullYear()
+          : (p.period_year || new Date(p.created_at).getFullYear());
+        if (itemYear !== filterYear) return false;
+      }
+      // Month
+      if (filterMonth !== "all") {
+        const targetMonth = Number(filterMonth);
+        const itemMonth = filterBy === "paid"
+          ? new Date(p.created_at).getMonth() + 1
+          : (p.period_month || new Date(p.created_at).getMonth() + 1);
+        if (itemMonth !== targetMonth) return false;
+      }
+      return true;
     });
   }, [payments, search, filterStatus, filterMethod, filterMonth, filterYear, filterBy]);
 
-  const monthPayments = useMemo(() => {
-    if (filterMonth === "all") return [];
-    if (filterBy === "period") {
-      return payments.filter((p: any) =>
-        p.period_month === Number(filterMonth) && p.period_year === filterYear
-      );
-    } else {
-      return payments.filter((p: any) => {
-        const d = new Date(p.created_at);
-        return d.getMonth() + 1 === Number(filterMonth) && d.getFullYear() === filterYear;
-      });
-    }
-  }, [payments, filterMonth, filterYear, filterBy]);
+  const hasFilters = search || filterStatus !== "all" || filterMethod !== "all" || filterMonth !== "all" || filterYear !== currentYear;
 
-  const hasFilters = filterStatus !== "all" || filterMethod !== "all" || !!search || filterMonth !== "all";
   const clearFilters = () => {
-    setSearch(""); setFilterStatus("all"); setFilterMethod("all"); setFilterMonth("all"); setFilterBy("period");
+    setSearch("");
+    setFilterStatus("all");
+    setFilterMethod("all");
+    setFilterMonth("all");
+    setFilterYear(currentYear);
   };
 
   const handlePrintMonthSOA = () => {
-    if (filterMonth === "all" || !printRef.current) return;
-    const frame = printRef.current;
-    frame.srcdoc = printMonthSOA({
-      profile, stall, monthlyRate,
-      monthName: MONTHS[Number(filterMonth) - 1],
-      monthNum: Number(filterMonth),
+    if (filterMonth === "all") return;
+    const monthNum = Number(filterMonth);
+    const monthName = MONTHS[monthNum - 1];
+    const monthPayments = filtered;
+    const iframe = printIframeRef.current;
+    if (!iframe) return;
+    iframe.srcdoc = printMonthSOA({
+      profile,
+      stall,
+      monthName,
+      monthNum,
       year: filterYear,
       payments: monthPayments,
+      monthlyRate,
+      preferredSection: queryData?.preferredSection,
+      isBolante,
     });
-    frame.onload = () => setTimeout(() => frame.contentWindow?.print(), 300);
+    iframe.onload = () => setTimeout(() => iframe.contentWindow?.print(), 300);
   };
 
-  if (isLoading) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-      <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#2563eb" }} />
-    </div>
-  );
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0" style={{ "--page-pad": "32px" } as any}>
-      <iframe ref={printRef} style={{ display: "none" }} title="print-month-soa" />
+    <div className="space-y-0 -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:space-y-6">
+      <iframe ref={printIframeRef} style={{ display: "none" }} title="print-month-soa" />
 
-      {/* Mobile mini-hero header */}
+      {/* Mobile hero */}
       <div className="lg:hidden" style={{ background: DS.gradientHeader }}>
         <div className="px-5 pt-5 pb-5">
           <h1 className="text-2xl font-black text-white">Payment History</h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Complete record of all your stall payments</p>
-          {/* Stats row */}
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>
+            {isBolante ? "Complete record of permits and regulatory payments" : "Complete record of all your stall payments"}
+          </p>
           <div className="flex gap-2.5 mt-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
               { label: "Total Paid", value: fmt(stats.totalPaid) },
@@ -468,7 +518,9 @@ const VendorHistory = () => {
       <div className="hidden lg:flex items-start justify-between flex-wrap gap-3" style={{ padding: "28px 32px 0" }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>Payment History</h1>
-          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>Complete record of all your stall payments</p>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>
+            {isBolante ? "Complete record of business permits, regulatory fees, and compliance payments" : "Complete record of all your stall payments"}
+          </p>
         </div>
         {filterMonth !== "all" && (
           <Button variant="hero" className="gap-2 rounded-xl" onClick={handlePrintMonthSOA}>
@@ -506,7 +558,7 @@ const VendorHistory = () => {
             {/* Row 1 mobile: search full-width */}
             <div className="relative flex-1 min-w-[160px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search reference, receipt…"
+              <Input placeholder="Search reference, requirement, receipt…"
                 className="h-10 pl-10 rounded-xl"
                 value={search} onChange={e => setSearch(e.target.value)} />
             </div>
@@ -517,10 +569,10 @@ const VendorHistory = () => {
               <div className="flex items-center rounded-xl border bg-secondary p-0.5 gap-0.5 shrink-0 h-10">
                 <button
                   onClick={() => setFilterBy("period")}
-                  title="Filter by billing period month"
+                  title={isBolante ? "Filter by fiscal period" : "Filter by billing period month"}
                   className={`px-2.5 h-8 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap ${filterBy === "period" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
                     }`}>
-                  Billing Period
+                  {isBolante ? "Fiscal Period" : "Billing Period"}
                 </button>
                 <button
                   onClick={() => setFilterBy("paid")}
@@ -585,9 +637,9 @@ const VendorHistory = () => {
             </div>
           </div>
 
-          {/* Expanded filters */}
+          {/* Expanded filters panel */}
           {showFilters && (
-            <div className="rounded-2xl border bg-card p-4 shadow-civic grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
                 <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
@@ -702,7 +754,7 @@ const VendorHistory = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b" style={{ background: "#0d2240" }}>
-                {["Date", "Billing Period", "Amount", "Method", "Type", "Status", "Reference", "Receipt"].map(h => (
+                {["Date", isBolante ? "Requirement / Purpose" : "Billing Period", "Amount", "Method", "Type", "Status", "Reference", "Receipt"].map(h => (
                   <th key={h} className="px-4 py-3 text-left font-medium whitespace-nowrap text-white" style={{ fontSize: 10, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -713,6 +765,7 @@ const VendorHistory = () => {
                 const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, color: "bg-slate-400", label: p.payment_method };
                 const StatusIcon = statusCfg.icon;
                 const MethodIcon = methodCfg.icon;
+                const isBolanteItem = p.isBolante || !!p.purpose;
 
                 return (
                   <tr key={p.id} className="hover:bg-slate-50 transition-colors">
@@ -725,10 +778,14 @@ const VendorHistory = () => {
                       </p>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-medium text-foreground text-sm">
-                        {p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : "—"}
+                      <p className="font-semibold text-foreground text-sm">
+                        {isBolanteItem
+                          ? (p.purpose || "Business Permit & Licensing (BPLO)")
+                          : (p.period_month && p.period_year ? `${MONTHS[p.period_month - 1]} ${p.period_year}` : "—")}
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">Billing Period</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">
+                        {isBolanteItem ? "Requirement" : "Billing Period"}
+                      </p>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-foreground whitespace-nowrap">
                       {fmt(Number(p.amount))}
@@ -742,11 +799,13 @@ const VendorHistory = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${p.payment_type === "staggered"
-                        ? "border-blue-200 bg-blue-50 text-blue-700"
-                        : "border-slate-200 bg-slate-50 text-slate-500"
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${isBolanteItem
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : p.payment_type === "staggered"
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-slate-50 text-slate-500"
                         }`}>
-                        {p.payment_type === "staggered" ? "Partial" : "Full"}
+                        {isBolanteItem ? "Permit Fee" : p.payment_type === "staggered" ? "Partial" : "Full"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -770,15 +829,10 @@ const VendorHistory = () => {
               })}
             </tbody>
           </table>
-
-          <div className="border-t bg-secondary/30 px-5 py-3 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{filtered.length} transactions</span>
-            <span className="font-mono font-bold text-foreground">
-              Total paid: {fmt(filtered.filter((p: any) => p.status === "completed").reduce((s: number, p: any) => s + Number(p.amount), 0))}
-            </span>
-          </div>
         </div>
       )}
+
+      <div className="h-4 lg:hidden" />
 
       {/* Unified bottom nav — mobile only */}
       <VendorBottomNav />

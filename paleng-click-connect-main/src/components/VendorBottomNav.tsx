@@ -24,11 +24,11 @@ const DS = {
 type ActiveTab = "home" | "inbox" | "qr" | "payments" | "news";
 
 const TABS = [
-  { id: "home",     label: "Home",     icon: LayoutDashboard, to: "/vendor"               },
-  { id: "inbox",    label: "Alerts",    icon: Bell,            to: "/vendor/notifications" },
-  { id: "qr",       label: "My QR",   icon: QrCode,          to: "/vendor/stall"         },
-  { id: "payments", label: "Payments", icon: List,            to: "/vendor/history"       },
-  { id: "news",     label: "Inbox",     icon: Newspaper,       to: "/vendor/news"          },
+  { id: "home", label: "Home", icon: LayoutDashboard, to: "/vendor" },
+  { id: "inbox", label: "Alerts", icon: Bell, to: "/vendor/notifications" },
+  { id: "qr", label: "My QR", icon: QrCode, to: "/vendor/stall" },
+  { id: "payments", label: "Payments", icon: List, to: "/vendor/history" },
+  { id: "news", label: "Inbox", icon: Newspaper, to: "/vendor/news" },
 ] as const;
 
 interface Props {
@@ -41,10 +41,10 @@ const VendorBottomNav = ({ unreadNotifs = 0 }: Props) => {
   const getActive = (): ActiveTab => {
     const path = location.pathname;
     if (path === "/vendor" || path === "/vendor/") return "home";
-    if (path.startsWith("/vendor/notifications"))          return "inbox";
-    if (path.startsWith("/vendor/stall"))                  return "qr";
+    if (path.startsWith("/vendor/notifications")) return "inbox";
+    if (path.startsWith("/vendor/stall")) return "qr";
     if (path.startsWith("/vendor/history") || path.startsWith("/vendor/pay") || path.startsWith("/vendor/statement")) return "payments";
-    if (path.startsWith("/vendor/news"))                   return "news";
+    if (path.startsWith("/vendor/news")) return "news";
     return "home";
   };
 
@@ -57,8 +57,8 @@ const VendorBottomNav = ({ unreadNotifs = 0 }: Props) => {
     >
       <div className="flex items-center justify-around px-2 pb-3 pt-1">
         {TABS.map((tab) => {
-          const isActive  = active === tab.id;
-          const isCenter  = tab.id === "qr";
+          const isActive = active === tab.id;
+          const isCenter = tab.id === "qr";
 
           if (isCenter) {
             return (

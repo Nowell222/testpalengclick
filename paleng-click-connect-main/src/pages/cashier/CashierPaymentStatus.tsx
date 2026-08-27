@@ -102,40 +102,46 @@ const CashierPaymentStatus = () => {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Page header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Payment Status</h1>
-          <p className="text-sm text-muted-foreground">Monitor and track all vendor payment transactions</p>
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Transaction Status</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Payment Status Directory</h1>
+            <p className="text-xs text-white/70 mt-0.5">Monitor and track all vendor payment transactions</p>
+          </div>
+          <Button onClick={() => refetch()} variant="outline" className="h-9 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border text-xs px-3.5 font-semibold">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh Log
+          </Button>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
       </div>
 
-      {/* ── KPI Cards ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* ── 4 Top KPI Cards ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label: "Today's Collection", value: fmt(stats.totalToday), sub: `${stats.countToday} transactions`, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/40", icon: TrendingUp },
-          { label: "Pending",            value: String(stats.countPending),       sub: "awaiting confirmation",          iconBg: "bg-amber-100",   iconColor: "#f59e0b", glow: "#f59e0b", gradient: "from-amber-50 to-amber-50/40",   icon: Clock       },
-          { label: "Failed",             value: String(stats.countFailed),        sub: "this period",                   iconBg: "bg-red-100",     iconColor: "#ef4444", glow: "#ef4444", gradient: "from-red-50 to-red-50/40",       icon: AlertCircle },
-          { label: "Filtered Total",     value: fmt(stats.totalFiltered),         sub: `${filtered.length} records shown`, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/40",    icon: Activity    },
+          { label: "Today's Collection", value: fmt(stats.totalToday), sub: `${stats.countToday} transactions`, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30", icon: TrendingUp },
+          { label: "Pending",            value: String(stats.countPending),       sub: "awaiting confirmation",          iconBg: "bg-amber-100",   iconColor: "#f59e0b", glow: "#f59e0b", gradient: "from-amber-50 to-amber-50/30",   icon: Clock       },
+          { label: "Failed",             value: String(stats.countFailed),        sub: "this period",                   iconBg: "bg-rose-100",     iconColor: "#f43f5e", glow: "#f43f5e", gradient: "from-rose-50 to-rose-50/30",       icon: AlertCircle },
+          { label: "Filtered Total",     value: fmt(stats.totalFiltered),         sub: `${filtered.length} records shown`, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30",    icon: Activity    },
         ].map(c => (
           <div key={c.label}
-               className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`}
-               style={{ minHeight: 100 }}>
-            <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity`}
-                 style={{ background: c.glow }} />
+               className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                <c.icon className="h-4.5 w-4.5" style={{ color: c.iconColor }} />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
               </div>
             </div>
             <div className="z-10 mt-2">
-              <p className="font-mono text-xl font-bold text-foreground">{c.value}</p>
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
             </div>
           </div>
@@ -143,43 +149,43 @@ const CashierPaymentStatus = () => {
       </div>
 
       {/* ── Search + Filter bar ───────────────────────────────────────────────── */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         <div className="flex gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search vendor, stall, or reference…"
-              className="h-11 pl-10 rounded-xl border-border/60 bg-white"
+              className="h-9 pl-9 rounded-xl border bg-background text-xs"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
           <Button
             variant="outline"
-            className={`h-11 gap-2 rounded-xl ${showFilters ? "border-emerald-300 text-emerald-700 bg-emerald-50" : ""}`}
+            className={`h-9 gap-1.5 rounded-xl text-xs ${showFilters ? "border-emerald-300 text-emerald-700 bg-emerald-50" : ""}`}
             onClick={() => setShowFilters(v => !v)}
           >
-            <Filter className="h-4 w-4" />
+            <Filter className="h-3.5 w-3.5" />
             Filters
             {hasActiveFilters && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] text-white font-bold">
+              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600 text-[9px] text-white font-bold">
                 {[filterStatus !== "all", filterMethod !== "all", !!dateFrom, !!dateTo].filter(Boolean).length}
               </span>
             )}
           </Button>
           {hasActiveFilters && (
-            <Button variant="ghost" className="h-11 gap-1.5 text-muted-foreground rounded-xl" onClick={clearFilters}>
+            <Button variant="ghost" className="h-9 gap-1.5 text-muted-foreground rounded-xl text-xs" onClick={clearFilters}>
               <X className="h-3.5 w-3.5" /> Clear
             </Button>
           )}
         </div>
 
         {showFilters && (
-          <div className="rounded-2xl border bg-card p-4 shadow-civic">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="space-y-1.5">
-                <label className="section-label">Status</label>
-                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <div className="rounded-2xl border bg-card p-3.5 shadow-xs">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>
+                <select className="h-8 w-full rounded-xl border bg-background px-3 text-xs" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                   <option value="all">All Statuses</option>
                   <option value="completed">Completed</option>
                   <option value="pending">Pending</option>
@@ -187,9 +193,9 @@ const CashierPaymentStatus = () => {
                   <option value="overdue">Overdue</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="section-label">Method</label>
-                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm" value={filterMethod} onChange={e => setFilterMethod(e.target.value)}>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Method</label>
+                <select className="h-8 w-full rounded-xl border bg-background px-3 text-xs" value={filterMethod} onChange={e => setFilterMethod(e.target.value)}>
                   <option value="all">All Methods</option>
                   <option value="cash">Cash</option>
                   <option value="gcash">GCash</option>
@@ -197,24 +203,24 @@ const CashierPaymentStatus = () => {
                   <option value="instapay">InstaPay</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="section-label">Date From</label>
-                <Input type="date" className="h-9 rounded-xl text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} max={today} />
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Date From</label>
+                <Input type="date" className="h-8 rounded-xl text-xs" value={dateFrom} onChange={e => setDateFrom(e.target.value)} max={today} />
               </div>
-              <div className="space-y-1.5">
-                <label className="section-label">Date To</label>
-                <Input type="date" className="h-9 rounded-xl text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} max={today} />
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase">Date To</label>
+                <Input type="date" className="h-8 rounded-xl text-xs" value={dateTo} onChange={e => setDateTo(e.target.value)} max={today} />
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <p className="text-xs text-muted-foreground self-center">Quick:</p>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <p className="text-[10px] text-muted-foreground self-center">Quick:</p>
               {[
                 { label: "Today",      from: today, to: today },
                 { label: "This Week",  from: new Date(Date.now() - 6*86400000).toISOString().split("T")[0], to: today },
                 { label: "This Month", from: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}-01`, to: today },
               ].map(s => (
                 <button key={s.label} onClick={() => { setDateFrom(s.from); setDateTo(s.to); }}
-                  className={`rounded-lg border px-3 py-1 text-xs transition-colors ${
+                  className={`rounded-lg border px-2.5 py-0.5 text-[11px] transition-colors ${
                     dateFrom === s.from && dateTo === s.to
                       ? "border-emerald-300 bg-emerald-50 text-emerald-700 font-semibold"
                       : "border-border text-muted-foreground hover:bg-secondary"
@@ -228,7 +234,7 @@ const CashierPaymentStatus = () => {
       </div>
 
       {/* ── Result count ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-xs">
         <p className="text-muted-foreground">
           Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
           <strong className="text-foreground">{payments.length}</strong> transactions
@@ -237,19 +243,19 @@ const CashierPaymentStatus = () => {
       </div>
 
       {/* ── Transaction table ─────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm table-zebra">
+          <table className="w-full text-xs">
             <thead>
               <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
                 {["Vendor","Stall","Period","Amount","Method","Type","Reference No.","Status","Date & Time"].map(h => (
-                  <th key={h} className="px-4 py-3.5 text-left font-semibold text-emerald-100 text-xs uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border">
               {filtered.map((p: any) => {
                 const statusCfg = STATUS_CONFIG[p.status] || STATUS_CONFIG.pending;
                 const methodCfg = METHOD_CONFIG[p.payment_method] || { icon: CreditCard, bg: "#6b7280", label: p.payment_method };
@@ -257,7 +263,7 @@ const CashierPaymentStatus = () => {
                 const MethodIcon = methodCfg.icon;
                 return (
                   <tr key={p.id} className="hover:bg-emerald-50/40 transition-colors">
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <p className="font-semibold text-foreground">{p.vendor_name}</p>
                       <p className="text-xs text-muted-foreground">{p.contact}</p>
                     </td>

@@ -249,109 +249,97 @@ const CashierFeeSchedules = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {editVendor && <VendorFeeEditor vendor={editVendor} year={year} onClose={() => setEditVendor(null)}/>}
 
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{background:"linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)",boxShadow:"0 20px 48px rgba(15,110,86,0.15)"}}>
-        {[[200,"-60px","-60px","top","right"],[250,"-100px","-60px","bottom","left"]].map(([sz,a,b,v,h],i)=>(
-          <div key={i} style={{position:"absolute",[v as string]:a,[h as string]:b,width:sz,height:sz,borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.08)",pointerEvents:"none"}}/>
-        ))}
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>Cashier Terminal</p>
-            <h1 className="text-2xl font-bold text-white">Fee Schedules</h1>
-            <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Set per-month stall fees per vendor — updates SOA in real time</p>
-          </div>
-          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 transition-colors">
-            <RefreshCw className="h-3.5 w-3.5"/> Refresh
-          </button>
-        </div>
-        {/* Stats strip */}
-        <div className="relative mt-5 grid grid-cols-3 gap-3">
-          {[
-            { label: "Total Vendors",   value: vendors.length },
-            { label: "Custom Schedules", value: customCount },
-            { label: "Avg Monthly Rate", value: `₱${avgRate.toLocaleString()}` },
-          ].map(s=>(
-            <div key={s.label} className="rounded-xl px-4 py-3 text-center" style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)"}}>
-              <p className="font-mono text-xl font-bold text-white">{s.value}</p>
-              <p className="text-[10px] mt-0.5" style={{color:"rgba(255,255,255,0.6)"}}>{s.label}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Fee Administration</span>
             </div>
-          ))}
+            <h1 className="text-xl font-bold text-white leading-snug">Stall Fee Schedules</h1>
+            <p className="text-xs text-white/70 mt-0.5">Configure per-month stall rental rates and adjust fee overrides for vendors</p>
+          </div>
+          <Button onClick={() => refetch()} variant="outline" className="h-9 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border text-xs px-3.5 font-semibold">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh Rates
+          </Button>
         </div>
       </div>
 
       {/* ── Info banner ───────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm flex items-start gap-2">
+      <div className="rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-xs flex items-start gap-2">
         <AlertCircle className="h-4 w-4 text-primary mt-0.5 shrink-0"/>
         <div className="text-muted-foreground">
-          <strong className="text-foreground">How it works:</strong> Each vendor can have a different fee per month. If no schedule is set, the stall's default rate applies. Saving instantly updates the vendor's SOA and all reports.
+          <strong className="text-foreground">How it works:</strong> Each vendor can have custom monthly rates. If no override is set, the stall's default rate applies automatically.
         </div>
       </div>
 
-      {/* ── KPI cards ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* ── 3 Top KPI cards ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          {label:"Total Vendors",   value:vendors.length,   icon:Store,       iconBg:"bg-blue-100",    iconColor:"#0ea5e9",glow:"#0ea5e9",gradient:"from-blue-50 to-blue-50/40"},
-          {label:"Custom Schedules",value:customCount,       icon:CheckCircle2,iconBg:"bg-emerald-100", iconColor:"#10b981",glow:"#10b981",gradient:"from-emerald-50 to-emerald-50/40"},
-          {label:"Using Default",   value:defaultCount,      icon:AlertCircle, iconBg:"bg-amber-100",   iconColor:"#f59e0b",glow:"#f59e0b",gradient:"from-amber-50 to-amber-50/40"},
+          {label:"Total Vendors",   value:vendors.length,   icon:Store,       iconBg:"bg-blue-100",    iconColor:"#0ea5e9",glow:"#0ea5e9",gradient:"from-blue-50 to-blue-50/30"},
+          {label:"Custom Schedules",value:customCount,       icon:CheckCircle2,iconBg:"bg-emerald-100", iconColor:"#10b981",glow:"#10b981",gradient:"from-emerald-50 to-emerald-50/30"},
+          {label:"Using Default",   value:defaultCount,      icon:AlertCircle, iconBg:"bg-amber-100",   iconColor:"#f59e0b",glow:"#f59e0b",gradient:"from-amber-50 to-amber-50/30"},
         ].map((c,i)=>(
-          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`} style={{minHeight:100}}>
-            <div className="absolute -bottom-6 -right-6 w-16 h-16 rounded-full opacity-[0.08] blur-lg" style={{background:c.glow}}/>
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
                 <c.icon className="h-4 w-4" style={{color:c.iconColor}}/>
               </div>
             </div>
             <div className="z-10 mt-2">
-              <p className="font-mono text-[20px] font-bold text-foreground">{c.value}</p>
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Bulk apply ───────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-md"/>
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-xs"/>
           <div>
-            <p className="text-[13px] font-bold text-foreground">Bulk Apply Rate by Section</p>
-            <p className="text-xs text-muted-foreground">Apply a single monthly rate to all vendors in a section for {year}</p>
+            <p className="text-xs font-bold text-foreground">Bulk Apply Rate by Section</p>
+            <p className="text-[10px] text-muted-foreground">Apply a single monthly rate to all vendors in a section for {year}</p>
           </div>
         </div>
-        <div className="p-5 space-y-3">
-          <div className="flex flex-wrap items-end gap-3">
+        <div className="p-4 space-y-2.5">
+          <div className="flex flex-wrap items-end gap-2.5">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Section</label>
-              <select className="h-9 rounded-xl border bg-background px-3 text-sm" value={bulkSection} onChange={e=>setBulkSection(e.target.value)}>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Section</label>
+              <select className="h-8 rounded-xl border bg-background px-3 text-xs" value={bulkSection} onChange={e=>setBulkSection(e.target.value)}>
                 <option value="All">All Sections</option>
                 {SECTIONS.map(s=><option key={s}>{s}</option>)}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Monthly Rate (₱)</label>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Monthly Rate (₱)</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
-                <Input type="number" placeholder="e.g. 1450" className="h-9 pl-7 rounded-xl font-mono w-36" value={bulkRate} onChange={e=>setBulkRate(e.target.value)}/>
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₱</span>
+                <Input type="number" placeholder="e.g. 1450" className="h-8 pl-6 rounded-xl font-mono text-xs w-32" value={bulkRate} onChange={e=>setBulkRate(e.target.value)}/>
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Year</label>
-              <select className="h-9 rounded-xl border bg-background px-3 text-sm" value={year} onChange={e=>setYear(Number(e.target.value))}>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Year</label>
+              <select className="h-8 rounded-xl border bg-background px-3 text-xs" value={year} onChange={e=>setYear(Number(e.target.value))}>
                 {[2024,2025,2026,2027].map(y=><option key={y}>{y}</option>)}
               </select>
             </div>
-            <Button className="gap-2 rounded-xl h-9" disabled={bulkApplying||!bulkRate} onClick={handleBulkApply}
+            <Button className="gap-1.5 rounded-xl h-8 text-xs font-semibold" disabled={bulkApplying||!bulkRate} onClick={handleBulkApply}
               style={{background:"linear-gradient(135deg,#0f6e56,#1d9e75)"}}>
-              {bulkApplying?<Loader2 className="h-4 w-4 animate-spin"/>:<Zap className="h-4 w-4"/>}
+              {bulkApplying?<Loader2 className="h-3.5 w-3.5 animate-spin"/>:<Zap className="h-3.5 w-3.5"/>}
               Apply to {bulkSection==="All"?"All":bulkSection}
             </Button>
           </div>
           {bulkRate && Number(bulkRate) > 0 && (
-            <div className="rounded-xl border border-primary/10 bg-primary/5 px-4 py-2.5 text-xs text-muted-foreground">
+            <div className="rounded-xl border border-primary/10 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
               Will apply <strong className="text-foreground">{fmt(Number(bulkRate))}</strong>/month to{" "}
               <strong className="text-foreground">
                 {bulkSection==="All"?vendors.length:vendors.filter((v:any)=>(v.stalls as any)?.section===bulkSection).length}
@@ -364,19 +352,19 @@ const CashierFeeSchedules = () => {
       {/* ── Filters ──────────────────────────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
-          <Input placeholder="Search vendor or stall…" className="h-10 pl-10 rounded-xl" value={search} onChange={e=>setSearch(e.target.value)}/>
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"/>
+          <Input placeholder="Search vendor or stall…" className="h-9 pl-9 rounded-xl text-xs bg-background" value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
-        <select className="h-10 rounded-xl border bg-background px-3 text-sm" value={filterSection} onChange={e=>setFilterSection(e.target.value)}>
+        <select className="h-9 rounded-xl border bg-background px-3 text-xs" value={filterSection} onChange={e=>setFilterSection(e.target.value)}>
           <option value="all">All Sections</option>
           {SECTIONS.map(s=><option key={s}>{s}</option>)}
         </select>
-        <select className="h-10 rounded-xl border bg-background px-3 text-sm" value={year} onChange={e=>setYear(Number(e.target.value))}>
+        <select className="h-9 rounded-xl border bg-background px-3 text-xs" value={year} onChange={e=>setYear(Number(e.target.value))}>
           {[2024,2025,2026,2027].map(y=><option key={y}>{y}</option>)}
         </select>
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         <strong className="text-foreground">{filtered.length}</strong> vendors · Year {year}
       </p>
 

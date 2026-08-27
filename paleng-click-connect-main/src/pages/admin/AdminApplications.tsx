@@ -375,82 +375,95 @@ const AdminApplications = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)", boxShadow: "0 20px 48px rgba(15,110,86,0.15)" }}>
-        {[[200, "-60px", "-60px", "top", "right"], [250, "-100px", "-60px", "bottom", "left"]].map(([sz, a, b, v, h], i) => (
-          <div key={i} style={{ position: "absolute", [v as string]: a, [h as string]: b, width: sz, height: sz, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+    <div className="space-y-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Applications</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Vendor Applications</h1>
+            <p className="text-xs text-white/70 mt-0.5">Review, verify, and approve new market stall applications</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl px-4 py-2 text-right bg-white/10 border border-white/20 shrink-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-200">Pending Review</p>
+              <p className="font-mono text-lg font-bold text-white leading-none mt-0.5">{counts.pending}</p>
+              <p className="text-[10px] text-emerald-100/70 mt-0.5">of {counts.total} total</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3 Top KPI Cards ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { label: "Total Applications", value: String(counts.total), sub: "All submissions", icon: FileText, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Pending Review", value: String(counts.pending), sub: "Action required", icon: Clock, iconBg: "bg-amber-100", iconColor: "#f59e0b", glow: "#f59e0b", gradient: "from-amber-50 to-amber-50/30" },
+          { label: "Approved Vendors", value: String(counts.approved), sub: "Accounts activated", icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
+            <div className="flex items-center justify-between z-10">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              </div>
+            </div>
+            <div className="z-10 mt-2">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
+            </div>
+          </div>
         ))}
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 border border-white/20 text-emerald-100">
-            <Store className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Vendor Applications</h1>
-            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>Review, approve, or reject new stall vendor applications</p>
-          </div>
-        </div>
       </div>
 
-      {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-muted-foreground">Total Applications</p>
-            <p className="text-2xl font-bold mt-1">{counts.total}</p>
-          </div>
-          <div className="bg-slate-100 p-3 rounded-xl text-slate-600"><FileText className="h-5 w-5" /></div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center justify-between border-amber-200 bg-amber-50/30">
-          <div>
-            <p className="text-sm font-semibold text-amber-700">Pending Review</p>
-            <p className="text-2xl font-bold mt-1 text-amber-900">{counts.pending}</p>
-          </div>
-          <div className="bg-amber-100 p-3 rounded-xl text-amber-600"><Clock className="h-5 w-5" /></div>
-        </div>
-        <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center justify-between border-emerald-200 bg-emerald-50/30">
-          <div>
-            <p className="text-sm font-semibold text-emerald-700">Approved</p>
-            <p className="text-2xl font-bold mt-1 text-emerald-900">{counts.approved}</p>
-          </div>
-          <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600"><CheckCircle2 className="h-5 w-5" /></div>
-        </div>
-      </div>
-
-      {/* ── Filters ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      {/* ── Search & Filter Controls ────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex rounded-xl bg-secondary p-1">
           {["all", "pending", "approved", "rejected"].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${statusFilter === s ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"}`}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === "pending" && counts.pending > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[9px] bg-amber-500 text-white font-mono">{counts.pending}</span>
+              )}
             </button>
           ))}
         </div>
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative w-full max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search applicants..."
+            placeholder="Search applicants, emails..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-10 rounded-xl"
+            className="pl-8 h-9 rounded-xl text-xs"
           />
         </div>
       </div>
 
       {/* ── List / Details Split ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
 
         {/* List */}
-        <div className="md:col-span-1 border rounded-2xl bg-card overflow-hidden h-[600px] flex flex-col">
-          <div className="bg-slate-50 px-4 py-3 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Applicant List
+        <div className="md:col-span-4 border rounded-2xl bg-card overflow-hidden h-[560px] flex flex-col shadow-xs">
+          <div className="bg-gradient-to-r from-emerald-50/50 to-transparent px-4 py-3 border-b flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-600" />
+              <span className="text-xs font-bold text-foreground">Applicants ({filteredApps.length})</span>
+            </div>
           </div>
-          <div className="overflow-y-auto flex-1 p-2 space-y-2">
+          <div className="overflow-y-auto flex-1 p-2 space-y-1.5">
             {isLoading ? (
-              <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
+              <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-emerald-600" /></div>
             ) : filteredApps.length === 0 ? (
-              <div className="text-center p-8 text-sm text-muted-foreground">No applications found.</div>
+              <div className="text-center p-8 text-xs text-muted-foreground">No applications found.</div>
             ) : (
               filteredApps.map((app: any) => {
                 const isActive = selectedApp?.id === app.id;
@@ -458,17 +471,17 @@ const AdminApplications = () => {
                 const StatusIcon = conf.icon;
                 return (
                   <div key={app.id} onClick={() => setSelectedApp(app)}
-                    className={`p-3 rounded-xl cursor-pointer transition-all border ${isActive ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50 hover:border-slate-200"}`}>
-                    <div className="flex justify-between items-start mb-1">
-                      <p className={`font-semibold text-sm ${isActive ? "text-emerald-900" : "text-foreground"}`}>{app.first_name} {app.last_name}</p>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider border ${conf.color}`}>
+                    className={`p-2.5 rounded-xl cursor-pointer transition-all border ${isActive ? "border-emerald-500/40 bg-emerald-50/70 shadow-xs" : "border-transparent hover:bg-secondary/60"}`}>
+                    <div className="flex justify-between items-start mb-1 gap-2">
+                      <p className={`font-semibold text-xs truncate ${isActive ? "text-emerald-950 font-bold" : "text-foreground"}`}>{app.first_name} {app.last_name}</p>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider border shrink-0 ${conf.color}`}>
                         {app.status.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{app.preferred_section || "None (Blank Stall)"}</p>
-                    <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
+                    <p className="text-[11px] text-muted-foreground truncate">{app.preferred_section || "General"}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
                       <CalendarDays className="h-3 w-3" />
-                      {new Date(app.application_date).toLocaleDateString()}
+                      {new Date(app.application_date || app.applied_at || app.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   </div>
                 );
@@ -478,67 +491,67 @@ const AdminApplications = () => {
         </div>
 
         {/* Details Pane */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-8">
           {selectedApp ? (
-            <div className="border rounded-2xl bg-card shadow-sm overflow-hidden h-full">
-              <div className="border-b bg-slate-50 px-6 py-4 flex justify-between items-center">
+            <div className="border rounded-2xl bg-card shadow-xs overflow-hidden h-[560px] flex flex-col">
+              <div className="border-b bg-gradient-to-r from-emerald-50/50 to-transparent px-5 py-3 flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="font-bold text-lg text-foreground">Application Details</h2>
-                  <p className="text-xs text-muted-foreground">Submitted {new Date(selectedApp.application_date).toLocaleString()}</p>
+                  <h2 className="font-bold text-sm text-foreground">Application Details</h2>
+                  <p className="text-[11px] text-muted-foreground">Submitted {new Date(selectedApp.application_date || selectedApp.applied_at || selectedApp.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</p>
                 </div>
-                <div className={`px-3 py-1 rounded-full border text-xs font-bold flex items-center gap-1.5 ${STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].color}`}>
-                  {(() => { const I = STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].icon; return <I className="h-4 w-4" /> })()}
+                <div className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold flex items-center gap-1.5 ${STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].color}`}>
+                  {(() => { const I = STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].icon; return <I className="h-3.5 w-3.5" /> })()}
                   {STATUS_CONFIG[selectedApp.status as keyof typeof STATUS_CONFIG].label}
                 </div>
               </div>
 
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Personal Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Applicant</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <User className="h-4 w-4 text-slate-400 mt-0.5" />
+                  <div className="space-y-2.5 bg-secondary/20 p-3 rounded-xl border">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Applicant Information</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <User className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Full Name</p>
-                          <p className="font-medium text-sm">{selectedApp.first_name} {selectedApp.last_name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Full Name</p>
+                          <p className="font-semibold text-xs text-foreground">{selectedApp.first_name} {selectedApp.last_name}</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <Mail className="h-4 w-4 text-slate-400 mt-0.5" />
+                      <div className="flex items-start gap-2">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Email Address</p>
-                          <p className="font-medium text-sm">{selectedApp.email}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Email Address</p>
+                          <p className="font-medium text-xs text-foreground">{selectedApp.email}</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-3">
-                        <Phone className="h-4 w-4 text-slate-400 mt-0.5" />
+                      <div className="flex items-start gap-2">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Phone Number</p>
-                          <p className="font-medium text-sm">{selectedApp.phone_number}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Phone Number</p>
+                          <p className="font-medium text-xs text-foreground">{selectedApp.phone_number || "—"}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Business Info */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Business Intent</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Building2 className="h-4 w-4 text-slate-400 mt-0.5" />
+                  <div className="space-y-2.5 bg-secondary/20 p-3 rounded-xl border">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b pb-1">Business Intent</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Business Name</p>
-                          <p className="font-medium text-sm">{selectedApp.business_name || "N/A"}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Business Name</p>
+                          <p className="font-medium text-xs text-foreground">{selectedApp.business_name || "N/A"}</p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2.5">
-                        <Store className="h-4 w-4 text-slate-400 mt-0.5" />
+                      <div className="flex items-start gap-2">
+                        <Store className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-xs text-muted-foreground">Preferred Section</p>
-                          <p className={`font-medium text-sm px-2 py-0.5 rounded-md border inline-block ${selectedApp.preferred_section ? "text-emerald-700 bg-emerald-50 border-emerald-100" : "text-slate-600 bg-slate-50 border-slate-200"}`}>
-                            {selectedApp.preferred_section || "None (Blank Stall)"}
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Preferred Section</p>
+                          <p className={`font-medium text-xs px-2 py-0.5 rounded-md border inline-block mt-0.5 ${selectedApp.preferred_section ? "text-emerald-700 bg-emerald-50 border-emerald-100" : "text-slate-600 bg-slate-50 border-slate-200"}`}>
+                            {selectedApp.preferred_section || "General"}
                           </p>
                         </div>
                       </div>
@@ -562,10 +575,10 @@ const AdminApplications = () => {
                           r27 = r27 || computed.rate2027;
                           r28 = r28 || computed.rate2028;
                           return (
-                            <div className="mt-2 rounded-xl bg-slate-50 border p-2.5 space-y-1">
-                              <p className="text-xs font-semibold text-slate-700">Area Measurement: <span className="font-mono text-emerald-700">{areaStr} sqm</span></p>
-                              <p className="text-[11px] text-slate-600 font-mono">
-                                Rates: 2026: ₱{r26 || "—"} · 2027: ₱{r27 || "—"} · 2028: ₱{r28 || "—"}
+                            <div className="rounded-lg bg-card border p-2 space-y-0.5">
+                              <p className="text-[11px] font-semibold text-slate-700">Area: <span className="font-mono text-emerald-700">{areaStr} sqm</span></p>
+                              <p className="text-[10px] text-slate-500 font-mono">
+                                2026: ₱{r26 || "—"} · 2027: ₱{r27 || "—"} · 2028: ₱{r28 || "—"}
                               </p>
                             </div>
                           );
@@ -576,29 +589,29 @@ const AdminApplications = () => {
                   </div>
                 </div>
 
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2 mb-3">Permit Verification</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="flex items-start gap-3">
-                      <ShieldCheck className="h-4 w-4 text-emerald-600 mt-0.5" />
+                <div className="border-t pt-3">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b pb-1 mb-2.5">Permit Verification</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="flex items-start gap-2 bg-secondary/20 p-2.5 rounded-xl border">
+                      <ShieldCheck className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Permit Number</p>
-                        <p className="font-semibold text-sm text-slate-800">{selectedApp.business_permit_number || "N/A"}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Permit Number</p>
+                        <p className="font-semibold text-xs text-foreground font-mono">{selectedApp.business_permit_number || "N/A"}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <FileText className="h-4 w-4 text-emerald-600 mt-0.5" />
+                    <div className="flex items-start gap-2 bg-secondary/20 p-2.5 rounded-xl border">
+                      <FileText className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Permit Receipt #</p>
-                        <p className="font-semibold text-sm text-slate-800">{selectedApp.award_receipt_number || "N/A"}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Receipt #</p>
+                        <p className="font-semibold text-xs text-foreground font-mono">{selectedApp.award_receipt_number || "N/A"}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <CalendarDays className="h-4 w-4 text-emerald-600 mt-0.5" />
+                    <div className="flex items-start gap-2 bg-secondary/20 p-2.5 rounded-xl border">
+                      <CalendarDays className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Date of Payment</p>
-                        <p className="font-semibold text-sm text-slate-800">
-                          {selectedApp.award_payment_date ? new Date(selectedApp.award_payment_date).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : "N/A"}
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Payment Date</p>
+                        <p className="font-semibold text-xs text-foreground">
+                          {selectedApp.award_payment_date ? new Date(selectedApp.award_payment_date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                         </p>
                       </div>
                     </div>
@@ -606,28 +619,28 @@ const AdminApplications = () => {
                 </div>
 
                 {selectedApp.status !== "pending" && (
-                  <div className="mt-8 rounded-xl bg-slate-50 border p-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Review Notes</h3>
-                    <p className="text-sm whitespace-pre-wrap">{selectedApp.admin_notes || "No notes provided."}</p>
-                    <p className="text-[10px] text-muted-foreground mt-2">Reviewed on {new Date(selectedApp.reviewed_at).toLocaleString()}</p>
+                  <div className="rounded-xl bg-secondary/30 border p-3">
+                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Review Notes</h3>
+                    <p className="text-xs text-foreground whitespace-pre-wrap">{selectedApp.admin_notes || "No notes provided."}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">Reviewed on {new Date(selectedApp.reviewed_at).toLocaleString("en-PH")}</p>
                   </div>
                 )}
 
                 {/* Actions */}
                 {selectedApp.status === "pending" && !isReadOnly && (
-                  <div className="pt-6 border-t flex gap-3 mt-auto">
+                  <div className="pt-3 border-t flex gap-2.5 mt-auto">
                     <Button
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-10 text-xs font-semibold shadow-xs"
                       onClick={() => openApprovalModal(selectedApp)}
                     >
-                      <ShieldCheck className="mr-2 h-5 w-5" /> Approve & Create Vendor
+                      <ShieldCheck className="mr-1.5 h-4 w-4" /> Approve & Create Vendor
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 rounded-xl h-12"
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 rounded-xl h-10 text-xs font-semibold"
                       onClick={() => openRejectModal(selectedApp)}
                     >
-                      <XCircle className="mr-2 h-5 w-5" /> Reject Application
+                      <XCircle className="mr-1.5 h-4 w-4" /> Reject
                     </Button>
                   </div>
                 )}

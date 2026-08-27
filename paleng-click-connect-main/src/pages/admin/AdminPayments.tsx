@@ -194,89 +194,97 @@ const AdminPayments = () => {
   const currentMonth = new Date().getMonth();
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Hero header ───────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{background:"linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)",boxShadow:"0 20px 48px rgba(15,110,86,0.15)"}}>
-        <div style={{position:"absolute",top:-40,right:-40,width:180,height:180,borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.08)",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>Payment Management</p>
-            <h1 className="text-2xl font-bold text-white">All Stall Payments</h1>
-            <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>View, confirm, and export all payment records</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Payments</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">All Stall Payments</h1>
+            <p className="text-xs text-white/70 mt-0.5">View, filter, confirm, and export market collection records</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 transition-colors">
+          <div className="flex items-center gap-2">
+            <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-all">
               <RefreshCw className="h-3.5 w-3.5"/> Refresh
             </button>
             <button onClick={() => printTable(filtered, "Payment Report", `${filtered.length} records`)}
-              className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 transition-colors">
-              <Printer className="h-3.5 w-3.5"/> Print
+              className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-all">
+              <Printer className="h-3.5 w-3.5"/> Print Report
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── KPI Cards (cashier-style) ────────────────────────────────────── */}
+      {/* ── 4 Top KPI Cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          {label:"All Time",   value:fmt(stats.totalAll),      sub:`${payments.filter((p:any)=>p.status==="completed").length} completed`, icon:DollarSign, iconBg:"bg-emerald-100",iconColor:"#10b981",glow:"#10b981",gradient:"from-emerald-50 to-emerald-50/40"},
-          {label:"This Month", value:fmt(stats.totalMonth),    sub:new Date().toLocaleString("en-PH",{month:"long"}),                      icon:CalendarDays,iconBg:"bg-blue-100",  iconColor:"#0ea5e9",glow:"#0ea5e9",gradient:"from-blue-50 to-blue-50/40"},
-          {label:"Today",      value:fmt(stats.totalToday),    sub:"collected today",                                                       icon:Activity,  iconBg:"bg-violet-100",iconColor:"#a855f7",glow:"#a855f7",gradient:"from-violet-50 to-violet-50/40"},
-          {label:"Pending",    value:String(stats.pending),    sub:"awaiting confirmation",                                                 icon:Clock,     iconBg:stats.pending>0?"bg-amber-100":"bg-emerald-100",iconColor:stats.pending>0?"#f59e0b":"#10b981",glow:stats.pending>0?"#f59e0b":"#10b981",gradient:stats.pending>0?"from-amber-50 to-amber-50/40":"from-emerald-50 to-emerald-50/40"},
-        ].map(c=>(
-          <div key={c.label} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`} style={{minHeight:110}}>
-            <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity" style={{background:c.glow}}/>
+          { label: "All Time", value: fmt(stats.totalAll), sub: `${payments.filter((p:any)=>p.status==="completed").length} completed`, icon: DollarSign, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "This Month", value: fmt(stats.totalMonth), sub: new Date().toLocaleString("en-PH", { month: "long", year: "numeric" }), icon: CalendarDays, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Today", value: fmt(stats.totalToday), sub: "collected today", icon: Activity, iconBg: "bg-violet-100", iconColor: "#a855f7", glow: "#a855f7", gradient: "from-violet-50 to-violet-50/30" },
+          { label: "Pending", value: String(stats.pending), sub: "awaiting review", icon: Clock, iconBg: stats.pending > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: stats.pending > 0 ? "#f59e0b" : "#10b981", glow: stats.pending > 0 ? "#f59e0b" : "#10b981", gradient: stats.pending > 0 ? "from-amber-50 to-amber-50/30" : "from-emerald-50 to-emerald-50/30" },
+        ].map(c => (
+          <div key={c.label} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                <c.icon className="h-4 w-4" style={{color:c.iconColor}}/>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
               </div>
             </div>
             <div className="z-10 mt-2">
-              <p className="font-mono text-[18px] font-bold text-foreground">{c.value}</p>
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ── Monthly chart ────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow" style={{boxShadow:"0 4px 12px rgba(0,0,0,0.04)"}}>
-        <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-600 shadow-md"/>
-            <p className="text-[13px] font-bold text-foreground">Monthly Collections — {new Date().getFullYear()}</p>
+      {/* ── Monthly Collections Chart ─────────────────────────────────────── */}
+      <div className="rounded-2xl border bg-card overflow-hidden shadow-xs">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-600 shadow-xs" />
+            <p className="text-xs font-bold text-foreground">Monthly Collections — {new Date().getFullYear()}</p>
           </div>
-          <span className="text-[11px] font-semibold px-3 py-1.5 rounded-lg" style={{background:"rgba(16,185,129,0.1)",color:"#10b981"}}>{fmt(stats.totalAll)} all time</span>
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700">{fmt(stats.totalAll)} total</span>
         </div>
-        <div className="grid grid-cols-2 gap-3 px-5 pt-4 pb-2">
-          {[["#34d399","Past months"],["#0f6e56","Current month"]].map(([c,l])=>(
-            <div key={l} className="flex items-center gap-2"><div className="w-2 h-2 rounded-sm" style={{background:c}}/><span className="text-[11px] font-medium text-muted-foreground">{l}</span></div>
-          ))}
-        </div>
-        <div className="relative">
-          <svg style={{position:"absolute",width:0,height:0}}>
-            <defs>
-              <linearGradient id="apBarPast" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style={{stopColor:"#34d399",stopOpacity:1}}/><stop offset="100%" style={{stopColor:"#10b981",stopOpacity:0.8}}/>
-              </linearGradient>
-              <linearGradient id="apBarCur" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style={{stopColor:"#0f6e56",stopOpacity:1}}/><stop offset="100%" style={{stopColor:"#065f46",stopOpacity:0.9}}/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="relative px-4 py-3" style={{background:"rgba(240,253,250,0.3)"}}>
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={stats.monthlyChart} barSize={22} margin={{top:10,right:10,left:-8,bottom:10}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false}/>
-                <XAxis dataKey="month" tick={{fontSize:10,fill:"hsl(220,10%,55%)",fontWeight:500}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:10,fill:"hsl(220,10%,55%)"}} tickFormatter={fmtK} axisLine={false} tickLine={false} width={46}/>
-                <Tooltip formatter={(v: number) => [fmt(v), "Collected"]} contentStyle={{borderRadius:"10px",border:"1px solid hsl(220,13%,88%)",fontSize:"12px"}}/>
-                <Bar dataKey="amount" radius={[6,6,0,0]}>
-                  {stats.monthlyChart.map((_:any,i:number)=>(
-                    <Cell key={i} fill={i===currentMonth?"url(#apBarCur)":"url(#apBarPast)"}/>
+        <div className="p-4">
+          <div className="flex items-center gap-4 mb-2">
+            {[["#34d399", "Past months"], ["#0f6e56", "Current month"]].map(([c, l]) => (
+              <div key={l} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />
+                <span className="text-[10px] font-medium text-muted-foreground">{l}</span>
+              </div>
+            ))}
+          </div>
+          <div className="relative">
+            <svg style={{ position: "absolute", width: 0, height: 0 }}>
+              <defs>
+                <linearGradient id="apBarPast" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style={{ stopColor: "#34d399", stopOpacity: 1 }} />
+                  <stop offset="100%" style={{ stopColor: "#10b981", stopOpacity: 0.8 }} />
+                </linearGradient>
+                <linearGradient id="apBarCur" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" style={{ stopColor: "#0f6e56", stopOpacity: 1 }} />
+                  <stop offset="100%" style={{ stopColor: "#065f46", stopOpacity: 0.9 }} />
+                </linearGradient>
+              </defs>
+            </svg>
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={stats.monthlyChart} barSize={18} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,92%)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "hsl(220,10%,55%)", fontWeight: 500 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "hsl(220,10%,55%)" }} tickFormatter={fmtK} axisLine={false} tickLine={false} width={42} />
+                <Tooltip formatter={(v: number) => [fmt(v), "Collected"]} contentStyle={{ borderRadius: "10px", border: "1px solid hsl(220,13%,88%)", fontSize: "11px" }} />
+                <Bar dataKey="amount" radius={[5, 5, 0, 0]}>
+                  {stats.monthlyChart.map((_: any, i: number) => (
+                    <Cell key={i} fill={i === currentMonth ? "url(#apBarCur)" : "url(#apBarPast)"} />
                   ))}
                 </Bar>
               </BarChart>
@@ -286,36 +294,36 @@ const AdminPayments = () => {
       </div>
 
       {/* ── Search + filters ─────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        <div className="flex gap-2 flex-wrap">
+      <div className="space-y-2.5">
+        <div className="flex gap-2 flex-wrap items-center">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search vendor, stall, reference…" className="h-11 pl-10 rounded-xl"
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search vendor, stall, reference…" className="h-9 pl-9 rounded-xl text-xs"
               value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Button variant="outline" size="sm"
-            className={`h-11 gap-2 rounded-xl ${showFilters ? "border-primary text-primary bg-primary/5" : ""}`}
+            className={`h-9 gap-1.5 rounded-xl text-xs ${showFilters ? "border-primary text-primary bg-primary/5 font-semibold" : ""}`}
             onClick={() => setShowFilters(v => !v)}>
-            <Filter className="h-4 w-4" /> Filters
+            <Filter className="h-3.5 w-3.5" /> Filters
             {hasFilters && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] text-white font-mono">
                 {[filterStatus!=="all",filterMethod!=="all",filterType!=="all",!!dateFrom,!!dateTo].filter(Boolean).length}
               </span>
             )}
           </Button>
           {(hasFilters || search) && (
-            <Button variant="ghost" size="sm" className="h-11 gap-1.5 text-muted-foreground rounded-xl" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5" /> Clear
+            <Button variant="ghost" size="sm" className="h-9 gap-1 text-muted-foreground rounded-xl text-xs" onClick={clearFilters}>
+              <X className="h-3 w-3" /> Clear
             </Button>
           )}
         </div>
 
         {showFilters && (
-          <div className="rounded-2xl border bg-card p-4 shadow-civic space-y-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-medium">Status</label>
-                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+          <div className="rounded-2xl border bg-card p-3.5 shadow-xs space-y-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Status</label>
+                <select className="h-8 w-full rounded-xl border bg-background px-2.5 text-xs"
                   value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                   <option value="all">All Statuses</option>
                   <option value="completed">Completed</option>
@@ -323,9 +331,9 @@ const AdminPayments = () => {
                   <option value="failed">Failed</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-medium">Method</label>
-                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Method</label>
+                <select className="h-8 w-full rounded-xl border bg-background px-2.5 text-xs"
                   value={filterMethod} onChange={e => setFilterMethod(e.target.value)}>
                   <option value="all">All Methods</option>
                   <option value="cash">Cash</option>
@@ -334,33 +342,33 @@ const AdminPayments = () => {
                   <option value="instapay">InstaPay</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-medium">Type</label>
-                <select className="h-9 w-full rounded-xl border bg-background px-3 text-sm"
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Type</label>
+                <select className="h-8 w-full rounded-xl border bg-background px-2.5 text-xs"
                   value={filterType} onChange={e => setFilterType(e.target.value)}>
                   <option value="all">All Types</option>
-                  <option value="due">Full</option>
-                  <option value="staggered">Partial</option>
+                  <option value="due">Full Payment</option>
+                  <option value="staggered">Partial Payment</option>
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground font-medium">Quick Date</label>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Quick Date</label>
                 <div className="flex gap-1">
                   {[["today","Today"],["week","Week"],["month","Month"]].map(([k,l]) => (
                     <button key={k} onClick={() => setQuick(k)}
-                      className="flex-1 rounded-lg border px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary transition-colors">{l}</button>
+                      className="flex-1 rounded-lg border px-1.5 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-secondary transition-colors">{l}</button>
                   ))}
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2.5 flex-wrap pt-1 border-t">
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">From</label>
-                <Input type="date" className="h-9 rounded-xl text-sm" value={dateFrom} max={today} onChange={e => setDateFrom(e.target.value)} />
+                <label className="text-[10px] text-muted-foreground">From</label>
+                <Input type="date" className="h-8 rounded-lg text-xs" value={dateFrom} max={today} onChange={e => setDateFrom(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">To</label>
-                <Input type="date" className="h-9 rounded-xl text-sm" value={dateTo}   max={today} onChange={e => setDateTo(e.target.value)} />
+                <label className="text-[10px] text-muted-foreground">To</label>
+                <Input type="date" className="h-8 rounded-lg text-xs" value={dateTo}   max={today} onChange={e => setDateTo(e.target.value)} />
               </div>
             </div>
           </div>

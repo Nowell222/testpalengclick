@@ -125,35 +125,43 @@ const CashierSearchVendor = () => {
   const unpaidCount = vendors.length - paidCount;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Vendor Directory</h1>
-        <p className="text-sm text-muted-foreground">View all vendors and check payment details</p>
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Vendor Directory</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Market Vendor Registry</h1>
+            <p className="text-xs text-white/70 mt-0.5">Lookup stall occupancy, check current month compliance, and collect fees</p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Stats strip ──────────────────────────────────────────────────────── */}
+      {/* ── 3 Top KPI Cards ─────────────────────────────────────────────────── */}
       {!isLoading && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: "Total Vendors", value: vendors.length, icon: Users, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/40" },
-            { label: "Paid This Month", value: paidCount, icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/40" },
-            { label: "Unpaid / Partial", value: unpaidCount, icon: AlertCircle, iconBg: unpaidCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: unpaidCount > 0 ? "#f59e0b" : "#10b981", glow: unpaidCount > 0 ? "#f59e0b" : "#10b981", gradient: unpaidCount > 0 ? "from-amber-50 to-amber-50/40" : "from-emerald-50 to-emerald-50/40" },
+            { label: "Total Vendors", value: vendors.length, icon: Users, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+            { label: "Paid This Month", value: paidCount, icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+            { label: "Unpaid / Partial", value: unpaidCount, icon: AlertCircle, iconBg: unpaidCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: unpaidCount > 0 ? "#f59e0b" : "#10b981", glow: unpaidCount > 0 ? "#f59e0b" : "#10b981", gradient: unpaidCount > 0 ? "from-amber-50 to-amber-50/30" : "from-emerald-50 to-emerald-50/30" },
           ].map(c => (
             <div key={c.label}
-              className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`}
-              style={{ minHeight: 100 }}>
-              <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity`}
-                style={{ background: c.glow }} />
+              className={`relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
               <div className="flex items-center justify-between z-10">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                  <c.icon className="h-4.5 w-4.5" style={{ color: c.iconColor }} />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                  <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
                 </div>
               </div>
               <div className="z-10 mt-2">
-                <p className="font-mono text-[22px] font-bold text-foreground">{c.value}</p>
+                <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
               </div>
             </div>
           ))}
@@ -161,23 +169,23 @@ const CashierSearchVendor = () => {
       )}
 
       {/* ── Search bar ───────────────────────────────────────────────────────── */}
-      <div className="relative max-w-lg">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search by name, stall number, or section…"
-          className="h-12 pl-11 rounded-xl border-border/60 bg-white"
+          className="h-9 pl-9 rounded-xl border bg-background text-xs"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
         {search && (
           <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
       {!isLoading && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
           <strong className="text-foreground">{vendors.length}</strong> vendors
           {search && ` matching "${search}"`}
@@ -190,23 +198,23 @@ const CashierSearchVendor = () => {
           <div className="h-10 w-10 rounded-full bg-cashier-hero flex items-center justify-center shadow-hero">
             <Loader2 className="h-5 w-5 animate-spin text-white" />
           </div>
-          <p className="text-sm text-muted-foreground">Loading vendor directory…</p>
+          <p className="text-xs text-muted-foreground">Loading vendor directory…</p>
         </div>
       ) : (
-        <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+        <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm table-zebra">
+            <table className="w-full text-xs table-zebra">
               <thead>
                 <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
                   {["Vendor", "Stall", "Section", "Monthly Rate", "This Month", "Outstanding", "Account", "Actions"].map(h => (
-                    <th key={h} className="px-4 py-3.5 text-left font-semibold text-emerald-100 text-xs uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-border">
                 {filtered.map((v: any) => (
                   <tr key={v.id} className="hover:bg-emerald-50/40 transition-colors cursor-pointer" onClick={() => setSelected(v)}>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <p className="font-semibold text-foreground">{v.name}</p>
                       <p className="text-xs text-muted-foreground">{v.contact}</p>
                     </td>

@@ -499,7 +499,7 @@ const CashierDashboardHome = () => {
           { label: "This Month", value: fmt(d.totalMonth), sub: `${d.txMonth} transactions`, icon: CalendarRange, iconBg: "bg-violet-100", iconColor: "#a855f7", glow: "#a855f7", gradient: "from-violet-50 to-violet-50/30" },
           { label: "Pending Confirm", value: String(d.pendingCount), sub: d.pendingCount > 0 ? "Awaiting processing" : "All clear ✓", icon: d.pendingCount > 0 ? Clock : CheckCircle2, iconBg: d.pendingCount > 0 ? "bg-amber-100" : "bg-emerald-100", iconColor: d.pendingCount > 0 ? "#f59e0b" : "#10b981", glow: d.pendingCount > 0 ? "#f59e0b" : "#10b981", gradient: d.pendingCount > 0 ? "from-amber-50 to-amber-50/30" : "from-emerald-50 to-emerald-50/30" },
         ].map((c, i) => (
-          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-sm transition-all duration-300 group`}>
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
               <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-sm ${c.iconBg}`}>

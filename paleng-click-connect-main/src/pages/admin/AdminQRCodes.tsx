@@ -122,7 +122,7 @@ const QRScanner = ({ onScan, onClose }: { onScan: (val: string) => void; onClose
       const devices = await navigator.mediaDevices.enumerateDevices();
       setCameras(devices.filter(d => d.kind === "videoinput"));
       const jsQRModule = await import("jsqr");
-      const jsQR = jsQRModule.default || jsQRModule;
+      const jsQR: any = jsQRModule.default || jsQRModule;
       const tick = () => {
         const video = videoRef.current, canvas = canvasRef.current;
         if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) { animRef.current = requestAnimationFrame(tick); return; }
@@ -394,36 +394,38 @@ const AdminQRCodes = () => {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {showScanner && <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{background:"linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)",boxShadow:"0 20px 48px rgba(15,110,86,0.15)"}}>
-        {[[200,"-60px","-60px","top","right"],[250,"-100px","-60px","bottom","left"]].map(([sz,a,b,v,h],i)=>(
-          <div key={i} style={{position:"absolute",[v as string]:a,[h as string]:b,width:sz,height:sz,borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.08)",pointerEvents:"none"}}/>
-        ))}
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>Admin Portal</p>
-            <h1 className="text-2xl font-bold text-white">QR Code Scanner</h1>
-            <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Scan a vendor QR code to view stall and payment details</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Verification</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">QR Code Scanner</h1>
+            <p className="text-xs text-white/70 mt-0.5">Scan or search vendor QR codes to verify stall compliance and payments</p>
           </div>
-          <Button onClick={() => setShowScanner(true)} size="lg"
-            className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
-            <Camera className="h-4 w-4"/> Open Scanner
+          <Button onClick={() => setShowScanner(true)}
+            className="gap-1.5 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border h-9 px-3.5 text-xs font-semibold">
+            <Camera className="h-3.5 w-3.5"/> Open Scanner
           </Button>
         </div>
         {/* Stats strip */}
-        <div className="relative mt-5 grid grid-cols-3 gap-3">
+        <div className="relative mt-4 grid grid-cols-3 gap-2.5">
           {[
             { label: "Total Vendors", value: allVendors.length },
             { label: "Occupied Stalls", value: occupiedCount },
             { label: "With QR Codes", value: allVendors.filter((v:any)=>v.qr_code).length },
-          ].map(s=>(
-            <div key={s.label} className="rounded-xl px-4 py-3 text-center" style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)"}}>
-              <p className="font-mono text-xl font-bold text-white">{s.value}</p>
-              <p className="text-[10px] mt-0.5" style={{color:"rgba(255,255,255,0.6)"}}>{s.label}</p>
+          ].map(s => (
+            <div key={s.label} className="rounded-xl px-3 py-2 text-center" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              <p className="font-mono text-base font-bold text-white leading-tight">{s.value}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>{s.label}</p>
             </div>
           ))}
         </div>

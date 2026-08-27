@@ -437,34 +437,48 @@ const CashierReports = () => {
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <iframe ref={printRef} style={{ display:"none" }} title="print-frame"/>
 
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Collection reports, analytics, and vendor payment insights</p>
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Financial Reports</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Reports & Analytics Dashboard</h1>
+            <p className="text-xs text-white/70 mt-0.5">Collection reports, daily cash logs, and vendor payment analytics</p>
+          </div>
+          <Button onClick={() => refetch()} variant="outline" className="h-9 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 gap-1.5 transition-colors border text-xs px-3.5 font-semibold">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh Data
+          </Button>
         </div>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 text-xs text-primary hover:underline mt-1">
-          <RefreshCw className="h-3.5 w-3.5"/> Refresh
-        </button>
       </div>
 
-      {/* ── KPI Cards ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* ── 4 Top KPI Cards ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { label:"Today",        value: fmt(stats.today),       sub: `${stats.todayCount} transactions`,   icon: Calendar,    color: "text-success" },
-          { label:"This Week",    value: fmt(stats.week),        sub: `${stats.weekCount} transactions`,    icon: Activity,    color: "text-primary" },
-          { label:"This Month",   value: fmt(stats.month),       sub: `${stats.monthCount} transactions`,   icon: TrendingUp,  color: "text-foreground" },
-          { label:"Outstanding",  value: fmt(stats.totalOutstanding), sub: `${stats.vendorsTotal - stats.vendorsPaid} vendors unpaid`, icon: AlertCircle, color: "text-accent" },
+          { label:"Today's Total",  value: fmt(stats.today),       sub: `${stats.todayCount} transactions`,   icon: Calendar,    iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label:"This Week",      value: fmt(stats.week),        sub: `${stats.weekCount} transactions`,    icon: Activity,    iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+          { label:"This Month",     value: fmt(stats.month),       sub: `${stats.monthCount} transactions`,   icon: TrendingUp,  iconBg: "bg-violet-100", iconColor: "#a855f7", glow: "#a855f7", gradient: "from-violet-50 to-violet-50/30" },
+          { label:"Outstanding",    value: fmt(stats.totalOutstanding), sub: `${stats.vendorsTotal - stats.vendorsPaid} vendors unpaid`, icon: AlertCircle, iconBg: "bg-amber-100", iconColor: "#f59e0b", glow: "#f59e0b", gradient: "from-amber-50 to-amber-50/30" },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border bg-card p-4 shadow-civic">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">{c.label}</p>
-              <c.icon className={`h-4 w-4 ${c.color}`}/>
+          <div key={c.label} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
+            <div className="flex items-center justify-between z-10">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              </div>
             </div>
-            <p className={`font-mono text-lg font-bold ${c.color}`}>{c.value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{c.sub}</p>
+            <div className="z-10 mt-2">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -473,8 +487,8 @@ const CashierReports = () => {
       <div className="flex gap-1 rounded-xl bg-secondary p-1 flex-wrap">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
-              activeTab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeTab === t.id ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
             }`}>
             <t.icon className="h-3.5 w-3.5"/>{t.label}
           </button>

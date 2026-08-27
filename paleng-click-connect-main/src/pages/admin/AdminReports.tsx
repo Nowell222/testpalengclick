@@ -305,58 +305,59 @@ const AdminReports = () => {
   const currentMonth = allData?.currentMonth || new Date().getMonth() + 1;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{background:"linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)",boxShadow:"0 20px 48px rgba(15,110,86,0.15)"}}>
-        {[[200,"-60px","-60px","top","right"],[250,"-100px","-60px","bottom","left"]].map(([sz,a,b,v,h],i)=>(
-          <div key={i} style={{position:"absolute",[v as string]:a,[h as string]:b,width:sz,height:sz,borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.08)",pointerEvents:"none"}}/>
-        ))}
-        <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.04,backgroundImage:"radial-gradient(circle,#fff 1px,transparent 1px)",backgroundSize:"22px 22px"}}/>
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{color:"rgba(255,255,255,0.6)"}}>Admin Portal</p>
-            <h1 className="text-2xl font-bold text-white">Reports & Analytics</h1>
-            <p className="text-xs mt-1" style={{color:"rgba(255,255,255,0.6)"}}>Collection reports, analytics, and vendor payment insights</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Analytics</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Reports & Analytics</h1>
+            <p className="text-xs text-white/70 mt-0.5">Comprehensive collection trends, vendor compliance, and financial reports</p>
           </div>
-          <button onClick={()=>refetch()} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20 transition-colors">
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-all">
             <RefreshCw className="h-3.5 w-3.5"/> Refresh
           </button>
         </div>
         {/* Stats strip */}
-        <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="relative mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
-            {label:"Year-to-date",    value:fmt(stats.totalYear)},
-            {label:"Outstanding",     value:fmt(stats.outstanding)},
-            {label:"Stall Occupancy", value:`${stats.occupied}/${stats.stalls}`},
-            {label:"Vendor Compliance",value:`${stats.paidVendors}/${stats.vendors}`},
-          ].map(s=>(
-            <div key={s.label} className="rounded-xl px-4 py-3" style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)"}}>
-              <p className="font-mono text-lg font-bold text-white">{s.value}</p>
-              <p className="text-[10px] mt-0.5" style={{color:"rgba(255,255,255,0.6)"}}>{s.label}</p>
+            { label: "Year-to-date", value: fmt(stats.totalYear) },
+            { label: "Outstanding", value: fmt(stats.outstanding) },
+            { label: "Stall Occupancy", value: `${stats.occupied}/${stats.stalls}` },
+            { label: "Vendor Compliance", value: `${stats.paidVendors}/${stats.vendors}` },
+          ].map(s => (
+            <div key={s.label} className="rounded-xl px-3.5 py-2" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}>
+              <p className="font-mono text-base font-bold text-white leading-tight">{s.value}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>{s.label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── KPI cards ────────────────────────────────────────────────────── */}
+      {/* ── 4 Top KPI cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          {label:"Total Collected",  value:fmt(stats.totalYear),   sub:`${allData?.currentYear} year-to-date`,           icon:DollarSign,  iconBg:"bg-emerald-100",iconColor:"#10b981",glow:"#10b981",gradient:"from-emerald-50 to-emerald-50/40"},
-          {label:"Active Vendors",   value:String(stats.vendors),  sub:`${stats.paidVendors} paid this month`,           icon:Users,       iconBg:"bg-blue-100",   iconColor:"#0ea5e9",glow:"#0ea5e9",gradient:"from-blue-50 to-blue-50/40"},
-          {label:"Stall Occupancy",  value:`${stats.occupied}/${stats.stalls}`, sub:`${stats.stalls>0?Math.round(stats.occupied/stats.stalls*100):0}% occupied`, icon:Store, iconBg:"bg-amber-100", iconColor:"#f59e0b",glow:"#f59e0b",gradient:"from-amber-50 to-amber-50/40"},
-          {label:"Outstanding",      value:fmt(stats.outstanding), sub:"all vendors combined",                           icon:AlertCircle, iconBg:stats.outstanding>0?"bg-accent/10":"bg-emerald-100",iconColor:stats.outstanding>0?"hsl(var(--accent))":"#10b981",glow:stats.outstanding>0?"hsl(var(--accent))":"#10b981",gradient:stats.outstanding>0?"from-accent/5 to-accent/5":"from-emerald-50 to-emerald-50/40"},
-        ].map((c,i)=>(
-          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`} style={{minHeight:110}}>
-            <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity" style={{background:c.glow}}/>
+          { label: "Total Collected", value: fmt(stats.totalYear), sub: `${allData?.currentYear} year-to-date`, icon: DollarSign, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "Active Vendors", value: String(stats.vendors), sub: `${stats.paidVendors} paid this month`, icon: Users, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Stall Occupancy", value: `${stats.occupied}/${stats.stalls}`, sub: `${stats.stalls>0?Math.round(stats.occupied/stats.stalls*100):0}% occupied`, icon: Store, iconBg: "bg-amber-100", iconColor: "#f59e0b", glow: "#f59e0b", gradient: "from-amber-50 to-amber-50/30" },
+          { label: "Outstanding", value: fmt(stats.outstanding), sub: "all vendors combined", icon: AlertCircle, iconBg: stats.outstanding>0?"bg-rose-100":"bg-emerald-100", iconColor: stats.outstanding>0?"#f43f5e":"#10b981", glow: stats.outstanding>0?"#f43f5e":"#10b981", gradient: stats.outstanding>0?"from-rose-50 to-rose-50/30":"from-emerald-50 to-emerald-50/30" },
+        ].map((c, i) => (
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                <c.icon className="h-4 w-4" style={{color:c.iconColor}}/>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-8 w-8 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
               </div>
             </div>
             <div className="z-10 mt-2">
-              <p className="font-mono text-[17px] font-bold text-foreground">{c.value}</p>
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
               <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">{c.sub}</p>
             </div>
           </div>
@@ -365,42 +366,53 @@ const AdminReports = () => {
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 rounded-xl bg-secondary p-1 flex-wrap">
-        {TABS.map(t=>(
-          <button key={t.id} onClick={()=>setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all ${activeTab===t.id?"bg-card text-foreground shadow-sm":"text-muted-foreground hover:text-foreground"}`}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${activeTab===t.id?"bg-card text-foreground shadow-xs font-bold":"text-muted-foreground hover:text-foreground"}`}>
             <t.icon className="h-3.5 w-3.5"/>{t.label}
           </button>
         ))}
       </div>
 
       {/* ── Date filter (shared) ─────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-md"/>
-          <p className="text-[13px] font-bold text-foreground">Date Range & Filters</p>
-          <div className="ml-auto flex gap-1 flex-wrap">
-            {[["today","Today"],["week","Week"],["month","Month"],["last-month","Last Month"],["year","Year"]].map(([k,l])=>(
-              <button key={k} onClick={()=>setQuick(k)} className="rounded-lg border px-2.5 py-1 text-xs text-muted-foreground hover:bg-secondary transition-colors">{l}</button>
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b bg-gradient-to-r from-emerald-50/50 to-transparent">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-600 shadow-xs" />
+            <p className="text-xs font-bold text-foreground">Date Range & Filters</p>
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {[["today","Today"],["week","Week"],["month","Month"],["last-month","Last Month"],["year","Year"]].map(([k,l]) => (
+              <button key={k} onClick={() => setQuick(k)} className="rounded-lg border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:bg-secondary transition-colors">{l}</button>
             ))}
           </div>
         </div>
-        <div className="p-4 flex gap-3 flex-wrap items-end">
-          <div className="space-y-1"><label className="text-xs text-muted-foreground">From</label><Input type="date" className="h-9 rounded-xl text-sm" value={dateFrom} max={today} onChange={e=>setDateFrom(e.target.value)}/></div>
-          <div className="space-y-1"><label className="text-xs text-muted-foreground">To</label><Input type="date" className="h-9 rounded-xl text-sm" value={dateTo} max={today} onChange={e=>setDateTo(e.target.value)}/></div>
+        <div className="p-3.5 flex gap-2.5 flex-wrap items-end">
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">Section</label>
-            <select className="h-9 rounded-xl border bg-background px-3 text-sm" value={filterSection} onChange={e=>setFilterSection(e.target.value)}>
+            <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">From</label>
+            <Input type="date" className="h-8 rounded-lg text-xs" value={dateFrom} max={today} onChange={e=>setDateFrom(e.target.value)}/>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">To</label>
+            <Input type="date" className="h-8 rounded-lg text-xs" value={dateTo} max={today} onChange={e=>setDateTo(e.target.value)}/>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Section</label>
+            <select className="h-8 rounded-lg border bg-background px-2.5 text-xs" value={filterSection} onChange={e=>setFilterSection(e.target.value)}>
               <option value="all">All Sections</option>
-              {SECTIONS.map(s=><option key={s}>{s}</option>)}
+              {SECTIONS.map(s => <option key={s}>{s}</option>)}
             </select>
           </div>
           <div className="space-y-1 flex-1 min-w-[160px]">
-            <label className="text-xs text-muted-foreground">Search</label>
-            <div className="relative"><Input placeholder="Vendor or stall…" className="h-9 rounded-xl text-sm pl-8" value={search} onChange={e=>setSearch(e.target.value)}/><Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/></div>
+            <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Search</label>
+            <div className="relative">
+              <Input placeholder="Vendor or stall…" className="h-8 rounded-lg text-xs pl-7" value={search} onChange={e=>setSearch(e.target.value)}/>
+              <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground"/>
+            </div>
           </div>
           <div className="text-right pb-0.5">
-            <p className="text-xs font-mono font-bold text-success">{fmt(stats.totalRange)}</p>
-            <p className="text-xs text-muted-foreground">{stats.txRange} transactions</p>
+            <p className="text-xs font-mono font-bold text-success leading-none">{fmt(stats.totalRange)}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{stats.txRange} transactions</p>
           </div>
         </div>
       </div>

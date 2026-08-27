@@ -199,34 +199,34 @@ const CashierSettings = () => {
                   Security
                 </h2>
               </div>
-              <form onSubmit={handleUpdateAccount} className="p-5 flex flex-col flex-1 gap-4 overflow-y-auto">
-                <div className="space-y-1.5">
+              <form onSubmit={handleUpdateAccount} className="p-4 flex flex-col flex-1 gap-3 overflow-y-auto">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500" size={14} />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500" size={13} />
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none bg-slate-50/30" required />
+                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs focus:border-emerald-500 transition-all outline-none bg-slate-50/30" required />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">New Password</label>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500" size={14} />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500" size={13} />
                     <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••" className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none bg-slate-50/30" />
+                      placeholder="••••••••" className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs focus:border-emerald-500 transition-all outline-none bg-slate-50/30" />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Confirm Password</label>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500" size={14} />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500" size={13} />
                     <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••" className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/5 transition-all outline-none bg-slate-50/30" />
+                      placeholder="••••••••" className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs focus:border-emerald-500 transition-all outline-none bg-slate-50/30" />
                   </div>
                 </div>
-                <div className="mt-auto pt-4">
-                  <Button type="submit" disabled={loading} className="w-full rounded-xl gap-2 bg-slate-900 hover:bg-slate-800 h-11 text-xs font-bold transition-all active:scale-95">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save size={16} />}
+                <div className="mt-auto pt-3">
+                  <Button type="submit" disabled={loading} className="w-full rounded-xl gap-1.5 bg-slate-900 hover:bg-slate-800 h-9 text-xs font-bold transition-all active:scale-95">
+                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save size={14} />}
                     Update Account
                   </Button>
                 </div>
@@ -237,44 +237,44 @@ const CashierSettings = () => {
           {/* RIGHT: Profile (Compact) */}
           <div className="lg:col-span-8 flex flex-col h-full">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
-              <div className="px-6 py-3.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
                 <h2 className="text-xs font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wider">
                   <UserCircle size={14} className="text-emerald-600" />
                   Profile Information
                 </h2>
               </div>
-              <form onSubmit={handleUpdateProfile} className="p-6 flex flex-col flex-1 gap-6 overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                  <div className="space-y-1.5">
+              <form onSubmit={handleUpdateProfile} className="p-5 flex flex-col flex-1 gap-4 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">First Name</label>
                     <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" required />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-xs font-medium" required />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Name</label>
                     <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" required />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-xs font-medium" required />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Middle Name</label>
                     <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-xs font-medium" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
                     <input type="text" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-xs font-medium" />
                   </div>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Home Address</label>
                   <textarea value={address} onChange={(e) => setAddress(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm min-h-[80px] font-medium resize-none" />
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-xs min-h-[60px] font-medium resize-none" />
                 </div>
-                <div className="mt-auto pt-4 flex justify-end">
+                <div className="mt-auto pt-3 flex justify-end">
                   <Button type="submit" disabled={loading} style={{ background: CASHIER_GRAD }}
-                    className="px-10 py-6 rounded-xl text-white font-bold flex items-center gap-3 hover:opacity-90 shadow-lg shadow-emerald-900/10 disabled:opacity-50 text-base transition-all active:scale-95">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+                    className="px-6 h-9 rounded-xl text-white font-bold flex items-center gap-2 hover:opacity-90 shadow-md shadow-emerald-900/10 disabled:opacity-50 text-xs transition-all active:scale-95">
+                    {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save size={14} />}
                     Save Changes
                   </Button>
                 </div>

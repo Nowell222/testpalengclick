@@ -165,32 +165,44 @@ const CashierSMS = () => {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Messages & Reminders</h1>
-        <p className="text-sm text-muted-foreground">Send direct messages or bulk reminders to vendors</p>
+    <div className="space-y-4">
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Messaging Hub</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Messages & Broadcast Reminders</h1>
+            <p className="text-xs text-white/70 mt-0.5">Send direct communications or broadcast SMS/push reminders to vendors</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl bg-secondary p-1 max-w-xs">
         <button onClick={() => setTab("direct")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${tab === "direct" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${tab === "direct" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"}`}>
           <MessageSquare className="h-3.5 w-3.5" /> Direct
           {threads.filter((t: any) => t.unread > 0).length > 0 && (
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-white">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] text-white">
               {threads.filter((t: any) => t.unread > 0).length}
             </span>
           )}
         </button>
         <button onClick={() => setTab("bulk")}
-          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${tab === "bulk" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
-          <Users className="h-3.5 w-3.5" /> Bulk
+          className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all ${tab === "bulk" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground"}`}>
+          <Users className="h-3.5 w-3.5" /> Bulk Broadcast
         </button>
       </div>
 
       {/* ── DIRECT TAB ────────────────────────────────────────────────────────── */}
       {tab === "direct" && (
-        <div className="grid gap-5 lg:grid-cols-[300px_1fr]" style={{ height: "560px" }}>
+        <div className="grid gap-4 lg:grid-cols-[300px_1fr]" style={{ height: "560px" }}>
           {/* Thread list */}
           <div className="rounded-2xl border bg-card shadow-civic overflow-hidden flex flex-col">
             <div className="flex items-center justify-between border-b px-4 py-3">

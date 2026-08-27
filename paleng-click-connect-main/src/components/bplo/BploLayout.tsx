@@ -160,7 +160,7 @@ export default function BploLayout() {
         <>
           <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 49, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }} />
           <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, width: 280, background: BPLO_SIDEBAR_BG, borderLeft: "1px solid rgba(59,130,246,0.12)", boxShadow: "-6px 0 32px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyBox: "center", justifyContent: "space-between" }}>
+            <div style={{ padding: "14px 14px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 9, background: BPLO_GRAD, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <img src="/favicon.png" alt="PC Logo" style={{ width: 22, height: 22, objectFit: "contain" }} />
@@ -210,7 +210,7 @@ export default function BploLayout() {
               </span>
             </div>
           </header>
-          <main style={{ flex: 1, overflowY: "auto", padding: "24px", background: ROLE_COLORS.bg }}>
+          <main style={{ flex: 1, overflowY: "auto", padding: "20px 24px", background: ROLE_COLORS.bg }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <PushNotificationBanner />
               <Outlet />

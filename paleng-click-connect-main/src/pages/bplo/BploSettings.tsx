@@ -245,36 +245,36 @@ const BploSettings = () => {
                 </h2>
               </div>
               <form onSubmit={handleUpdateProfile} className="p-6 flex flex-col gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">First Name</label>
                     <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" required />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-blue-500 transition-all outline-none text-foreground bg-slate-50/30 text-xs font-medium" required />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Name</label>
                     <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" required />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-blue-500 transition-all outline-none text-foreground bg-slate-50/30 text-xs font-medium" required />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Middle Name</label>
                     <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-blue-500 transition-all outline-none text-foreground bg-slate-50/30 text-xs font-medium" />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact Number</label>
                     <input type="text" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-blue-500 transition-all outline-none text-foreground bg-slate-50/30 text-xs font-medium" />
                   </div>
-                  <div className="space-y-1.5 md:col-span-2">
+                  <div className="space-y-1 md:col-span-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Home Address</label>
                     <input type="text" value={address} onChange={(e) => setAddress(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all outline-none text-slate-700 bg-slate-50/30 text-sm font-medium" />
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-blue-500 transition-all outline-none text-foreground bg-slate-50/30 text-xs font-medium" />
                   </div>
                 </div>
-                <div className="pt-4 flex justify-end">
-                  <Button type="submit" disabled={loading} className="w-full md:w-auto px-6 rounded-xl gap-2 bg-blue-600 hover:bg-blue-700 h-11 text-xs font-bold text-white transition-all active:scale-95">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save size={16} />}
+                <div className="pt-2 flex justify-end">
+                  <Button type="submit" disabled={loading} className="w-full md:w-auto px-5 rounded-xl gap-2 bg-blue-600 hover:bg-blue-700 h-9 text-xs font-bold text-white transition-all active:scale-95 shadow-xs">
+                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save size={14} />}
                     Save Changes
                   </Button>
                 </div>

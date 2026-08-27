@@ -452,44 +452,48 @@ const AdminNews = () => {
   const totalUnread = threads.filter((t: any) => t.unread > 0).length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
 
-      {/* ── Hero ────────────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 20px 48px rgba(15,110,86,0.15)" }}>
-        <div className="px-6 py-5 flex items-start justify-between flex-wrap gap-4 relative overflow-hidden">
-          <div style={{ position: "absolute", top: -30, right: -30, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)" }} />
-          <div style={{ position: "absolute", inset: 0, opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div className="p-5 flex items-center justify-between flex-wrap gap-4 relative overflow-hidden">
+          <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", inset: 0, opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px", pointerEvents: "none" }} />
           <div className="relative">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Admin Portal</p>
-            <h1 className="text-2xl font-bold text-white">News & Inbox</h1>
-            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>Publish announcements and send direct messages to vendors</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Broadcasts</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">News & Direct Messages</h1>
+            <p className="text-xs text-white/70 mt-0.5">Publish market announcements and communicate directly with vendors</p>
           </div>
           <div className="relative flex items-center gap-2">
             {tab === "announcements" && !isReadOnly && (
-              <Button onClick={() => setShowCreate(true)} className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
-                <Plus className="h-4 w-4" /> New Announcement
+              <Button onClick={() => setShowCreate(true)} className="gap-1.5 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border h-9 px-3.5 text-xs font-semibold">
+                <Plus className="h-3.5 w-3.5" /> New Announcement
               </Button>
             )}
             {tab === "messages" && !isReadOnly && (
-              <Button onClick={() => setShowNewMsg(true)} className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
-                <MessageSquare className="h-4 w-4" /> New Message
+              <Button onClick={() => setShowNewMsg(true)} className="gap-1.5 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border h-9 px-3.5 text-xs font-semibold">
+                <MessageSquare className="h-3.5 w-3.5" /> New Message
               </Button>
             )}
           </div>
         </div>
 
         {/* Stats strip */}
-        <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10">
+        <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 bg-black/10">
           {[
             { label: "Total Posted", value: news.length, icon: Newspaper },
             { label: "Vendors Reached", value: totalReach, icon: Users },
             { label: "Urgent Notices", value: urgentCount, icon: AlertTriangle },
           ].map((s, i) => (
-            <div key={i} className="px-5 py-3 flex items-center gap-3">
-              <s.icon className="h-4 w-4 shrink-0" style={{ color: "rgba(255,255,255,0.5)" }} />
+            <div key={i} className="px-4 py-2.5 flex items-center gap-2.5">
+              <s.icon className="h-3.5 w-3.5 shrink-0" style={{ color: "rgba(255,255,255,0.6)" }} />
               <div>
-                <p className="text-lg font-bold text-white leading-none">{s.value}</p>
-                <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{s.label}</p>
+                <p className="text-sm font-bold text-white leading-none">{s.value}</p>
+                <p className="text-[9px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>{s.label}</p>
               </div>
             </div>
           ))}
@@ -497,16 +501,16 @@ const AdminNews = () => {
       </div>
 
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 rounded-xl border bg-card p-1 shadow-sm w-fit">
+      <div className="flex gap-1 rounded-xl bg-secondary p-1 w-fit">
         <button onClick={() => setTab("announcements")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === "announcements" ? "bg-green-700 text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"}`}>
+          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${tab === "announcements" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"}`}>
           <Megaphone className="h-3.5 w-3.5" /> Announcements
-          <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">{news.length}</span>
+          <span className="rounded-full bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-bold">{news.length}</span>
         </button>
         <button onClick={() => setTab("messages")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${tab === "messages" ? "bg-green-700 text-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"}`}>
+          className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${tab === "messages" ? "bg-card text-foreground shadow-xs font-bold" : "text-muted-foreground hover:text-foreground"}`}>
           <MessageSquare className="h-3.5 w-3.5" /> Messages
-          {totalUnread > 0 && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-green-700 text-[10px] font-bold">{totalUnread}</span>}
+          {totalUnread > 0 && <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600 text-white text-[9px] font-bold">{totalUnread}</span>}
         </button>
       </div>
 

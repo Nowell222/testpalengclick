@@ -1397,30 +1397,34 @@ const AdminUserManagement = () => {
         </div>
       )}
 
-      {/* ── Hero header ───────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 20px 48px rgba(15,110,86,0.15)" }}>
-        <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
-        <div className="relative flex items-start justify-between flex-wrap gap-4">
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Admin Portal</p>
-            <h1 className="text-2xl font-bold text-white">User Management</h1>
-            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>Create, edit, and manage vendor and cashier accounts</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Admin Portal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Users</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">User Management</h1>
+            <p className="text-xs text-white/70 mt-0.5">Create, edit, and manage vendor, cashier, and staff accounts</p>
           </div>
           {!isReadOnly && (
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <Button onClick={() => { setShowCreate(true); if (form.role === "vendor") generateStallNumber(form.section); }}
-                className="gap-2 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border">
-                <UserPlus className="h-4 w-4" /> Create Account
+                className="gap-1.5 rounded-xl border-white/20 bg-white/15 text-white hover:bg-white/25 border h-9 px-3 text-xs font-semibold">
+                <UserPlus className="h-3.5 w-3.5" /> Create Account
               </Button>
               <Button onClick={() => { setShowImport(v => !v); resetImport(); }}
-                className="gap-2 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 border">
-                <FileUp className="h-4 w-4" /> Import CSV
+                className="gap-1.5 rounded-xl border-white/20 bg-white/10 text-white hover:bg-white/20 border h-9 px-3 text-xs font-semibold">
+                <FileUp className="h-3.5 w-3.5" /> Import CSV
               </Button>
               {selectedUsers.length > 0 && (
                 <Button onClick={() => { setIsBulkDelete(true); setDeleteConfirmText(""); }}
-                  className="gap-2 rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-900/20 animate-in zoom-in-95 duration-200">
-                  <XCircle className="h-4 w-4" /> Delete ({selectedUsers.length})
+                  className="gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-xs animate-in zoom-in-95 duration-200 h-9 px-3 text-xs font-semibold">
+                  <XCircle className="h-3.5 w-3.5" /> Delete ({selectedUsers.length})
                 </Button>
               )}
             </div>
@@ -1428,26 +1432,24 @@ const AdminUserManagement = () => {
         </div>
       </div>
 
-      {/* ── Summary KPI cards ── now 5 cards including Delinquent ─────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      {/* ── Summary KPI cards (5 compact columns) ─────────────────────────── */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
         {[
-          { label: "Total Users", value: counts.total, icon: Users, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/40" },
-          { label: "Vendors", value: counts.vendors, icon: Store, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/40" },
-          { label: "Active", value: counts.active, icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/40" },
-          // NEW: Delinquent KPI card — amber
-          { label: "Delinquent", value: counts.delinquent, icon: AlertTriangle, iconBg: counts.delinquent > 0 ? "bg-amber-100" : "bg-secondary", iconColor: counts.delinquent > 0 ? "#d97706" : "hsl(220,10%,55%)", glow: counts.delinquent > 0 ? "#d97706" : "transparent", gradient: counts.delinquent > 0 ? "from-amber-50 to-amber-50/40" : "from-secondary to-secondary/40" },
-          { label: "Suspended", value: counts.suspended, icon: AlertCircle, iconBg: counts.suspended > 0 ? "bg-red-100" : "bg-secondary", iconColor: counts.suspended > 0 ? "#ef4444" : "hsl(220,10%,55%)", glow: counts.suspended > 0 ? "#ef4444" : "transparent", gradient: counts.suspended > 0 ? "from-red-50 to-red-50/40" : "from-secondary to-secondary/40" },
+          { label: "Total Users", value: String(counts.total), icon: Users, iconBg: "bg-blue-100", iconColor: "#0ea5e9", glow: "#0ea5e9", gradient: "from-blue-50 to-blue-50/30" },
+          { label: "Vendors", value: String(counts.vendors), icon: Store, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "Active", value: String(counts.active), icon: CheckCircle2, iconBg: "bg-emerald-100", iconColor: "#10b981", glow: "#10b981", gradient: "from-emerald-50 to-emerald-50/30" },
+          { label: "Delinquent", value: String(counts.delinquent), icon: AlertTriangle, iconBg: counts.delinquent > 0 ? "bg-amber-100" : "bg-secondary", iconColor: counts.delinquent > 0 ? "#f59e0b" : "hsl(220,10%,55%)", glow: counts.delinquent > 0 ? "#f59e0b" : "transparent", gradient: counts.delinquent > 0 ? "from-amber-50 to-amber-50/30" : "from-secondary to-secondary/30" },
+          { label: "Suspended", value: String(counts.suspended), icon: AlertCircle, iconBg: counts.suspended > 0 ? "bg-rose-100" : "bg-secondary", iconColor: counts.suspended > 0 ? "#f43f5e" : "hsl(220,10%,55%)", glow: counts.suspended > 0 ? "#f43f5e" : "transparent", gradient: counts.suspended > 0 ? "from-rose-50 to-rose-50/30" : "from-secondary to-secondary/30" },
         ].map((c, i) => (
-          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-4 hover:shadow-md transition-all duration-300 group`} style={{ minHeight: 110 }}>
-            <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-[0.08] blur-lg group-hover:opacity-[0.12] transition-opacity" style={{ background: c.glow }} />
+          <div key={i} className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.gradient} flex flex-col justify-between p-3.5 hover:shadow-sm transition-all duration-300 group`}>
             <div className="flex items-center justify-between z-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{c.label}</p>
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm ${c.iconBg} group-hover:shadow-md transition-shadow`}>
-                <c.icon className="h-4 w-4" style={{ color: c.iconColor }} />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{c.label}</p>
+              <div className={`h-7 w-7 rounded-lg flex items-center justify-center shadow-xs ${c.iconBg}`}>
+                <c.icon className="h-3.5 w-3.5" style={{ color: c.iconColor }} />
               </div>
             </div>
-            <div className="z-10 mt-2">
-              <p className="font-mono text-[22px] font-bold text-foreground">{c.value}</p>
+            <div className="z-10 mt-1.5">
+              <p className="font-mono text-[16px] font-bold text-foreground leading-tight">{c.value}</p>
             </div>
           </div>
         ))}
@@ -2109,13 +2111,13 @@ const AdminUserManagement = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Search + filters — added delinquent option ────────────────────── */}
-      <div className="flex gap-2 flex-wrap">
+      {/* ── Search + filters ─────────────────────────────────────────────── */}
+      <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by name, stall, or contact…" className="h-10 pl-10 rounded-xl" value={search} onChange={e => setSearch(e.target.value)} />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Search by name, stall, or contact…" className="h-9 pl-9 rounded-xl text-xs" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="h-10 rounded-xl border bg-background px-3 text-sm" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
+        <select className="h-9 rounded-xl border bg-background px-3 text-xs" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
           <option value="all">All Roles</option>
           <option value="vendor">Vendors</option>
           <option value="cashier">Cashiers</option>
@@ -2123,7 +2125,7 @@ const AdminUserManagement = () => {
           <option value="bplo">BPLO</option>
           <option value="eemo">Viewers (EEMO)</option>
         </select>
-        <select className="h-10 rounded-xl border bg-background px-3 text-sm" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <select className="h-9 rounded-xl border bg-background px-3 text-xs" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="delinquent">Delinquent</option>
@@ -2131,36 +2133,36 @@ const AdminUserManagement = () => {
         </select>
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Showing <strong className="text-foreground">{filtered.length}</strong> of <strong className="text-foreground">{users.length}</strong> accounts
       </p>
 
       {/* ── Users table ───────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
+      <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-14 gap-3">
-            <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "#0f6e56" }}>
-              <Loader2 className="h-5 w-5 animate-spin text-white" />
+          <div className="flex flex-col items-center justify-center py-12 gap-2.5">
+            <div className="h-8 w-8 rounded-full flex items-center justify-center" style={{ background: "#0f6e56" }}>
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
             </div>
-            <p className="text-sm text-muted-foreground">Loading accounts…</p>
+            <p className="text-xs text-muted-foreground">Loading accounts…</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b" style={{ background: "linear-gradient(135deg,#0d3320 0%,#0f6e56 100%)" }}>
                   {!isReadOnly && (
-                    <th className="px-4 py-3.5 w-10">
+                    <th className="px-3.5 py-3 w-10">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                        className="h-3.5 w-3.5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
                         checked={filtered.length > 0 && selectedUsers.length === filtered.length}
                         onChange={toggleSelectAll}
                       />
                     </th>
                   )}
                   {["Account", "Role", "Stall", "Contact", "Status", "Actions"].map(h => (
-                    <th key={h} className="px-4 py-3.5 text-left font-semibold text-emerald-100 text-xs uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-3.5 py-3 text-left font-semibold text-emerald-100 text-[11px] uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>

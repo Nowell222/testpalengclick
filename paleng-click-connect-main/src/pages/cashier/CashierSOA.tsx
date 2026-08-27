@@ -463,23 +463,35 @@ const CashierSOA = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Hidden print iframe */}
       <iframe ref={printFrameRef} style={{ display: "none" }} title="print-frame" />
 
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Statement of Account</h1>
-        <p className="text-sm text-muted-foreground">Search vendors, view their SOA, and print or save as PDF</p>
+      {/* ── Executive Header Banner ───────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f6e56 0%,#0d5a47 100%)", boxShadow: "0 12px 32px rgba(15,110,86,0.12)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.04, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "22px 22px" }} />
+        <div className="relative flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">Cashier Terminal</span>
+              <span className="h-1 w-1 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-emerald-100">Official Statements</span>
+            </div>
+            <h1 className="text-xl font-bold text-white leading-snug">Statement of Account (SOA)</h1>
+            <p className="text-xs text-white/70 mt-0.5">Search vendors, view breakdown of fees, and print official statements</p>
+          </div>
+        </div>
       </div>
 
       {/* Bulk print bar */}
-      <div className="rounded-2xl border bg-card p-4 shadow-civic flex flex-wrap items-center gap-3">
+      <div className="rounded-2xl border bg-card p-3 shadow-xs flex flex-wrap items-center gap-2.5">
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Bulk Print SOA by Section</span>
+          <Users className="h-4 w-4 text-emerald-600" />
+          <span className="text-xs font-semibold text-foreground">Bulk Print by Section:</span>
         </div>
         <select
-          className="h-9 rounded-xl border bg-background px-3 text-sm flex-1 min-w-[160px]"
+          className="h-8 rounded-xl border bg-background px-3 text-xs flex-1 min-w-[160px]"
           value={bulkSection}
           onChange={e => setBulkSection(e.target.value)}
         >
@@ -491,54 +503,57 @@ const CashierSOA = () => {
         </select>
         <Button
           variant="outline"
-          className="gap-2 rounded-xl h-9 shrink-0"
+          className="gap-1.5 rounded-xl h-8 text-xs font-semibold shrink-0"
           disabled={bulkPrinting || isLoading}
           onClick={handleBulkPrint}
         >
           {bulkPrinting
-            ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-            : <><FileDown className="h-4 w-4" /> Print All SOAs</>}
+            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
+            : <><FileDown className="h-3.5 w-3.5" /> Print Section SOAs</>}
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
         {/* ── LEFT: Vendor list ───────────────────────────────────────────── */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name or stall..."
-              className="h-11 pl-10 rounded-xl"
+              className="h-9 pl-9 rounded-xl text-xs bg-background"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-emerald-600" /></div>
           ) : (
-            <div className="rounded-2xl border bg-card shadow-civic overflow-hidden">
-              <div className="border-b bg-secondary/50 px-4 py-2.5">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {filtered.length} vendor{filtered.length !== 1 ? "s" : ""}
-                </p>
+            <div className="rounded-2xl border bg-card shadow-xs overflow-hidden">
+              <div className="border-b bg-gradient-to-r from-emerald-50/50 to-transparent px-3.5 py-2 flex justify-between items-center">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Vendors List
+                </span>
+                <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                  {filtered.length}
+                </span>
               </div>
-              <div className="divide-y max-h-[600px] overflow-y-auto">
+              <div className="divide-y max-h-[560px] overflow-y-auto p-1.5 space-y-1">
                 {filtered.map((v: any) => (
                   <button
                     key={v.id}
                     onClick={() => loadSOA(v)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50 transition-colors ${selected?.vendorId === v.id ? "bg-primary/5 border-l-2 border-l-primary" : ""
+                    className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left transition-all ${selected?.vendorId === v.id ? "bg-emerald-50 text-emerald-900 border border-emerald-300 font-semibold shadow-xs" : "hover:bg-secondary/60 text-foreground border border-transparent"
                       }`}
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary">
-                      <User className="h-4 w-4 text-muted-foreground" />
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${selected?.vendorId === v.id ? "bg-emerald-600 text-white shadow-xs" : "bg-secondary text-muted-foreground"}`}>
+                      <User className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{v.displayName}</p>
-                      <p className="text-xs text-muted-foreground">Stall {v.stallNumber} · {v.section}</p>
+                      <p className="text-xs font-semibold truncate">{v.displayName}</p>
+                      <p className="text-[10px] text-muted-foreground">Stall {v.stallNumber} · {v.section}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   </button>
                 ))}
                 {filtered.length === 0 && (
