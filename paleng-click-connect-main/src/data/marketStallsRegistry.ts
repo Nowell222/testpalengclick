@@ -982,15 +982,29 @@ export function findStallByNumber(query: string): MarketStallInfo | null {
 
 /**
  * Search stalls for autocomplete suggestions
+ * @param query Search query string
+ * @param limit Max number of results to return
+ * @param excludedKeys Optional set or array of stall keys (normalized) to exclude (e.g. occupied stalls)
  */
-export function searchStalls(query: string, limit = 8): MarketStallInfo[] {
+export function searchStalls(
+  query: string,
+  limit = 8,
+  excludedKeys?: Set<string> | string[]
+): MarketStallInfo[] {
   if (!query || !query.trim()) return [];
   const q = normalizeStallKey(query);
   if (!q) return [];
 
+  const excludedSet = excludedKeys
+    ? (excludedKeys instanceof Set ? excludedKeys : new Set(excludedKeys.map(k => normalizeStallKey(k))))
+    : null;
+
   const results: MarketStallInfo[] = [];
   for (const stall of MARKET_STALLS_REGISTRY) {
     const key = normalizeStallKey(stall.stallNumber);
+    if (excludedSet && excludedSet.has(key)) {
+      continue;
+    }
     if (key.startsWith(q) || key.includes(q)) {
       results.push(stall);
       if (results.length >= limit) break;
@@ -998,3 +1012,17 @@ export function searchStalls(query: string, limit = 8): MarketStallInfo[] {
   }
   return results;
 }
+
+/**
+ * Checks if a stall is in the list of occupied/excluded keys
+ */
+export function isStallOccupied(stallNumber: string, occupiedKeys: Set<string> | string[]): boolean {
+  if (!stallNumber || !stallNumber.trim()) return false;
+  const key = normalizeStallKey(stallNumber);
+  if (!key) return false;
+  if (occupiedKeys instanceof Set) {
+    return occupiedKeys.has(key);
+  }
+  return occupiedKeys.some(k => normalizeStallKey(k) === key);
+}
+

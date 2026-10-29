@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Store, Loader2, ArrowLeft, CheckCircle2, Search, MapPin, Check } from "lucide-react";
+import { Store, Loader2, ArrowLeft, CheckCircle2, Search, MapPin, Check, Ban, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { computeRatesFromArea } from "@/lib/utils";
-import { findStallByNumber, searchStalls, MarketStallInfo } from "@/data/marketStallsRegistry";
+import { findStallByNumber, searchStalls, isStallOccupied, normalizeStallKey, MarketStallInfo } from "@/data/marketStallsRegistry";
 
 const VendorApply = () => {
   const navigate = useNavigate();
@@ -36,6 +36,8 @@ const VendorApply = () => {
   const [stallSuggestions, setStallSuggestions] = useState<MarketStallInfo[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [matchedStall, setMatchedStall] = useState<MarketStallInfo | null>(null);
+  const [occupiedStalls, setOccupiedStalls] = useState<Set<string>>(new Set());
+  const [isLoadingOccupied, setIsLoadingOccupied] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,7 +50,69 @@ const VendorApply = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Fetch occupied and reserved stalls so they disappear from auto-fill
+  useEffect(() => {
+    let isMounted = true;
+    const fetchOccupied = async () => {
+      setIsLoadingOccupied(true);
+      const keys = new Set<string>();
+      try {
+        // 1. Try public RPC function
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("get_occupied_stalls");
+        if (!rpcErr && Array.isArray(rpcData)) {
+          rpcData.forEach((row: any) => {
+            if (row?.stall_number) keys.add(normalizeStallKey(row.stall_number));
+          });
+        }
+
+        // 2. Also check direct stalls query for occupied status
+        const { data: directStalls, error: directErr } = await supabase
+          .from("stalls")
+          .select("stall_number")
+          .eq("status", "occupied");
+        if (!directErr && Array.isArray(directStalls)) {
+          directStalls.forEach((s: any) => {
+            if (s?.stall_number) keys.add(normalizeStallKey(s.stall_number));
+          });
+        }
+
+        // 3. Also check pending vendor applications so duplicate applications aren't made
+        const { data: pendingApps } = await supabase
+          .from("vendor_applications")
+          .select("admin_notes")
+          .eq("status", "pending");
+        if (Array.isArray(pendingApps)) {
+          pendingApps.forEach((app: any) => {
+            if (app?.admin_notes) {
+              try {
+                const parsed = JSON.parse(app.admin_notes);
+                if (parsed?.stall_number) {
+                  keys.add(normalizeStallKey(parsed.stall_number));
+                }
+              } catch {}
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Could not fetch occupied stalls list:", err);
+      } finally {
+        if (isMounted) {
+          setOccupiedStalls(keys);
+          setIsLoadingOccupied(false);
+        }
+      }
+    };
+
+    fetchOccupied();
+    return () => { isMounted = false; };
+  }, []);
+
   const handleStallSelect = (stall: MarketStallInfo) => {
+    if (isStallOccupied(stall.stallNumber, occupiedStalls)) {
+      toast.error(`Stall ${stall.stallNumber} is already occupied by another vendor.`);
+      return;
+    }
+
     setMatchedStall(stall);
     setShowSuggestions(false);
     setFormData((prev) => ({
@@ -74,12 +138,15 @@ const VendorApply = () => {
       return;
     }
 
-    const suggestions = searchStalls(val, 6);
+    // Exclude occupied stalls from suggestions
+    const suggestions = searchStalls(val, 6, occupiedStalls);
     setStallSuggestions(suggestions);
     setShowSuggestions(suggestions.length > 0);
 
     const directMatch = findStallByNumber(val);
-    if (directMatch) {
+    const occupied = isStallOccupied(val, occupiedStalls);
+
+    if (directMatch && !occupied) {
       setMatchedStall(directMatch);
       setFormData((prev) => ({
         ...prev,
@@ -150,6 +217,8 @@ const VendorApply = () => {
     }
   };
 
+  const isCurrentStallOccupied = hasStallRequest && !!formData.stallNumber.trim() && isStallOccupied(formData.stallNumber, occupiedStalls);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -157,6 +226,11 @@ const VendorApply = () => {
     if (formData.website) {
       console.warn("Honeypot triggered - bot detected");
       setSuccess(true);
+      return;
+    }
+
+    if (isCurrentStallOccupied) {
+      toast.error(`Stall "${formData.stallNumber.toUpperCase()}" is already occupied or reserved. Please choose an available stall.`);
       return;
     }
 
@@ -419,11 +493,15 @@ const VendorApply = () => {
                             onChange={handleChange}
                             onFocus={() => {
                               if (formData.stallNumber.trim()) {
-                                setStallSuggestions(searchStalls(formData.stallNumber, 6));
+                                setStallSuggestions(searchStalls(formData.stallNumber, 6, occupiedStalls));
                                 setShowSuggestions(true);
                               }
                             }}
-                            className="rounded-xl bg-slate-50 border-slate-200 h-11 text-sm font-mono uppercase tracking-wider pl-9"
+                            className={`rounded-xl h-11 text-sm font-mono uppercase tracking-wider pl-9 transition-colors ${
+                              isCurrentStallOccupied
+                                ? "border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20 text-rose-900"
+                                : "bg-slate-50 border-slate-200"
+                            }`}
                             disabled={isSubmitting}
                             autoComplete="off"
                           />
@@ -460,8 +538,26 @@ const VendorApply = () => {
                         )}
                       </div>
 
+                      {/* Occupied / Unavailable Warning Banner */}
+                      {isCurrentStallOccupied && (
+                        <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-900 flex items-start gap-2.5 animate-in fade-in">
+                          <Ban className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5 flex-1">
+                            <div className="flex items-center justify-between font-bold text-rose-900">
+                              <span>Stall Unavailable / Occupied</span>
+                              <span className="font-mono text-[11px] bg-rose-200/80 text-rose-900 px-2 py-0.5 rounded-md">
+                                {formData.stallNumber.toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-rose-700">
+                              This stall is already occupied by an active vendor or has a pending reservation. Please choose an available stall from the list.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Matched Stall Banner */}
-                      {matchedStall && (
+                      {matchedStall && !isCurrentStallOccupied && (
                         <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-900 flex items-start gap-2.5 animate-in fade-in">
                           <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                           <div className="space-y-0.5 flex-1">
@@ -562,10 +658,15 @@ const VendorApply = () => {
               </div>
 
               <div className="pt-4 border-t flex flex-col items-center gap-3">
+                {isCurrentStallOccupied && (
+                  <div className="w-full text-center p-2 rounded-lg bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 animate-in fade-in">
+                    ⚠️ Cannot submit: Stall {formData.stallNumber.toUpperCase()} is already occupied. Please choose an available stall.
+                  </div>
+                )}
                 <Button 
                   type="submit" 
-                  className="w-full md:w-auto md:px-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 text-base font-bold shadow-md transition-all"
-                  disabled={isSubmitting}
+                  className="w-full md:w-auto md:px-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 text-base font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting || isCurrentStallOccupied}
                 >
                   {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting Application...</> : "Submit Application"}
                 </Button>
