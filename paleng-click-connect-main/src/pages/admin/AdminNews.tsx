@@ -194,7 +194,7 @@ const AdminNews = () => {
       if (error) throw error;
 
       // Target specific vendors or all
-      let vendorQuery = supabase.from("vendors").select("user_id, stalls(section)");
+      const vendorQuery = supabase.from("vendors").select("user_id, stalls(section)");
       const { data: vendors } = await vendorQuery;
 
       const targetedVendors = targetSection === "all"

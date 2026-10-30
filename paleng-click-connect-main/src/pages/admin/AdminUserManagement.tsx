@@ -249,7 +249,7 @@ const AdminUserManagement = () => {
     }
   });
 
-  const lookupStallDetails = async (stallNum: string, setFormState: Function) => {
+  const lookupStallDetails = async (stallNum: string, setFormState: (updater: (prev: any) => any) => void) => {
     if (!stallNum) return;
     const cleanNum = stallNum.trim();
     if (cleanNum.length < 2) return;
