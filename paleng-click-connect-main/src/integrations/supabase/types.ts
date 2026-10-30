@@ -882,6 +882,12 @@ export type Database = {
         Args: { p_stall_id: string }
         Returns: Json
       }
+      get_occupied_stalls: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          stall_number: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "cashier" | "vendor" | "bplo" | "eemo"
